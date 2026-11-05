@@ -43,25 +43,33 @@
   --ss-danger: #d0645f;
   --ss-success: #3f9f7f;
   --ss-warn: #c4873a;
-  /* Liquid Glass Material (eine Quelle für alle Glasflächen) */
-  --ss-glass: rgba(255, 255, 255, 0.46);
-  --ss-glass-strong: rgba(255, 255, 255, 0.8);
+  /* Liquid Glass Material (eine Quelle für alle Glasflächen) – klares Glas:
+     kaum Füllung, leuchtende Kante, moderate Unschärfe */
+  --ss-glass: rgba(255, 255, 255, 0.16);
+  --ss-glass-strong: rgba(255, 255, 255, 0.74);
   --ss-glass-edge: rgba(255, 255, 255, 0.7);
-  --lg-thin: rgba(255, 255, 255, 0.26);
-  --lg-blur: 20px;
-  --lg-stroke: rgba(29, 37, 51, 0.07);
-  --lg-hi: rgba(255, 255, 255, 0.95);
-  --lg-rim: rgba(255, 255, 255, 0.35);
-  --lg-spec: rgba(255, 255, 255, 0.6);
-  --lg-shadow: 0 12px 32px -14px rgba(40, 52, 82, 0.26), 0 2px 6px -2px rgba(40, 52, 82, 0.08);
-  --lens-bg: rgba(255, 255, 255, 0.72);
-  --lens-edge: rgba(255, 255, 255, 0.95);
+  --lg-thin: rgba(255, 255, 255, 0.1);
+  --lg-blur: 14px;
+  --lg-filter: blur(var(--lg-blur)) saturate(170%);
+  --lg-stroke: transparent;
+  --lg-hi: rgba(255, 255, 255, 0.9);
+  --lg-rim: rgba(255, 255, 255, 0.2);
+  --lg-spec: rgba(255, 255, 255, 0.38);
+  --lg-glow: rgba(255, 255, 255, 0.28);
+  --lg-rim-a: rgba(255, 255, 255, 0.98);
+  --lg-rim-mid: rgba(255, 255, 255, 0.35);
+  --lg-rim-low: rgba(255, 255, 255, 0.18);
+  --lg-rim-b: rgba(255, 255, 255, 0.8);
+  --lg-hairline: rgba(29, 37, 51, 0.07);
+  --lg-shadow: 0 12px 30px -16px rgba(40, 52, 82, 0.28), 0 2px 6px -3px rgba(40, 52, 82, 0.08);
+  --lens-bg: rgba(255, 255, 255, 0.5);
+  --lens-edge: rgba(255, 255, 255, 0.9);
   --ss-glass-shadow: inset 0 1px 0 var(--lg-hi), var(--lg-shadow);
   --ss-card-shadow: 0 1px 2px rgba(40, 52, 82, 0.04), 0 8px 24px -14px rgba(40, 52, 82, 0.16);
   --ss-sheen: rgba(255, 255, 255, 0.55);
-  --ss-blob-a: rgba(175, 197, 245, 0.45);
-  --ss-blob-b: rgba(203, 184, 245, 0.35);
-  --ss-blob-c: rgba(170, 220, 203, 0.32);
+  --ss-blob-a: rgba(175, 197, 245, 0.55);
+  --ss-blob-b: rgba(203, 184, 245, 0.45);
+  --ss-blob-c: rgba(170, 220, 203, 0.42);
   --ss-track: rgba(29, 37, 51, 0.07);
 }
 
@@ -78,23 +86,29 @@
   --ss-danger: #f0a29d;
   --ss-success: #8fd8bd;
   --ss-warn: #f1c58c;
-  --ss-glass: rgba(26, 33, 48, 0.48);
-  --ss-glass-strong: rgba(22, 28, 42, 0.86);
+  --ss-glass: rgba(255, 255, 255, 0.045);
+  --ss-glass-strong: rgba(20, 26, 40, 0.8);
   --ss-glass-edge: rgba(255, 255, 255, 0.09);
-  --lg-thin: rgba(22, 28, 42, 0.36);
-  --lg-stroke: rgba(255, 255, 255, 0.09);
-  --lg-hi: rgba(255, 255, 255, 0.14);
+  --lg-thin: rgba(255, 255, 255, 0.03);
+  --lg-filter: blur(var(--lg-blur)) saturate(160%) brightness(1.08);
+  --lg-hi: rgba(255, 255, 255, 0.16);
   --lg-rim: rgba(255, 255, 255, 0.04);
-  --lg-spec: rgba(255, 255, 255, 0.1);
-  --lg-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6), 0 2px 8px -2px rgba(0, 0, 0, 0.35);
+  --lg-spec: rgba(255, 255, 255, 0.09);
+  --lg-glow: rgba(255, 255, 255, 0.05);
+  --lg-rim-a: rgba(255, 255, 255, 0.42);
+  --lg-rim-mid: rgba(255, 255, 255, 0.09);
+  --lg-rim-low: rgba(255, 255, 255, 0.04);
+  --lg-rim-b: rgba(255, 255, 255, 0.24);
+  --lg-hairline: rgba(0, 0, 0, 0.25);
+  --lg-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.6), 0 2px 8px -3px rgba(0, 0, 0, 0.3);
   --lens-bg: rgba(255, 255, 255, 0.1);
-  --lens-edge: rgba(255, 255, 255, 0.16);
+  --lens-edge: rgba(255, 255, 255, 0.2);
   --ss-glass-shadow: inset 0 1px 0 var(--lg-hi), var(--lg-shadow);
   --ss-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 28px -16px rgba(0, 0, 0, 0.6);
   --ss-sheen: rgba(255, 255, 255, 0.07);
-  --ss-blob-a: rgba(120, 146, 214, 0.2);
-  --ss-blob-b: rgba(150, 120, 214, 0.16);
-  --ss-blob-c: rgba(90, 170, 150, 0.12);
+  --ss-blob-a: rgba(120, 146, 214, 0.3);
+  --ss-blob-b: rgba(150, 120, 214, 0.25);
+  --ss-blob-c: rgba(90, 170, 150, 0.2);
   --ss-track: rgba(255, 255, 255, 0.07);
 }
 
@@ -212,59 +226,70 @@ select {
 /*   .lens           gläserne Hervorhebung des aktiven Elements          */
 /* ------------------------------------------------------------------ */
 .glass {
+  --glass-fill: var(--ss-glass);
+  --glass-extra: linear-gradient(transparent, transparent);
   position: relative;
   isolation: isolate;
-  background: var(--ss-glass);
-  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(180%);
-  backdrop-filter: blur(var(--lg-blur)) saturate(180%);
-  border: 1px solid var(--lg-stroke);
+  /* Klare Füllung + weicher Glanz oben links + optionaler Pastellschimmer */
+  background:
+    var(--glass-extra),
+    radial-gradient(120% 80% at 6% -8%, var(--lg-spec) 0%, transparent 46%),
+    linear-gradient(var(--glass-fill), var(--glass-fill));
+  -webkit-backdrop-filter: var(--lg-filter);
+  backdrop-filter: var(--lg-filter);
+  /* Der Rand behält seine Breite (Layout), sichtbar ist die leuchtende Kante darüber */
+  border: 1px solid transparent;
   box-shadow:
     inset 0 1px 0 0 var(--lg-hi),
-    inset 0 0 0 1px var(--lg-rim),
+    inset 0 0 14px 0 var(--lg-glow),
+    0 0 0 0.5px var(--lg-hairline),
     var(--lg-shadow);
 }
 .glass-thin {
-  background: var(--lg-thin);
+  --glass-fill: var(--lg-thin);
 }
 .glass-strong {
-  background: var(--ss-glass-strong);
+  --glass-fill: var(--ss-glass-strong);
 }
 
-/* Spiegelung: Glanz oben links, weiche Reflexion unten (folgt den Rundungen) */
+/* Leuchtende Glaskante: hell oben links und unten rechts, folgt jeder Rundung */
 .glass::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -1px;
+  padding: 1px;
   border-radius: inherit;
   pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(130% 90% at 8% -10%, var(--lg-spec) 0%, transparent 42%),
-    linear-gradient(180deg, transparent 62%, color-mix(in srgb, var(--lg-spec) 35%, transparent) 100%);
+  background: linear-gradient(135deg, var(--lg-rim-a) 0%, var(--lg-rim-mid) 28%, var(--lg-rim-low) 55%, var(--lg-rim-b) 100%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
 }
 
 /* Dezenter Pastellschimmer (z. B. Seitenleiste) */
-.glass-tint::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(70% 45% at 0% 0%, rgba(175, 197, 245, 0.16), transparent 70%),
-    radial-gradient(60% 40% at 100% 55%, rgba(203, 184, 245, 0.12), transparent 70%),
-    radial-gradient(70% 45% at 20% 100%, rgba(170, 220, 203, 0.12), transparent 70%);
+.glass-tint {
+  --glass-extra:
+    radial-gradient(70% 45% at 0% 0%, rgba(175, 197, 245, 0.14), transparent 70%),
+    radial-gradient(60% 40% at 100% 55%, rgba(203, 184, 245, 0.1), transparent 70%),
+    radial-gradient(70% 45% at 20% 100%, rgba(170, 220, 203, 0.1), transparent 70%);
 }
 
 /* Gläserne Hervorhebung des aktiven Elements */
 .lens {
-  background: var(--lens-bg);
+  background:
+    radial-gradient(120% 90% at 10% 0%, var(--lg-spec) 0%, transparent 55%),
+    var(--lens-bg);
   border: 1px solid var(--lens-edge);
   box-shadow:
     inset 0 1px 0 var(--lg-hi),
-    inset 0 -1px 2px rgba(16, 22, 36, 0.05),
+    inset 0 0 10px var(--lg-glow),
     0 6px 16px -8px rgba(16, 22, 36, 0.3);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  backdrop-filter: blur(6px) saturate(160%);
 }
 
 /* Navigationspunkte (Seitenleiste): sanfte Glasfläche beim Hover */
