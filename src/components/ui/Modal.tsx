@@ -55,10 +55,19 @@ export function Modal({ open, onClose, title, description, children, footer, wid
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const t = setTimeout(() => {
-      const target = panelRef.current?.querySelector<HTMLElement>('[data-autofocus]') ?? panelRef.current;
-      target?.focus({ preventScroll: true });
-    }, 60);
+    // Anfangsfokus setzen – aber niemals einen Fokus „stehlen“, den die Person
+    // schon selbst in ein Feld des Dialogs gesetzt hat (sonst landet Getipptes
+    // im falschen Feld).
+    const focusInitial = () => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const active = document.activeElement;
+      if (active && active !== panel && panel.contains(active)) return;
+      const target = panel.querySelector<HTMLElement>('[data-autofocus]') ?? panel;
+      target.focus({ preventScroll: true });
+    };
+    focusInitial();
+    const t = setTimeout(focusInitial, 60);
     return () => {
       clearTimeout(t);
       document.removeEventListener('keydown', onKey);
