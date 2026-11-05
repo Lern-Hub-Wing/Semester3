@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
+import { PresenceDiv } from './PresenceDiv';
 import { EllipsisVertical } from 'lucide-react';
 import { IconButton } from './Button';
 
@@ -48,7 +49,7 @@ export function Menu({ items, label = 'Weitere Aktionen', align = 'right' }: { i
       </IconButton>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <PresenceDiv
             role="menu"
             initial={{ opacity: 0, scale: 0.95, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -73,7 +74,7 @@ export function Menu({ items, label = 'Weitere Aktionen', align = 'right' }: { i
                 {item.label}
               </button>
             ))}
-          </motion.div>
+          </PresenceDiv>
         )}
       </AnimatePresence>
     </div>

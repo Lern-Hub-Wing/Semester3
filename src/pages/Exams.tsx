@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { GraduationCap, MapPin, Pencil, Plus, StickyNote, Timer, Trash2 } from 'lucide-react';
 import type { Exam } from '../lib/types';
 import { activeExams, daysUntil, splitDuration } from '../lib/countdown';
@@ -124,17 +124,22 @@ function ExamEditor({ value, onClose }: { value: Exam | 'new' | null; onClose: (
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (value === null) return;
-    setError(null);
-    if (exam) {
-      const s = instantToZoned(exam.starts_at, exam.timezone);
-      const e = instantToZoned(exam.ends_at, exam.timezone);
-      setForm({ module_id: exam.module_id, date: s.date, start: s.time, end: e.time, location: exam.location ?? '', notes: exam.notes ?? '' });
-    } else {
-      setForm({ module_id: modules[0]?.id ?? '', date: '', start: '14:00', end: '15:30', location: '', notes: '' });
+  // Beim Öffnen sofort (während des Renderns) befüllen – nie veraltete Werte anzeigen.
+  const key = value === null ? null : exam ? `${exam.id}` : 'new';
+  const [initKey, setInitKey] = useState<string | null>(null);
+  if (key !== initKey) {
+    setInitKey(key);
+    if (key !== null) {
+      setError(null);
+      if (exam) {
+        const st = instantToZoned(exam.starts_at, exam.timezone);
+        const en = instantToZoned(exam.ends_at, exam.timezone);
+        setForm({ module_id: exam.module_id, date: st.date, start: st.time, end: en.time, location: exam.location ?? '', notes: exam.notes ?? '' });
+      } else {
+        setForm({ module_id: modules[0]?.id ?? '', date: '', start: '14:00', end: '15:30', location: '', notes: '' });
+      }
     }
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const save = async () => {
     if (!form.module_id) return setError('Bitte ein Modul wählen.');

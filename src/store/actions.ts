@@ -228,6 +228,13 @@ export interface EntryDraft {
   title: string;
   description: string | null;
   tasks: TaskDraft[];
+  /**
+   * Aufgaben, die im Editor ausdrücklich entfernt wurden. Nur diese wandern
+   * in den Papierkorb – Aufgaben, die der Editor nicht kennt (z. B. weil sie
+   * gerade von einem anderen Gerät angelegt wurden oder beim Öffnen noch
+   * nicht geladen waren), bleiben unangetastet.
+   */
+  removedTaskIds?: UUID[];
 }
 
 async function insertTasks(entryId: UUID, titles: { id: UUID; title: string; sort_order: number }[]) {
@@ -270,7 +277,8 @@ export async function createEntry(draft: EntryDraft): Promise<UUID | null> {
 /**
  * Speichert Änderungen an einem bestehenden Lerntag. Aufgaben behalten
  * ihre IDs – Titeländerungen, Umsortieren und Verschieben erhalten daher
- * alle Haken. Entfernte Aufgaben wandern in den Papierkorb.
+ * alle Haken. In den Papierkorb wandern ausschließlich Aufgaben aus
+ * `draft.removedTaskIds`; alle anderen bleiben bestehen.
  */
 export async function saveEntry(id: UUID, draft: EntryDraft, baseVersion: number): Promise<boolean> {
   const state = useData.getState();
@@ -290,34 +298,58 @@ export async function saveEntry(id: UUID, draft: EntryDraft, baseVersion: number
     if (!report(res)) return false;
   }
 
-  const existing = Object.values(state.tasks).filter((t) => t.study_entry_id === id && !t.deleted_at);
-  const keptIds = new Set(draft.tasks.filter((t) => t.id).map((t) => t.id!));
-  const jobs: Promise<WriteResult<'tasks'>>[] = [];
-  const newTasks: { id: UUID; title: string; sort_order: number }[] = [];
-
-  draft.tasks
-    .filter((t) => t.title.trim())
-    .forEach((t, index) => {
-      const sort_order = index + 1;
-      if (t.id) {
-        const cur = state.tasks[t.id];
-        if (!cur) return;
-        const p: Patch<'tasks'> = {};
-        if (cur.title !== t.title.trim()) p.title = t.title.trim();
-        if (cur.sort_order !== sort_order) p.sort_order = sort_order;
-        if (Object.keys(p).length) jobs.push(updateRow('tasks', t.id, p));
-      } else {
-        newTasks.push({ id: uuid(), title: t.title, sort_order });
-      }
-    });
-  for (const t of existing) if (!keptIds.has(t.id)) jobs.push(updateRow('tasks', t.id, { deleted_at: nowIso() }));
+  const plan = planTaskChanges(id, draft, state.tasks);
+  const jobs: Promise<WriteResult<'tasks'>>[] = [
+    ...plan.updates.map((u) => updateRow('tasks', u.id, u.patch)),
+    ...plan.removals.map((taskId) => updateRow('tasks', taskId, { deleted_at: nowIso() })),
+  ];
 
   const results = await Promise.all(jobs);
   const failed = results.find((r) => !r.ok);
   if (failed) return report(failed);
-  if (newTasks.length && !(await insertTasks(id, newTasks))) return false;
+  if (plan.inserts.length && !(await insertTasks(id, plan.inserts))) return false;
   toast.success('Lerntag gespeichert');
   return true;
+}
+
+export interface TaskChangePlan {
+  updates: { id: UUID; patch: Patch<'tasks'> }[];
+  inserts: { id: UUID; title: string; sort_order: number }[];
+  removals: UUID[];
+}
+
+/**
+ * Berechnet die nötigen Aufgabenänderungen für einen Lerntag (reine Funktion,
+ * getestet in src/test/saveEntry.test.ts).
+ */
+export function planTaskChanges(entryId: UUID, draft: Pick<EntryDraft, 'tasks' | 'removedTaskIds'>, tasks: Record<string, Task>, newId: () => UUID = uuid): TaskChangePlan {
+  const plan: TaskChangePlan = { updates: [], inserts: [], removals: [] };
+  const belongs = (taskId: UUID) => {
+    const t = tasks[taskId];
+    return !!t && t.study_entry_id === entryId;
+  };
+  let position = 0;
+  draft.tasks.forEach((t) => {
+    const title = t.title.trim();
+    if (t.id) {
+      // Unbekannte oder inzwischen verschobene Aufgaben nicht anfassen.
+      if (!belongs(t.id)) return;
+      const sort_order = ++position;
+      const cur = tasks[t.id];
+      const p: Patch<'tasks'> = {};
+      // Ein geleerter Titel löscht nichts – der bisherige Titel bleibt.
+      if (title && cur.title !== title) p.title = title;
+      if (cur.sort_order !== sort_order) p.sort_order = sort_order;
+      if (Object.keys(p).length) plan.updates.push({ id: t.id, patch: p });
+    } else if (title) {
+      plan.inserts.push({ id: newId(), title, sort_order: ++position });
+    }
+  });
+  const kept = new Set(draft.tasks.map((t) => t.id).filter(Boolean));
+  for (const taskId of new Set(draft.removedTaskIds ?? [])) {
+    if (belongs(taskId) && !kept.has(taskId) && !tasks[taskId].deleted_at) plan.removals.push(taskId);
+  }
+  return plan;
 }
 
 export async function moveEntry(id: UUID, date: ISODate) {

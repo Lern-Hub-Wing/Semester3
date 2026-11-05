@@ -7,6 +7,7 @@ import { formatISODate } from '../lib/time';
 import { useData } from '../store/data';
 import { useUI } from '../store/ui';
 import { useHotkey } from '../hooks/useHotkey';
+import { PresenceContainer } from './ui/PresenceDiv';
 
 interface Result {
   id: string;
@@ -100,7 +101,7 @@ export function SearchPalette() {
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-start justify-center px-3 pt-[max(env(safe-area-inset-top),12px)] md:pt-[12vh]">
+        <PresenceContainer className="fixed inset-0 z-[70] flex items-start justify-center px-3 pt-[max(env(safe-area-inset-top),12px)] md:pt-[12vh]">
           <motion.div className="absolute inset-0 bg-[rgba(8,12,20,0.35)] backdrop-blur-[3px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />
           <motion.div
             role="dialog"
@@ -173,7 +174,7 @@ export function SearchPalette() {
               )}
             </ul>
           </motion.div>
-        </div>
+        </PresenceContainer>
       )}
     </AnimatePresence>,
     document.body,

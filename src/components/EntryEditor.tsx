@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, FileText, Plus, Trash2, X } from 'lucide-react';
 import { LIMITS } from '../lib/config';
 import { checkFile, formatBytes } from '../lib/files';
@@ -10,6 +10,7 @@ import { createEntry, createTopic, deleteEntry, saveEntry, uploadFile, type Task
 import { useUI } from '../store/ui';
 import { toast } from '../store/toast';
 import { Modal } from './ui/Modal';
+import { Skeleton } from './ui/Skeleton';
 import { Button, IconButton } from './ui/Button';
 import { TextArea, TextField, FieldWrap } from './ui/Field';
 import { FileDrop, AttachmentList } from './Attachments';
@@ -23,7 +24,7 @@ const NEW_TOPIC = '__new__';
 
 /** Dialog zum Anlegen und Bearbeiten eines Lerntags mit Unteraufgaben. */
 export function EntryEditor() {
-  const { open, entryId, date, moduleId, topicId } = useUI((s) => s.entryEditor);
+  const { open, session, entryId, date, moduleId, topicId } = useUI((s) => s.entryEditor);
   const close = useUI((s) => s.closeEntryEditor);
   const entry = useData((s) => (entryId ? s.study_entries[entryId] : undefined));
   const allTasks = useData((s) => s.tasks);
@@ -34,19 +35,35 @@ export function EntryEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
-  const baseVersion = useRef(0);
+  /** Aufgaben, die in diesem Editor ausdrücklich entfernt wurden (nur diese gehen in den Papierkorb) */
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  /** true, sobald die Aufgabenliste im Editor bearbeitet wurde */
+  const [tasksTouched, setTasksTouched] = useState(false);
+  const [initSession, setInitSession] = useState<number | null>(null);
+  const [baseVersion, setBaseVersion] = useState(0);
 
-  // Formular beim Öffnen befüllen
-  useEffect(() => {
-    if (!open) return;
+  const liveTasks = useMemo(
+    () =>
+      entryId
+        ? Object.values(allTasks)
+            .filter((t) => t.study_entry_id === entryId && !t.deleted_at)
+            .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
+        : [],
+    [allTasks, entryId],
+  );
+  const toDrafts = (list: typeof liveTasks): DraftTask[] => (list.length ? list.map((t) => ({ key: t.id, id: t.id, title: t.title })) : [blankTask()]);
+
+  // Formular SOFORT beim Öffnen befüllen (während des Renderns, nicht erst in einem
+  // Effekt). So ist nie ein veralteter oder leerer Formularstand sichtbar, der
+  // versehentlich gespeichert werden könnte.
+  if (open && initSession !== session && (!entryId || entry)) {
+    setInitSession(session);
     setErrors({});
     setFiles([]);
+    setRemovedIds([]);
+    setTasksTouched(false);
     if (entry) {
-      baseVersion.current = entry.version;
-      const tasks = Object.values(allTasks)
-        .filter((t) => t.study_entry_id === entry.id && !t.deleted_at)
-        .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
-        .map((t) => ({ key: t.id, id: t.id, title: t.title }));
+      setBaseVersion(entry.version);
       setForm({
         study_date: entry.study_date,
         module_id: entry.module_id,
@@ -54,7 +71,7 @@ export function EntryEditor() {
         newTopic: '',
         title: entry.title,
         description: entry.description ?? '',
-        tasks: tasks.length ? tasks : [blankTask()],
+        tasks: toDrafts(liveTasks),
       });
     } else {
       let last = '';
@@ -66,8 +83,17 @@ export function EntryEditor() {
       const mod = moduleId ?? (modules.some((m) => m.id === last) ? last : modules[0]?.id ?? '');
       setForm({ ...emptyForm(), study_date: date ?? todayISO(), module_id: mod, topic_id: topicId ?? '' });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, entryId]);
+  }
+
+  const ready = initSession === session;
+
+  // Kommen Aufgaben hinzu (z. B. von einem anderen Gerät), solange die Liste
+  // hier noch unverändert ist, werden sie übernommen.
+  const formIds = form.tasks.map((t) => t.id ?? '').join(',');
+  const liveIds = liveTasks.map((t) => t.id).join(',');
+  if (open && entry && initSession === session && !tasksTouched && formIds !== liveIds && !(liveTasks.length === 0 && formIds === '')) {
+    setForm((f) => ({ ...f, tasks: toDrafts(liveTasks) }));
+  }
 
   const topics = useMemo(
     () => Object.values(topicsMap).filter((t) => t.module_id === form.module_id && !t.archived_at).sort((a, b) => a.sort_order - b.sort_order),
@@ -75,13 +101,22 @@ export function EntryEditor() {
   );
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const setTask = (key: string, title: string) => set('tasks', form.tasks.map((t) => (t.key === key ? { ...t, title } : t)));
+  const setTasks = (tasks: DraftTask[]) => {
+    setTasksTouched(true);
+    set('tasks', tasks);
+  };
+  const setTask = (key: string, title: string) => setTasks(form.tasks.map((t) => (t.key === key ? { ...t, title } : t)));
   const moveTask = (index: number, dir: -1 | 1) => {
     const next = [...form.tasks];
     const target = index + dir;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    set('tasks', next);
+    setTasks(next);
+  };
+  const removeTask = (task: DraftTask) => {
+    if (task.id) setRemovedIds((ids) => [...ids, task.id!]);
+    const rest = form.tasks.filter((x) => x.key !== task.key);
+    setTasks(rest.length ? rest : [blankTask()]);
   };
 
   const validate = () => {
@@ -96,7 +131,7 @@ export function EntryEditor() {
   };
 
   const submit = async () => {
-    if (!validate()) return;
+    if (!ready || !validate()) return;
     setSaving(true);
     try {
       let topic: string | null = form.topic_id || null;
@@ -116,10 +151,11 @@ export function EntryEditor() {
         title: form.title,
         description: form.description,
         tasks: form.tasks.map(({ id, title }) => ({ id, title })),
+        removedTaskIds: removedIds,
       };
       let id: string | null = entryId ?? null;
       if (entry) {
-        if (!(await saveEntry(entry.id, draft, baseVersion.current))) return;
+        if (!(await saveEntry(entry.id, draft, baseVersion))) return;
       } else {
         id = await createEntry(draft);
         if (!id) return;
@@ -167,12 +203,19 @@ export function EntryEditor() {
           <Button variant="ghost" onClick={close}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={saving} onClick={() => void submit()}>
+          <Button variant="primary" loading={saving} disabled={!ready} onClick={() => void submit()}>
             {entry ? 'Speichern' : 'Lerntag speichern'}
           </Button>
         </>
       }
     >
+      {!ready ? (
+        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Lerntag wird geladen">
+          <Skeleton className="h-11" />
+          <Skeleton className="h-11" />
+          <Skeleton className="h-24" />
+        </div>
+      ) : (
       <form
         className="flex flex-col gap-4"
         onSubmit={(e) => {
@@ -267,7 +310,7 @@ export function EntryEditor() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        if (i === form.tasks.length - 1 && t.title.trim()) set('tasks', [...form.tasks, blankTask()]);
+                        if (i === form.tasks.length - 1 && t.title.trim()) setTasks([...form.tasks, blankTask()]);
                         setTimeout(() => {
                           const inputs = (e.target as HTMLElement).closest('ol')?.querySelectorAll('input');
                           inputs?.[i + 1]?.focus();
@@ -284,14 +327,14 @@ export function EntryEditor() {
                   <IconButton
                     label="Aufgabe entfernen"
                     size="sm"
-                    onClick={() => set('tasks', form.tasks.length > 1 ? form.tasks.filter((x) => x.key !== t.key) : [blankTask()])}
+                    onClick={() => removeTask(t)}
                   >
                     <X className="size-4" />
                   </IconButton>
                 </li>
               ))}
               <li>
-                <Button size="sm" variant="ghost" icon={<Plus className="size-4" />} onClick={() => set('tasks', [...form.tasks, blankTask()])}>
+                <Button size="sm" variant="ghost" icon={<Plus className="size-4" />} onClick={() => setTasks([...form.tasks, blankTask()])}>
                   Aufgabe hinzufügen
                 </Button>
               </li>
@@ -329,6 +372,7 @@ export function EntryEditor() {
         </FieldWrap>
         <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>
+      )}
     </Modal>
   );
 }

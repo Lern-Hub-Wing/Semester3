@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CalendarPlus } from 'lucide-react';
 import { addDaysISO, formatISODate, isValidISODate } from '../lib/time';
 import { useData } from '../store/data';
@@ -24,9 +24,12 @@ export function MoveTaskDialog() {
   const [date, setDate] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // Vorschlag „nächster Tag“ sofort beim Öffnen setzen (nicht erst nach dem Rendern)
+  const [initFor, setInitFor] = useState<string | null>(null);
+  if ((taskId ?? null) !== initFor) {
+    setInitFor(taskId ?? null);
     if (source) setDate(addDaysISO(source.study_date, 1));
-  }, [source?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const targets = useMemo(
     () =>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
+import { PresenceDiv } from '../ui/PresenceDiv';
 import { ArrowLeftRight, Settings, UserRoundPen } from 'lucide-react';
 import { navigate } from '../../lib/router';
 import { useSession } from '../../store/session';
@@ -42,7 +43,7 @@ export function ProfileMenu() {
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <PresenceDiv
             role="menu"
             initial={{ opacity: 0, y: -6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -96,7 +97,7 @@ export function ProfileMenu() {
                 {item.label}
               </button>
             ))}
-          </motion.div>
+          </PresenceDiv>
         )}
       </AnimatePresence>
     </div>
