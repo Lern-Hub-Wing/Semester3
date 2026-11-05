@@ -179,7 +179,7 @@ Der JSON-Export enthält alle Lernplandaten und Haken, **aber keine Dateien selb
 |---|---|
 | `npm test` | Fortschrittsberechnung, Countdown/Zeitzonen, Synchronisations-Engine, Dateiprüfung, Import-Validierung (Vitest) |
 | `npm run test:db` | SQL-Migrationen gegen ein echtes PostgreSQL: Rechte (kein DELETE), Trigger, Soft Delete, Storage-Regeln. Nutzt `DATABASE_URL` oder startet einen temporären lokalen Cluster |
-| `npm run build:e2e && npm run test:e2e` | Browsertests in Chromium gegen eine nachgebildete Supabase-API: Personenauswahl, Lerntag anlegen, Haken pro Person, Titel/Datum ändern, Papierkorb, neue Person, Fehlerfall, 320 px/iPhone/iPad/Desktop, Hell/Dunkel. Benötigt Playwright (`npm install --no-save playwright && npx playwright install chromium`) |
+| `npm run build:e2e && npm run test:e2e` | Browsertests in Chromium gegen eine nachgebildete Supabase-API: Personenauswahl, Lerntag anlegen, Haken pro Person, Titel/Datum ändern, Papierkorb, neue Person, Fehlerfall, 320 px/iPhone/iPad/Desktop, Hell/Dunkel. Benötigt Playwright (`npm install --no-save playwright@1.64.1 && npx playwright install chromium`; dieselbe Version wie im CI) |
 
 Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#manuelle-abnahme)): echte Realtime-Verbindung zwischen zwei Geräten, echter Datei-Upload zu Supabase Storage, Safari/Firefox/Edge.
 

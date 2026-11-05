@@ -193,13 +193,15 @@ export function AddMemberDialog({ open, onClose }: { open: boolean; onClose: () 
   const [color, setColor] = useState('#AFC5F5');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setName('');
       setError(null);
       setColor(suggestColor(all.map((m) => m.color)));
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
   return (
     <Modal
       open={open}

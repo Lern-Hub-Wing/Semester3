@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { PresenceDiv } from './ui/PresenceDiv';
 import { Check, Circle, MoveRight, Paperclip, Pencil, Trash2, Users } from 'lucide-react';
 import type { Member, Task } from '../lib/types';
 import { completionKey } from '../lib/types';
@@ -168,7 +169,7 @@ function GroupStatus({ doneIds, members, allDone }: { doneIds: string[]; members
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <PresenceDiv
             initial={{ opacity: 0, y: -4, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -2 }}
@@ -192,7 +193,7 @@ function GroupStatus({ doneIds, members, allDone }: { doneIds: string[]; members
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </PresenceDiv>
         )}
       </AnimatePresence>
     </div>

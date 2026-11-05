@@ -3,7 +3,8 @@ import type { ISODate, UUID } from '../lib/types';
 
 /** Globale Dialoge, damit sie von überall geöffnet werden können. */
 interface UIState {
-  entryEditor: { open: boolean; entryId?: UUID; date?: ISODate; moduleId?: UUID; topicId?: UUID | null };
+  /** session: wird bei jedem Öffnen erhöht, damit das Formular genau einmal pro Öffnen befüllt wird */
+  entryEditor: { open: boolean; session: number; entryId?: UUID; date?: ISODate; moduleId?: UUID; topicId?: UUID | null };
   moveTaskId: UUID | null;
   previewId: UUID | null;
   searchOpen: boolean;
@@ -14,12 +15,12 @@ interface UIState {
 }
 
 export const useUI = create<UIState>((set) => ({
-  entryEditor: { open: false },
+  entryEditor: { open: false, session: 0 },
   moveTaskId: null,
   previewId: null,
   searchOpen: false,
   moreOpen: false,
-  openEntryEditor: (opts = {}) => set({ entryEditor: { open: true, ...opts } }),
+  openEntryEditor: (opts = {}) => set((s) => ({ entryEditor: { open: true, session: s.entryEditor.session + 1, ...opts } })),
   closeEntryEditor: () => set((s) => ({ entryEditor: { ...s.entryEditor, open: false } })),
   set: (patch) => set(patch),
 }));

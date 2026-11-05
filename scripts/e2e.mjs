@@ -155,6 +155,11 @@ async function newPage(browser, opts = {}) {
   await ctx.route(`${API}/rest/v1/**`, handle);
   await ctx.route(`${API}/realtime/**`, (r) => r.abort());
   const page = await ctx.newPage();
+  if (process.env.CPU_THROTTLE) {
+    // Langsamere Geräte nachbilden (deckt Timing-Fehler auf)
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.CPU_THROTTLE) });
+  }
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && !/WebSocket|realtime|ERR_FAILED|Failed to load resource/i.test(m.text()) && errors.push(m.text()));
@@ -237,14 +242,25 @@ try {
   await page.getByText('Kostenstellenrechnung').first().waitFor();
   await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
   await page.getByRole('menuitem', { name: 'Bearbeiten' }).click();
-  await page.getByLabel('Aufgabe 1', { exact: true }).fill('Anbauverfahren sicher beherrschen');
+  // Das Formular muss schon beim ersten Anzeigen alle bestehenden Aufgaben enthalten –
+  // sonst würde Speichern sie fälschlich in den Papierkorb verschieben.
+  const firstTask = page.getByLabel('Aufgabe 1', { exact: true });
+  await firstTask.waitFor();
+  const prefilled = await page.getByRole('dialog').locator('ol input').evaluateAll((els) => els.map((e) => e.value));
+  check(JSON.stringify(prefilled) === JSON.stringify(taskTitles), `D: Editor zeigt sofort alle 4 bestehenden Aufgaben (${JSON.stringify(prefilled)})`);
+  await firstTask.fill('Anbauverfahren sicher beherrschen');
   await page.getByLabel('Datum').fill('2026-12-20');
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   const renamed = db.tasks.find((t) => t.id === taskId);
   check(renamed.title === 'Anbauverfahren sicher beherrschen', 'D: Titel geändert, gleiche Aufgaben-ID');
+  if (renamed.title !== 'Anbauverfahren sicher beherrschen') {
+    console.log('  Diagnose Aufgaben:', JSON.stringify(db.tasks.map((t) => [t.id.slice(0, 8), t.title, !!t.deleted_at])));
+    console.log('  Diagnose Requests:', JSON.stringify(requests.slice(-8).map((r) => [r.method, r.table, r.url, r.body])));
+  }
   check(db.study_entries[0].study_date === '2026-12-20', 'E: Datum verschoben');
   check(db.task_completions.some((c) => c.task_id === taskId && c.is_completed), 'D/E: Haken bleiben erhalten');
+  check(db.tasks.length === 4 && db.tasks.every((t) => !t.deleted_at), 'D/E: keine Aufgabe neu angelegt oder versehentlich gelöscht');
 
   // --- Test K: Papierkorb ---------------------------------------------
   await page.goto(`${BASE}#/lernplan?ansicht=tag&datum=2026-12-20`);
@@ -256,7 +272,10 @@ try {
   await page.waitForTimeout(300);
   check(!!db.tasks.find((t) => t.id === taskId).deleted_at, 'K: Aufgabe als gelöscht markiert (nicht entfernt)');
   await page.goto(`${BASE}#/papierkorb`);
-  await page.getByRole('button', { name: 'Wiederherstellen' }).first().click();
+  const trashed = page.locator('li', { hasText: 'Anbauverfahren sicher beherrschen' });
+  await trashed.first().waitFor();
+  check((await page.getByRole('button', { name: 'Wiederherstellen' }).count()) === 1, 'K: genau ein Eintrag im Papierkorb');
+  await trashed.getByRole('button', { name: 'Wiederherstellen' }).click();
   await page.waitForTimeout(300);
   check(!db.tasks.find((t) => t.id === taskId).deleted_at && db.task_completions.some((c) => c.task_id === taskId && c.is_completed), 'K: wiederhergestellt, Haken erhalten');
 
@@ -278,6 +297,19 @@ try {
   check((await page.getByRole('checkbox', { name: /Übungsaufgaben lösen – offen für Person 2/ }).count()) === 1, 'Fehlgeschlagenes Speichern wird zurückgesetzt (nicht als gespeichert angezeigt)');
   check((await page.getByText(/nicht gespeichert|Fehler/i).count()) > 0, 'Fehlermeldung wird angezeigt');
   delete process.env.FAIL_WRITES;
+
+  // --- Im Editor entfernte Aufgabe: nur genau diese wandert in den Papierkorb --
+  await page.goto(`${BASE}#/lernplan?ansicht=tag&datum=2026-12-20`);
+  await page.getByText('Kostenstellenrechnung').first().waitFor();
+  await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
+  await page.getByRole('menuitem', { name: 'Bearbeiten' }).click();
+  await page.getByLabel('Aufgabe 4', { exact: true }).waitFor();
+  check((await page.getByLabel('Aufgabe 4', { exact: true }).inputValue()) === 'Zusammenfassung wiederholen', 'Editor zeigt beim Öffnen die gespeicherten Aufgaben');
+  await page.getByRole('dialog').locator('li', { has: page.getByLabel('Aufgabe 4', { exact: true }) }).getByRole('button', { name: 'Aufgabe entfernen' }).click();
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  const removed = db.tasks.filter((t) => t.deleted_at).map((t) => t.title);
+  check(JSON.stringify(removed) === JSON.stringify(['Zusammenfassung wiederholen']), `Nur die entfernte Aufgabe liegt im Papierkorb (${JSON.stringify(removed)})`);
 
   // Seiten durchklicken (keine Laufzeitfehler)
   for (const [path, name] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan-monat'], ['#/faecher', 'faecher'], [`#/faecher/${db.modules[4].id}`, 'modul-controlling'], ['#/pruefungen', 'pruefungen'], ['#/materialien', 'materialien'], ['#/einstellungen', 'einstellungen'], ['#/verlauf', 'verlauf']]) {

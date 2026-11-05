@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useDragControls, useReducedMotion, type DragCo
 import { X } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { IconButton } from './Button';
+import { PresenceContainer } from './PresenceDiv';
 
 interface Props {
   open: boolean;
@@ -73,7 +74,7 @@ export function Modal({ open, onClose, title, description, children, footer, wid
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
+        <PresenceContainer className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
           <motion.div
             className="absolute inset-0 bg-[rgba(8,12,20,0.38)] backdrop-blur-[3px]"
             initial={{ opacity: 0 }}
@@ -117,7 +118,7 @@ export function Modal({ open, onClose, title, description, children, footer, wid
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 md:px-6">{children}</div>
             {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3 md:px-6 md:py-4">{footer}</footer>}
           </motion.div>
-        </div>
+        </PresenceContainer>
       )}
     </AnimatePresence>,
     document.body,
