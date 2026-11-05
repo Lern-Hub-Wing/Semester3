@@ -154,6 +154,12 @@ async function newPage(browser, opts = {}) {
   const ctx = await browser.newContext({ deviceScaleFactor: 1, serviceWorkers: 'block', ...opts });
   await ctx.route(`${API}/rest/v1/**`, handle);
   await ctx.route(`${API}/realtime/**`, (r) => r.abort());
+  await ctx.addInitScript(() => {
+    if (typeof navigator.vibrate === 'function') {
+      window.__vibrations = [];
+      navigator.vibrate = (pattern) => (window.__vibrations.push(pattern), true);
+    }
+  });
   const page = await ctx.newPage();
   if (process.env.CPU_THROTTLE) {
     // Langsamere Geräte nachbilden (deckt Timing-Fehler auf)
@@ -175,6 +181,147 @@ async function shot(page, name) {
 
 async function hasHorizontalOverflow(page) {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+}
+
+/** Fortschrittskreise: Leuchtschein ohne rechteckige Kanten (Struktur + Pixel). */
+async function checkRingGlow(page, label) {
+  const info = await page.evaluate(() => {
+    const svgs = [...document.querySelectorAll('svg.-rotate-90')];
+    return svgs.map((svg) => {
+      const size = svg.viewBox.baseVal.width;
+      const f = svg.querySelector('filter');
+      const blurOnElements = [...svg.querySelectorAll('*')].some((el) => /blur\(/.test(getComputedStyle(el).filter));
+      return {
+        overflow: getComputedStyle(svg).overflow,
+        hasFilter: !!f,
+        userSpace: f?.getAttribute('filterUnits') === 'userSpaceOnUse',
+        region: f ? Number(f.getAttribute('width')) / size : 0,
+        blurOnElements,
+      };
+    });
+  });
+  const ok = info.length > 0 && info.every((r) => r.overflow === 'visible' && r.hasFilter && r.userSpace && r.region >= 1.3 && !r.blurOnElements);
+  check(ok, `Fortschrittskreise (${label}): Leuchtschein als SVG-Filter mit großer Filterfläche, kein CSS-Blur auf SVG (${info.length} Kreise)`);
+  // Pixelprobe: Ecken des Kreis-Quadrats (außerhalb des Kreises) dürfen nicht heller als der Hintergrund sein
+  const ring = page.locator('svg.-rotate-90').first();
+  const bb = await ring.boundingBox();
+  const pad = 14;
+  const buf = await page.screenshot({ clip: { x: bb.x - pad, y: bb.y - pad, width: bb.width + pad * 2, height: bb.height + pad * 2 } });
+  const diff = await page.evaluate(async ({ b64, pad }) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const lum = (x, y) => {
+      const d = ctx.getImageData(x, y, 1, 1).data;
+      return (d[0] + d[1] + d[2]) / 3;
+    };
+    // Eine abgeschnittene (rechteckige) Leuchtfläche zeigt sich als Helligkeitssprung
+    // genau an der Kante des Quadrats um den Kreis: innen direkt neben der Kante
+    // gegen außen direkt neben der Kante – an allen vier Ecken, waagerecht und senkrecht.
+    const n = img.width - 1;
+    const edges = [];
+    for (const [cx, cy, sx, sy] of [[pad, pad, 1, 1], [n - pad, pad, -1, 1], [pad, n - pad, 1, -1], [n - pad, n - pad, -1, -1]]) {
+      const y = cy + sy * 4;
+      const x = cx + sx * 4;
+      edges.push(Math.abs(lum(cx + sx * 2, y) - lum(cx - sx * 2, y)));
+      edges.push(Math.abs(lum(x, cy + sy * 2) - lum(x, cy - sy * 2)));
+    }
+    return Math.max(...edges);
+  }, { b64: buf.toString('base64'), pad });
+  check(diff <= 4, `Fortschrittskreis (${label}): keine rechteckige Leuchtkante (größter Sprung an der Quadratkante ${diff.toFixed(1)})`);
+}
+
+/** Smartphone: Navigation, Glas, Profilbutton, Sticky-Logo, Abstände, Team-Kreise, Haptik. */
+async function mobileDesignChecks(p, name) {
+  const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
+  const bar = nav.locator('.glass').first();
+  for (const [label, hash] of [['Fächer', '#/faecher'], ['Team', '#/team'], ['Lernplan', '#/lernplan'], ['Home', '#/']]) {
+    await nav.getByRole('link', { name: label }).click();
+    await p.waitForTimeout(300);
+    check(new URL(p.url()).hash.split('?')[0] === hash, `Tab-Leiste (${name}): Antippen öffnet „${label}“`);
+  }
+  // Wischgesten sind entfernt: Ziehen über die Leiste wechselt die Seite nicht
+  const box = await bar.boundingBox();
+  const y = box.y + box.height / 2;
+  const tab = (i) => box.x + 6 + ((box.width - 12) / 5) * (i + 0.5);
+  await p.mouse.move(tab(0), y);
+  await p.mouse.down();
+  await p.mouse.move(tab(3), y, { steps: 10 });
+  await p.mouse.up();
+  await p.waitForTimeout(300);
+  check(new URL(p.url()).hash === '#/', `Tab-Leiste (${name}): keine Wischnavigation mehr`);
+  const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
+  check(touchAction !== 'none', `Tab-Leiste (${name}): normales Scrollen nicht blockiert (touch-action=${touchAction})`);
+
+  // Liquid Glass: Hintergrundunschärfe auf Leiste, Logo und Profilbutton
+  for (const [what, loc] of [['Tab-Leiste', bar], ['Logo', p.getByTestId('mobile-logo')], ['Profilbutton', p.getByTestId('profile-button')]]) {
+    const bf = await loc.evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
+    check(/blur\(/.test(bf), `Liquid Glass (${name}): ${what} mit Hintergrundunschärfe`);
+  }
+
+  // Profilbutton: Avatar exakt mittig, Knopf exakt rund
+  const pb = p.getByTestId('profile-button');
+  const btn = await pb.boundingBox();
+  const av = await pb.locator('span').first().boundingBox();
+  const dx = Math.abs(btn.x + btn.width / 2 - (av.x + av.width / 2));
+  const dy = Math.abs(btn.y + btn.height / 2 - (av.y + av.height / 2));
+  check(dx <= 0.5 && dy <= 0.5 && Math.abs(btn.width - btn.height) <= 0.5, `Profilbutton (${name}): Avatar zentriert (Δx=${dx}, Δy=${dy}), Knopf rund (${btn.width}×${btn.height})`);
+
+  // Logo bleibt beim Scrollen an seiner Position
+  const logo = p.getByTestId('mobile-logo');
+  const before = await logo.boundingBox();
+  await p.evaluate(() => window.scrollTo(0, 700));
+  await p.waitForTimeout(400);
+  const after = await logo.boundingBox();
+  const scrolled = await p.evaluate(() => window.scrollY);
+  check(scrolled > 0 && Math.abs(after.y - before.y) <= 1, `Kopfzeile (${name}): Logo bleibt beim Scrollen oben (vorher ${before.y}, nachher ${after.y})`);
+
+  // Seitenende: nichts liegt dauerhaft unter der Tab-Leiste
+  await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await p.waitForTimeout(500);
+  const lastBottom = await p.evaluate(() => Math.max(...[...document.querySelectorAll('main .card, main section')].map((e) => e.getBoundingClientRect().bottom)));
+  const barTop = (await bar.boundingBox()).y;
+  check(lastBottom <= barTop - 4, `Abstand (${name}): letzte Karte endet über der Tab-Leiste (${Math.round(lastBottom)} ≤ ${Math.round(barTop)})`);
+
+  // Team-Fortschritt im Dashboard: alle aktiven Personen, Kreise vollständig in der Karte
+  await p.evaluate(() => window.scrollTo(0, 0));
+  const active = db.members.filter((m) => m.is_active).length;
+  const grid = p.getByTestId('team-progress');
+  await grid.scrollIntoViewIfNeeded();
+  await p.waitForTimeout(1800);
+  const info = await grid.evaluate((g) => {
+    const card = g.closest('.card').getBoundingClientRect();
+    const svgs = [...g.querySelectorAll('svg')];
+    return {
+      n: svgs.length,
+      inside: svgs.every((s) => {
+        const r = s.getBoundingClientRect();
+        return r.left >= card.left - 0.5 && r.right <= card.right + 0.5 && r.top >= card.top - 0.5 && r.bottom <= card.bottom + 0.5 && r.right <= innerWidth;
+      }),
+    };
+  });
+  check(info.n === active && info.inside, `Team (${name}): alle ${active} aktiven Personen mit vollständigen Kreisen (${info.n} sichtbar)`);
+
+  // Teamseite: alle Personen, Kreise nicht abgeschnitten
+  await p.goto(`${BASE}#/team`);
+  await p.waitForTimeout(1200);
+  const teamOk = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll('main ul > li .card, main ul > li > button.card')];
+    return cards.every((c) => {
+      const svg = c.querySelector('svg.-rotate-90');
+      if (!svg) return false;
+      const r = svg.getBoundingClientRect();
+      const b = c.getBoundingClientRect();
+      return r.left >= b.left && r.right <= b.right && r.right <= innerWidth;
+    }) && cards.length > 0;
+  });
+  check(teamOk, `Teamseite (${name}): alle Personenkarten mit vollständigen Kreisen`);
+  await p.goto(`${BASE}#/`);
 }
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdio: 'pipe', env: { ...process.env, VITE_BASE_PATH: '/Semester3/' } });
@@ -325,6 +472,26 @@ try {
     check(!(await hasHorizontalOverflow(page)), `L: kein horizontaler Überlauf (${name}, 1440 px)`);
     await shot(page, `10-${name}-desktop-dark`);
   }
+  // Desktop: Seitenleiste als Liquid Glass, Profilbutton, Fortschrittskreise
+  await page.goto(`${BASE}#/`);
+  await page.waitForTimeout(2200);
+  const sideBf = await page.locator('aside .glass').first().evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
+  check(/blur\(/.test(sideBf), `Liquid Glass (Desktop): Seitenleiste mit Hintergrundunschärfe (${sideBf})`);
+  const activeNav = await page.locator('aside [aria-current="page"] .lens').count();
+  check(activeNav === 1, 'Seitenleiste: aktiver Navigationspunkt mit gläserner Hervorhebung');
+  {
+    const pb = page.getByTestId('profile-button');
+    const btn = await pb.boundingBox();
+    const av = await pb.locator('span').first().boundingBox();
+    const dy = Math.abs(btn.y + btn.height / 2 - (av.y + av.height / 2));
+    const left = av.x - btn.x;
+    const top = av.y - btn.y;
+    check(dy <= 0.5 && Math.abs(left - top) <= 0.5, `Profilbutton (Desktop): Avatar vertikal zentriert, gleiche Abstände links/oben (${left}/${top})`);
+  }
+  await checkRingGlow(page, 'Dashboard');
+  await page.goto(`${BASE}#/team`);
+  await page.waitForTimeout(2200);
+  await checkRingGlow(page, 'Teamseite');
   check(errors.length === 0, `keine JavaScript-Fehler (Desktop)${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await ctx.close();
 
@@ -343,32 +510,23 @@ try {
     await shot(p, `20-profilauswahl-${name}`);
     await p.getByRole('button', { name: 'Als Person 3 lernen' }).click();
     await p.getByRole('heading', { name: /Person 3/ }).waitFor();
+    if (name === '320' || name === 'iphone') {
+      await mobileDesignChecks(p, name);
+    }
     if (name === 'iphone') {
-      // Tab-Leiste: Antippen und seitliches Wischen (Finger folgt, Loslassen öffnet)
-      const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
-      await nav.getByRole('link', { name: 'Fächer' }).click();
-      await p.getByRole('heading', { name: 'Fächer' }).waitFor();
-      check(p.url().endsWith('#/faecher'), 'Tab-Leiste: Antippen öffnet „Fächer“');
-      const box = await nav.locator('.liquid-bar').boundingBox();
-      const y = box.y + box.height / 2;
-      const tab = (i) => box.x + 6 + ((box.width - 12) / 5) * (i + 0.5);
-      await p.mouse.move(tab(0), y);
-      await p.mouse.down();
-      await p.mouse.move(tab(1), y, { steps: 6 });
-      await p.mouse.move(tab(3), y, { steps: 10 });
-      await p.waitForTimeout(150);
-      const dragging = await p.locator('.liquid-lens.is-dragging').count();
-      await p.mouse.up();
-      await p.getByRole('heading', { name: 'Team' }).first().waitFor();
-      check(dragging === 1 && p.url().endsWith('#/team'), 'Tab-Leiste: Wischen von „Home“ bis „Team“ öffnet beim Loslassen „Team“');
-      // Dasselbe mit echten Touch-Ereignissen (Finger), rückwärts von „Team“ zu „Lernplan“
-      const cdp = await p.context().newCDPSession(p);
-      const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
-      await touch('touchStart', tab(3));
-      for (let i = 1; i <= 10; i++) await touch('touchMove', tab(3) - ((tab(3) - tab(1)) * i) / 10);
-      await touch('touchEnd', tab(1));
-      await p.getByRole('heading', { name: 'Lernplan' }).first().waitFor();
-      check(p.url().includes('#/lernplan'), 'Tab-Leiste: Finger-Wischen von „Team“ zu „Lernplan“ öffnet „Lernplan“');
+      // Haptik: kurzer Impuls beim Abhaken (Vibration API wird hier mitprotokolliert)
+      await p.goto(`${BASE}#/lernplan?ansicht=tag&datum=2026-12-20`);
+      const box = p.getByRole('checkbox', { name: /für Person 3/ }).first();
+      await box.waitFor();
+      await box.click();
+      await p.waitForTimeout(200);
+      const vib = await p.evaluate(() => window.__vibrations ?? []);
+      const last = vib[vib.length - 1];
+      const total = Array.isArray(last) ? last.reduce((a, b) => a + b, 0) : last;
+      check(vib.length >= 1 && total <= 80, `Haptik: kurzer Impuls beim Abhaken (${JSON.stringify(last)})`);
+      await p.goto(`${BASE}#/einstellungen`);
+      await p.getByRole('heading', { name: 'Einstellungen' }).waitFor();
+      check((await p.getByRole('radiogroup', { name: 'Haptisches Feedback' }).count()) === 1, 'Haptik: Einstellung „Haptisches Feedback“ vorhanden, wo unterstützt');
       await p.goto(`${BASE}#/`);
     }
     for (const [path, pname] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan'], ['#/faecher', 'faecher'], ['#/team', 'team'], ['#/einstellungen', 'einstellungen']]) {

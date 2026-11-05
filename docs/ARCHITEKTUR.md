@@ -93,7 +93,11 @@ Supabase liefert maximal 1000 Zeilen pro Anfrage; `fetchTable` lädt seitenweise
 ## Design und Animation
 
 - Farb-Tokens als CSS-Variablen (`src/styles/index.css`) für Hell/Dunkel; Theme `System/Hell/Dunkel` pro Gerät.
-- Liquid Glass: `.glass` (Blur + Sättigung, Lichtkante, Spiegelung), `.sheen` (sehr langsamer Schimmer), langsam wandernde Hintergrundflächen (`.ambient`) – alles über `transform`/`opacity`.
+- Liquid Glass: **ein** Material in `src/styles/index.css` für alle Glasflächen – `.glass` (normal), `.glass-thin` (Seitenleiste, Tab-Leiste), `.glass-strong` (Menüs, Dialoge, Meldungen; gut lesbar), `.glass-tint` (dezenter Pastellschimmer), `.lens` (gläserne Hervorhebung des aktiven Elements). Hintergrundunschärfe per `backdrop-filter`/`-webkit-backdrop-filter`, Lichtkante und Spiegelung als Innenschatten bzw. `::before`, Werte als CSS-Variablen für Hell/Dunkel. Ohne `backdrop-filter`-Unterstützung automatisch deckend.
+- Fortschrittskreise: Der Leuchtschein ist ein SVG-`<filter>` mit ausdrücklich festgelegter Filterfläche (`filterUnits="userSpaceOnUse"`). Kein CSS-`filter: blur()` auf SVG-Elementen – dessen automatisch berechnete, rechteckige Fläche wird mit Grafikkarten-Beschleunigung hart abgeschnitten (eckiges Leuchten).
+- `body` nutzt `overflow-x: clip` statt `hidden`, damit die Kopfzeile mit Logo (`position: sticky`) auch in iOS Safari stehen bleibt. Der untere Abstand des Inhalts wird aus `--tabbar-height` + Safe Area berechnet (`.pb-tabbar`).
+- Haptik: `src/lib/haptics.ts` (Vibration API nur bei echter Unterstützung, sehr kurze Impulse, Sperre gegen Wiederholung, abschaltbar). iOS Safari unterstützt die API nicht – dort gibt es nur die visuelle Rückmeldung (Drück-Animation).
+- `.sheen` (sehr langsamer Schimmer), langsam wandernde Hintergrundflächen (`.ambient`) – alles über `transform`/`opacity`.
 - Automatische Vereinfachung: `prefers-reduced-transparency`, schwache Geräte (`hardwareConcurrency`/`deviceMemory`) oder Einstellung „Glaseffekte: Einfach“.
 - `prefers-reduced-motion` bzw. Einstellung „Animationen: Reduziert“ schaltet Animationen ab (CSS + `MotionConfig`).
 - Personenwechsel: Die gewählte Karte vergrößert sich mit Farbschimmer, die anderen treten zurück; der Avatar trägt eine gemeinsame `layoutId` (Shared-Element-Konzept), danach blendet das Dashboard weich ein.

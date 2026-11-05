@@ -59,19 +59,19 @@ export const TaskRow = memo(function TaskRow({ task, member, members, showGroup 
           />
         ) : (
           <motion.p
-            className="relative inline text-[15px] leading-snug"
+            className="text-[15px] leading-snug"
             animate={{ opacity: checked ? 0.5 : 1 }}
             transition={{ duration: 0.3 }}
             onDoubleClick={() => !readOnly && setEditing(true)}
+            // Echtes Durchstreichen folgt jeder Zeile (auch bei Umbrüchen) und blendet weich ein
+            style={{
+              textDecorationLine: 'line-through',
+              textDecorationThickness: '1.5px',
+              textDecorationColor: checked ? 'currentColor' : 'transparent',
+              transition: 'text-decoration-color 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
           >
             {task.title}
-            <motion.span
-              aria-hidden
-              className="absolute left-0 top-1/2 h-[1.5px] rounded-full bg-current"
-              initial={false}
-              animate={{ width: checked ? '100%' : '0%' }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            />
           </motion.p>
         )}
         {(subtitle || attachmentCount > 0) && !editing && (

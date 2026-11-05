@@ -6,6 +6,7 @@ import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
 import { validateImport, type ValidationResult } from '../lib/backup';
 import { Link } from '../lib/router';
+import { isHapticsSupported } from '../lib/haptics';
 import { useData, useSyncStatus } from '../store/data';
 import { useAllMembers, useAppName, useModules } from '../store/derived';
 import { usePrefs } from '../store/prefs';
@@ -128,6 +129,20 @@ function Appearance() {
           ]}
         />
       </Row>
+      {/* Nur anzeigen, wo das Gerät wirklich vibrieren kann (z. B. Android). iOS Safari unterstützt die Vibration API nicht. */}
+      {isHapticsSupported() && (
+        <Row label="Haptisches Feedback" hint="Kurze, dezente Vibration bei wichtigen Aktionen.">
+          <Segmented
+            label="Haptisches Feedback"
+            value={prefs.haptics ? 'an' : 'aus'}
+            onChange={(v) => prefs.set({ haptics: v === 'an' })}
+            options={[
+              { value: 'aus', label: 'Aus' },
+              { value: 'an', label: 'An' },
+            ]}
+          />
+        </Row>
+      )}
     </Section>
   );
 }

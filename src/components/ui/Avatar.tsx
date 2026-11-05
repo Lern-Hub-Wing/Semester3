@@ -1,11 +1,9 @@
-import { motion } from 'motion/react';
 import { initials, readableTextOn } from '../../lib/colors';
 
 interface Props {
   name: string;
   color: string;
   size?: number;
-  layoutId?: string;
   className?: string;
   ring?: boolean;
   /** ohne farbigen Schatten – z. B. eingebettet in eine Glasfläche */
@@ -14,10 +12,9 @@ interface Props {
 }
 
 /** Farbiger Avatar mit Initialen (Farbe ist nie das einzige Merkmal). */
-export function Avatar({ name, color, size = 40, layoutId, className = '', ring, dimmed, flat }: Props) {
+export function Avatar({ name, color, size = 40, className = '', ring, dimmed, flat }: Props) {
   return (
-    <motion.span
-      layoutId={layoutId}
+    <span
       aria-hidden
       className={`relative inline-grid shrink-0 place-items-center rounded-full font-semibold leading-none tracking-tight ${className}`}
       style={{
@@ -36,6 +33,6 @@ export function Avatar({ name, color, size = 40, layoutId, className = '', ring,
     >
       {/* Initialen exakt auf der Versalhöhe zentriert (nicht auf der Zeilenhöhe) */}
       <span className="cap-center">{initials(name)}</span>
-    </motion.span>
+    </span>
   );
 }

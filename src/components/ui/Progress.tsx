@@ -54,7 +54,9 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
 
   const sweepLen = Math.min(c * 0.16, Math.max(filled * 0.5, 0));
   const center = size / 2;
-  const glow = Math.max(4, stroke * 0.7);
+  const glow = Math.max(3, stroke * 0.55);
+  /** Rand der Filterfläche: genug Platz für den Weichzeichner (≈ 3 Standardabweichungen) */
+  const glowPad = Math.ceil(glow * 4 + stroke);
 
   return (
     <div ref={ref} className={`relative inline-grid place-items-center ${className}`} style={{ width: size, height: size }}>
@@ -64,6 +66,16 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
             <stop offset="0%" stopColor={`color-mix(in srgb, ${color} 72%, white)`} />
             <stop offset="100%" stopColor={color} />
           </linearGradient>
+          {/*
+            Leuchtschein als echter SVG-Filter mit AUSDRÜCKLICH festgelegter Filterfläche
+            (userSpaceOnUse, deutlich größer als der Kreis). Ein CSS-`filter: blur()` auf
+            SVG-Elementen nutzt dagegen eine automatisch berechnete, rechteckige Fläche
+            (Umriss + 10 %), die mit Grafikkarten-Beschleunigung hart abgeschnitten wird –
+            das erzeugte das eckige Leuchten.
+          */}
+          <filter id={`${gradientId}-glow`} filterUnits="userSpaceOnUse" x={-glowPad} y={-glowPad} width={size + glowPad * 2} height={size + glowPad * 2} colorInterpolationFilters="sRGB">
+            <feGaussianBlur stdDeviation={glow} />
+          </filter>
         </defs>
         <circle cx={center} cy={center} r={r} fill="none" stroke="var(--ss-track)" strokeWidth={stroke} />
         {/* Weicher Leuchtschein (unscharfe Kopie des Bogens) */}
@@ -80,7 +92,7 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
             initial={{ strokeDashoffset: c }}
             animate={{ strokeDashoffset: c - filled, opacity: complete ? 0.75 : 0.42 }}
             transition={reduce ? { duration: 0 } : firstFill.current ? fillIn : spring}
-            style={{ filter: `blur(${glow}px)` }}
+            filter={`url(#${gradientId}-glow)`}
           />
         )}
         <motion.circle
@@ -111,7 +123,7 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
             initial={{ strokeDashoffset: 0, opacity: 0 }}
             animate={{ strokeDashoffset: -(filled - sweepLen), opacity: [0, 0.75, 0.75, 0] }}
             transition={{ duration: Math.max(0.9, (filled / c) * 1.6), ease: [0.45, 0, 0.25, 1], opacity: { times: [0, 0.15, 0.8, 1] } }}
-            style={{ filter: 'blur(1.5px)', mixBlendMode: 'soft-light' }}
+            style={{ mixBlendMode: 'soft-light' }}
           />
         )}
       </svg>

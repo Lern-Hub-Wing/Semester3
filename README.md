@@ -163,7 +163,8 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | Ich möchte … | So geht's |
 |---|---|
 | die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
-| schnell zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder den Finger auf die Leiste legen und seitlich wischen, beim Loslassen öffnet sich der Tab |
+| zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen; weitere Seiten unter „Mehr“ |
+| haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
 | einen Lerntag planen | Kalender-Plus-Symbol oben oder „Neuer Lerntag“ im Lernplan |
 | einen Lerntag verschieben | Desktop: im Monat/Woche per Drag & Drop · Smartphone: Lerntag bearbeiten → Datum |
 | eine einzelne Aufgabe verschieben | ⋮ an der Aufgabe → „Verschieben …“ |

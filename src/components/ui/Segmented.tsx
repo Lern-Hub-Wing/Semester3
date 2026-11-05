@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import { motion } from 'motion/react';
+import { haptic } from '../../lib/haptics';
 
 interface Option<T extends string> {
   value: T;
@@ -29,7 +30,10 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
             type="button"
             role="radio"
             aria-checked={active}
-            onClick={() => onChange(o.value)}
+            onClick={() => {
+              if (o.value !== value) haptic('select');
+              onChange(o.value);
+            }}
             className={`relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl font-medium transition-colors ${
               size === 'sm' ? 'h-8 px-3 text-[13px]' : 'h-9 px-3.5 text-sm'
             } ${active ? 'text-ink' : 'text-muted hover:text-ink'}`}

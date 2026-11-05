@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { AlarmClock, CalendarCheck, CalendarDays, ChevronDown, ChevronRight, GraduationCap, Plus, Sparkles, Target, Users } from 'lucide-react';
+import { useMemo } from 'react';
+import { AlarmClock, CalendarCheck, CalendarDays, ChevronRight, GraduationCap, Plus, Sparkles, Target, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { groupBy, groupRatio, isDone, memberRatio, overdueFor, remainingForGroup, type TaskView } from '../lib/progress';
 import { addDaysISO, formatISODate, formatInstant, greetingFor, relativeDayLabel } from '../lib/time';
 import { daysUntil, upcomingExams } from '../lib/countdown';
-import { Link, navigate } from '../lib/router';
+import { Link } from '../lib/router';
 import { useData } from '../store/data';
 import { useActiveMembers, useTaskViews } from '../store/derived';
 import { useUI } from '../store/ui';
@@ -15,14 +14,13 @@ import { useNow } from '../hooks/useNow';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { Countdown } from '../components/Countdown';
 import { TaskRow } from '../components/TaskRow';
-import { MemberProgress } from '../components/MemberProgress';
+import { TeamProgressGrid } from '../components/MemberProgress';
 import { Card, CardHeader, ModuleChip } from '../components/ui/Card';
 import { ProgressRing, ProgressBar } from '../components/ui/Progress';
-import { Button, IconButton } from '../components/ui/Button';
+import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Segmented } from '../components/ui/Segmented';
 import { Reveal } from '../components/ui/Reveal';
-import { Avatar } from '../components/ui/Avatar';
 
 export function Dashboard({ me }: { me: Member }) {
   const views = useTaskViews();
@@ -194,12 +192,9 @@ export function GroupedTasks({ views, me, members }: { views: TaskView[]; me: Me
 }
 
 function TeamCard({ me, members, views }: { me: Member; members: Member[]; views: TaskView[] }) {
-  const completions = useData((s) => s.task_completions);
   const style = usePrefs((s) => s.progressStyle);
   const setPrefs = usePrefs((s) => s.set);
   const mobile = useIsMobile();
-  const [expanded, setExpanded] = useState(false);
-  const others = members;
 
   return (
     <Card className="h-full p-5">
@@ -208,56 +203,20 @@ function TeamCard({ me, members, views }: { me: Member; members: Member[]; views
         subtitle={`${members.length} aktive ${members.length === 1 ? 'Person' : 'Personen'}`}
         icon={<Users />}
         action={
-          mobile ? (
-            <IconButton label={expanded ? 'Team einklappen' : 'Team ausklappen'} size="sm" onClick={() => setExpanded((e) => !e)} aria-expanded={expanded}>
-              <ChevronDown className={`size-5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-            </IconButton>
-          ) : (
-            <Segmented
-              size="sm"
-              label="Darstellung"
-              value={style}
-              onChange={(v) => setPrefs({ progressStyle: v })}
-              options={[
-                { value: 'ring', label: 'Kreise' },
-                { value: 'bar', label: 'Balken' },
-              ]}
-            />
-          )
+          <Segmented
+            size="sm"
+            label="Darstellung"
+            value={style}
+            onChange={(v) => setPrefs({ progressStyle: v })}
+            options={[
+              { value: 'ring', label: 'Kreise' },
+              { value: 'bar', label: 'Balken' },
+            ]}
+          />
         }
       />
-      {mobile && !expanded ? (
-        <button type="button" onClick={() => setExpanded(true)} className="mt-4 flex w-full items-center justify-between gap-2" aria-label="Team ausklappen">
-          {others.map((m) => {
-            const r = memberRatio(views, m.id, completions);
-            return (
-              <span key={m.id} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <Avatar name={m.name} color={m.color} size={38} ring={m.id === me.id} />
-                <span className="num text-xs font-semibold">{r.pct === null ? '–' : `${r.pct}%`}</span>
-              </span>
-            );
-          })}
-        </button>
-      ) : (
-        <AnimatePresence initial={false}>
-          <motion.div
-            initial={mobile ? { height: 0, opacity: 0 } : false}
-            animate={{ height: 'auto', opacity: 1 }}
-            className={`mt-3 ${style === 'ring' ? 'grid grid-cols-2 gap-1' : 'flex flex-col gap-1'}`}
-          >
-            {others.map((m) => (
-              <MemberProgress
-                key={m.id}
-                member={m}
-                ratio={memberRatio(views, m.id, completions)}
-                ringSize={78}
-                highlight={m.id === me.id}
-                onClick={() => navigate(`/team/${m.id}`)}
-              />
-            ))}
-          </motion.div>
-        </AnimatePresence>
-      )}
+      {/* Immer alle aktiven Personen – auf dem Handy kompakter */}
+      <TeamProgressGrid members={members} views={views} meId={me.id} ringSize={mobile ? 66 : 78} className="mt-3" />
     </Card>
   );
 }
