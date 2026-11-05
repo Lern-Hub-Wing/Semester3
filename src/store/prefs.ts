@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { setHapticsEnabled } from '../lib/haptics';
+import { GLASS_CLARITY_DEFAULT, clampClarity } from '../lib/glass';
 
 /** Gerätebezogene Darstellungseinstellungen (lokal gespeichert, weil es keine Konten gibt). */
 export interface Prefs {
@@ -10,10 +11,12 @@ export interface Prefs {
   compact: boolean;
   /** Kurze Vibration bei wichtigen Interaktionen (nur wo unterstützt) */
   haptics: boolean;
+  /** Durchsichtigkeit der Glasflächen, 0 (milchig) … 100 (klar) */
+  glassClarity: number;
 }
 
 const KEY = 'studyspace.prefs.v1';
-const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true };
+const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, glassClarity: GLASS_CLARITY_DEFAULT };
 
 function load(): Prefs {
   try {
@@ -27,6 +30,7 @@ function load(): Prefs {
       glass: parsed.glass === 'reduced' ? 'reduced' : 'auto',
       compact: parsed.compact === true,
       haptics: parsed.haptics !== false,
+      glassClarity: clampClarity(parsed.glassClarity),
     };
   } catch {
     return DEFAULTS;

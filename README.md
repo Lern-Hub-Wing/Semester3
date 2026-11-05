@@ -165,6 +165,8 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
 | zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen; weitere Seiten unter „Mehr“ |
 | haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
+| das Glas klarer oder milchiger machen | Einstellungen → Erscheinungsbild → „Durchsichtigkeit“ (Regler mit Live-Vorschau; wirkt sofort auf alle Glasflächen, gespeichert pro Gerät) |
+| den Lernmodus starten | Dashboard ganz unten → „Lernmodus starten“ (oder Seitenleiste bzw. „Mehr“ → „Lernmodus“). Handy quer halten: Die Uhr läuft sekundengenau im Vollbild, alle Bedienelemente blenden sich nach 3,5 s aus. Antippen blendet sie wieder ein. Unter ⚙ „Darstellung anpassen“: Ziffern (HH:MM oder HH:MM:SS), 24/12 Stunden, Schriftart, Stärke, Größe, Farbe, Leuchten, Hintergrund (Polarlicht, Farbverlauf, Farbe oder eigenes Bild), Datum und nächste Prüfung |
 | einen Lerntag planen | Kalender-Plus-Symbol oben oder „Neuer Lerntag“ im Lernplan |
 | einen Lerntag verschieben | Desktop: im Monat/Woche per Drag & Drop · Smartphone: Lerntag bearbeiten → Datum |
 | eine einzelne Aufgabe verschieben | ⋮ an der Aufgabe → „Verschieben …“ |
@@ -185,7 +187,7 @@ Die erste veröffentlichte Version ist als Branch **`backup/v1.0.0`** gesichert.
 |---|---|
 | `npm test` | Fortschrittsberechnung, Countdown/Zeitzonen, Synchronisations-Engine, Dateiprüfung, Import-Validierung (Vitest) |
 | `npm run test:db` | SQL-Migrationen gegen ein echtes PostgreSQL: Rechte (kein DELETE), Trigger, Soft Delete, Storage-Regeln. Nutzt `DATABASE_URL` oder startet einen temporären lokalen Cluster |
-| `npm run build:e2e && npm run test:e2e` | Browsertests in Chromium gegen eine nachgebildete Supabase-API: Personenauswahl, Lerntag anlegen, Haken pro Person, Titel/Datum ändern, Papierkorb, neue Person, Fehlerfall, 320 px/iPhone/iPad/Desktop, Hell/Dunkel. Benötigt Playwright (`npm install --no-save playwright@1.64.1 && npx playwright install chromium`; dieselbe Version wie im CI) |
+| `npm run build:e2e && npm run test:e2e` | Browsertests in Chromium gegen eine nachgebildete Supabase-API: Personenauswahl, Lerntag anlegen, Haken pro Person, Titel/Datum ändern, Papierkorb, neue Person, Fehlerfall, Glas-Regler, Lernmodus (Uhrzeit, Ausblenden, Darstellung, hochkant/quer), 320 px/iPhone/iPad/Desktop, Hell/Dunkel. Benötigt Playwright (`npm install --no-save playwright@1.64.1 && npx playwright install chromium`; dieselbe Version wie im CI) |
 
 Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#manuelle-abnahme)): echte Realtime-Verbindung zwischen zwei Geräten, echter Datei-Upload zu Supabase Storage, Safari/Firefox/Edge.
 

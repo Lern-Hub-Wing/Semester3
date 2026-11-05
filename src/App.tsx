@@ -31,6 +31,7 @@ const Materials = lazy(() => import('./pages/Materials').then((m) => ({ default:
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
+const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
 function Routes({ me }: { me: Member }) {
   const { path } = useLocation();
@@ -50,6 +51,7 @@ function Routes({ me }: { me: Member }) {
 }
 
 function Main() {
+  const { path } = useLocation();
   const me = useCurrentMember();
   const phase = useData((s) => s.phase);
   const select = useSession((s) => s.select);
@@ -70,6 +72,11 @@ function Main() {
       <AnimatePresence mode="wait">
         {!me || !me.is_active ? (
           <ProfilePicker key="picker" />
+        ) : path === '/lernmodus' ? (
+          // Lernmodus: Vollbild ohne App-Rahmen
+          <Suspense key="study" fallback={<div className="fixed inset-0 bg-[#0C1018]" />}>
+            <StudyMode />
+          </Suspense>
         ) : (
           <AppShell key="app">
             <Suspense fallback={<PageSkeleton />}>

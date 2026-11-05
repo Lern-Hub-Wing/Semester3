@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlarmClock, CalendarCheck, CalendarDays, ChevronRight, GraduationCap, Plus, Sparkles, Target, Users } from 'lucide-react';
+import { AlarmClock, CalendarCheck, CalendarDays, ChevronRight, Clock3, Play, RotateCw, GraduationCap, Plus, Sparkles, Target, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { groupBy, groupRatio, isDone, memberRatio, overdueFor, remainingForGroup, type TaskView } from '../lib/progress';
 import { addDaysISO, formatISODate, formatInstant, greetingFor, relativeDayLabel } from '../lib/time';
@@ -21,6 +21,7 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Segmented } from '../components/ui/Segmented';
 import { Reveal } from '../components/ui/Reveal';
+import { startStudyMode } from '../lib/studyModeStart';
 
 export function Dashboard({ me }: { me: Member }) {
   const views = useTaskViews();
@@ -150,6 +151,10 @@ export function Dashboard({ me }: { me: Member }) {
 
         <Reveal className="lg:col-span-4">
           <UpcomingExams />
+        </Reveal>
+
+        <Reveal className="md:col-span-2 lg:col-span-12">
+          <StudyModeCard />
         </Reveal>
       </div>
     </div>
@@ -301,5 +306,44 @@ function UpcomingExams() {
         </ul>
       )}
     </Card>
+  );
+}
+
+/** Einstieg in den Lernmodus (Vollbild-Uhr im Querformat). */
+function StudyModeCard() {
+  const now = useNow(1000);
+  const d = new Date(now);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    <section
+      aria-labelledby="study-mode-title"
+      className="glass glass-tint relative overflow-hidden rounded-[26px] p-5 md:p-6"
+      data-testid="study-mode-card"
+    >
+      <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
+        {/* Mini-Vorschau: Handy quer mit Uhr */}
+        <div aria-hidden className="mx-auto grid h-[92px] w-[176px] shrink-0 place-items-center rounded-[22px] border border-[var(--lg-hi)] bg-[#0C1018] shadow-[0_12px_30px_-14px_rgba(0,0,0,0.6)] md:mx-0">
+          <span className="num text-[30px] font-semibold tracking-tight text-[#F2F5FA]" style={{ textShadow: '0 0 12px rgba(175,197,245,.45)' }}>
+            {pad(d.getHours())}:{pad(d.getMinutes())}
+            <span className="text-[16px] opacity-60">:{pad(d.getSeconds())}</span>
+          </span>
+        </div>
+        <div className="min-w-0 flex-1 text-center md:text-left">
+          <p className="flex items-center justify-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted md:justify-start">
+            <Clock3 className="size-3.5" aria-hidden /> Lernmodus
+          </p>
+          <h2 id="study-mode-title" className="mt-1 text-xl font-semibold tracking-tight">
+            Konzentriert lernen mit der Vollbild-Uhr
+          </h2>
+          <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted md:justify-start">
+            <RotateCw className="size-4 shrink-0" aria-hidden />
+            Handy quer hinlegen – die Uhrzeit läuft sekundengenau im Vollbild, alles andere blendet sich aus.
+          </p>
+        </div>
+        <Button variant="primary" size="lg" icon={<Play className="size-4" />} onClick={startStudyMode} className="w-full md:w-auto">
+          Lernmodus starten
+        </Button>
+      </div>
+    </section>
   );
 }

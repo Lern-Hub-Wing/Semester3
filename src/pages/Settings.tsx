@@ -7,6 +7,7 @@ import { config, LIMITS } from '../lib/config';
 import { validateImport, type ValidationResult } from '../lib/backup';
 import { Link } from '../lib/router';
 import { isHapticsSupported } from '../lib/haptics';
+import { GLASS_CLARITY_DEFAULT, clarityLabel } from '../lib/glass';
 import { useData, useSyncStatus } from '../store/data';
 import { useAllMembers, useAppName, useModules } from '../store/derived';
 import { usePrefs } from '../store/prefs';
@@ -107,6 +108,9 @@ function Appearance() {
           ]}
         />
       </Row>
+      <div className="border-t border-line py-3.5 first:border-t-0 first:pt-0">
+        <GlassClaritySetting value={prefs.glassClarity} onChange={(glassClarity) => prefs.set({ glassClarity })} />
+      </div>
       <Row label="Glaseffekte" hint="Vereinfachen spart Leistung auf älteren Geräten.">
         <Segmented
           label="Glaseffekte"
@@ -493,5 +497,57 @@ function ActionLink({ icon, title, text, to }: { icon: ReactNode; title: string;
       <span className="font-medium">{title}</span>
       <span className="text-xs text-muted">{text}</span>
     </Link>
+  );
+}
+
+/** Regler „Durchsichtigkeit“ mit Live-Vorschau – wirkt sofort auf alle Glasflächen. */
+function GlassClaritySetting({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <label htmlFor="ss-glass-clarity" className="text-sm font-medium">
+            Durchsichtigkeit
+          </label>
+          <span className="num text-xs text-muted" aria-hidden>
+            {clarityLabel(value)} · {value}
+          </span>
+        </div>
+        <p className="text-xs text-muted">Wie klar Seitenleiste, Navigation und Knöpfe sind. Wirkt sofort.</p>
+        <div className="mt-2.5 flex items-center gap-3">
+          <span className="text-[11px] text-faint">Milchig</span>
+          <input
+            id="ss-glass-clarity"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            onDoubleClick={() => onChange(GLASS_CLARITY_DEFAULT)}
+            aria-valuetext={`${clarityLabel(value)}, ${value} von 100`}
+            className="ss-range flex-1"
+          />
+          <span className="text-[11px] text-faint">Klar</span>
+        </div>
+        {value !== GLASS_CLARITY_DEFAULT && (
+          <button type="button" className="mt-1 text-xs font-medium text-accent hover:underline" onClick={() => onChange(GLASS_CLARITY_DEFAULT)}>
+            Auf Standard zurücksetzen
+          </button>
+        )}
+      </div>
+      {/* Live-Vorschau: Glas über einem farbigen Hintergrund */}
+      <div
+        aria-hidden
+        className="relative h-24 w-full shrink-0 overflow-hidden rounded-2xl sm:w-44"
+        style={{ background: 'linear-gradient(135deg, #AFC5F5 0%, #CBB8F5 45%, #F5C6A5 100%)' }}
+      >
+        <span className="absolute left-3 top-2 text-[22px] font-bold leading-none text-[#1D2533]/70">Aa 12:45</span>
+        <span className="absolute bottom-2 right-3 size-10 rounded-full bg-[#AADCCB]" />
+        <div className="glass absolute inset-x-4 bottom-3 top-7 grid place-items-center rounded-2xl text-xs font-semibold" data-testid="glass-preview">
+          Vorschau
+        </div>
+      </div>
+    </div>
   );
 }

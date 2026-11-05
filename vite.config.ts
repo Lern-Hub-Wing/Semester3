@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
-          globIgnores: ['splash/**', '**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
+          globIgnores: ['splash/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
           navigateFallback: 'index.html',
           cleanupOutdatedCaches: true,
           runtimeCaching: [
