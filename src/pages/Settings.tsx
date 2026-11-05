@@ -31,7 +31,7 @@ export function Settings() {
   return (
     <div>
       <PageHeader title="Einstellungen" subtitle="Darstellung gilt für dieses Gerät, alles andere für die ganze Gruppe." />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Appearance />
         <General />
         <People />
@@ -167,13 +167,13 @@ function General() {
     <Section title="Allgemein" icon={<Info />}>
       <Row label="App-Name" hint="Gilt für alle.">
         <form
-          className="flex gap-2"
+          className="flex w-full gap-2 sm:w-auto"
           onSubmit={(e) => {
             e.preventDefault();
             if (name.trim() && name.trim() !== appName) void setSetting('app_name', name.trim());
           }}
         >
-          <input className="field !min-h-9 !w-44 !py-1.5" aria-label="App-Name" value={name} maxLength={LIMITS.appName} onChange={(e) => setName(e.target.value)} />
+          <input className="field !min-h-9 min-w-0 flex-1 !py-1.5 sm:!w-44 sm:flex-none" aria-label="App-Name" value={name} maxLength={LIMITS.appName} onChange={(e) => setName(e.target.value)} />
           <Button size="sm" type="submit">
             Speichern
           </Button>

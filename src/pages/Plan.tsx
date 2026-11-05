@@ -145,10 +145,10 @@ export function Plan({ me }: { me: Member }) {
         }
       />
 
-      <div className="glass z-10 mb-4 flex flex-col gap-3 rounded-[22px] p-2.5 md:sticky md:top-[68px] md:flex-row md:items-center">
+      <div className="glass z-10 mb-4 flex flex-col gap-3 rounded-[22px] p-2.5 md:sticky md:top-[68px] md:flex-row md:flex-wrap md:items-center">
         <Segmented label="Ansicht" value={view} onChange={(v) => setQuery({ ansicht: v })} options={VIEWS} className="w-full md:w-auto" />
         {view !== 'liste' && (
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1 md:flex-1">
             <IconButton label="Zurück" size="sm" onClick={() => step(-1)}>
               <ChevronLeft className="size-5" />
             </IconButton>
@@ -161,10 +161,10 @@ export function Plan({ me }: { me: Member }) {
             </Button>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-1.5 md:ml-auto md:flex md:items-center">
+        <div className="grid grid-cols-2 gap-1.5 md:w-full xl:ml-auto xl:flex xl:w-auto xl:items-center">
           <select
             aria-label="Nach Modul filtern"
-            className="field !h-9 !min-h-9 !rounded-xl !py-0 text-[13px] md:!w-auto md:max-w-[220px]"
+            className="field !h-9 !min-h-9 !rounded-xl !py-0 text-[13px] xl:!w-auto xl:max-w-[220px]"
             value={moduleFilter ?? ''}
             onChange={(e) => setQuery({ modul: e.target.value || null })}
           >
@@ -177,7 +177,7 @@ export function Plan({ me }: { me: Member }) {
           </select>
           <select
             aria-label="Nach Status filtern"
-            className="field !h-9 !min-h-9 !rounded-xl !py-0 text-[13px] md:!w-auto"
+            className="field !h-9 !min-h-9 !rounded-xl !py-0 text-[13px] xl:!w-auto"
             value={status}
             onChange={(e) => setQuery({ status: e.target.value === 'alle' ? null : e.target.value })}
           >

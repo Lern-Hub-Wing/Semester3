@@ -180,7 +180,25 @@ async function shot(page, name) {
 }
 
 async function hasHorizontalOverflow(page) {
-  return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  // Gegen die eingestellte Gerätebreite prüfen – nicht gegen window.innerWidth:
+  // Mobile Browser (auch iOS Safari) verbreitern den Layout-Viewport mit zu
+  // breitem Inhalt, dann wäre innerWidth selbst schon zu groß.
+  const width = page.viewportSize()?.width ?? 0;
+  return page.evaluate((w) => {
+    if (document.documentElement.scrollWidth > w + 1 || window.innerWidth > w + 1) return true;
+    // Auch abgeschnittene Überbreite erkennen (body nutzt overflow-x: clip)
+    const main = document.querySelector('main') ?? document.body;
+    const clipped = (el) => {
+      for (let a = el.parentElement; a && a !== main; a = a.parentElement) {
+        if (/hidden|clip|auto|scroll/.test(getComputedStyle(a).overflowX) && a.getBoundingClientRect().right <= w + 1) return true;
+      }
+      return false;
+    };
+    return [...main.querySelectorAll('*')].some((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.right > w + 1 && getComputedStyle(el).position !== 'fixed' && !clipped(el);
+    });
+  }, width);
 }
 
 /** Fortschrittskreise: Leuchtschein ohne rechteckige Kanten (Struktur + Pixel). */
@@ -603,6 +621,20 @@ try {
       await p.goto(`${BASE}#/einstellungen`);
       await p.getByRole('heading', { name: 'Einstellungen' }).waitFor();
       check((await p.getByRole('radiogroup', { name: 'Haptisches Feedback' }).count()) === 1, 'Haptik: Einstellung „Haptisches Feedback“ vorhanden, wo unterstützt');
+      // iOS zoomt bei Eingabefeldern unter 16 px automatisch hinein – das darf nicht passieren
+      const small = await p.evaluate(() =>
+        [...document.querySelectorAll('input, select, textarea')]
+          .filter((el) => !['range', 'checkbox', 'radio', 'color', 'file'].includes(el.type))
+          .map((el) => [el.getAttribute('aria-label') ?? el.name ?? el.type, parseFloat(getComputedStyle(el).fontSize)])
+          .filter(([, size]) => size < 16),
+      );
+      check(small.length === 0, `Kein Auto-Zoom (iPhone): alle Eingabefelder ≥ 16 px${small.length ? ' – ' + JSON.stringify(small) : ''}`);
+      const minW = await p.locator('.field').first().evaluate((el) => getComputedStyle(el).minWidth);
+      check(minW === '0px', `Einstellungen (iPhone): Eingabefelder dürfen schrumpfen (min-width=${minW})`);
+      check(await p.evaluate(() => getComputedStyle(document.documentElement).touchAction === 'manipulation'), 'Kein Zoomen per Doppeltippen (touch-action: manipulation)');
+      await p.goto(`${BASE}#/`);
+      await p.getByTestId('study-mode-card').waitFor();
+      check((await p.getByTestId('iphone-install-hint').count()) === 1, 'Lernmodus (iPhone-Safari): Hinweis auf „Zum Home-Bildschirm“ für echtes Vollbild');
       // Lernmodus auf dem Smartphone: hochkant → Hinweis, quer → Uhr
       const portraitSize = p.viewportSize();
       await p.goto(`${BASE}#/lernmodus`);
@@ -612,6 +644,11 @@ try {
       await p.setViewportSize({ width: portraitSize.height, height: portraitSize.width });
       await p.getByTestId('study-clock').waitFor();
       check((await p.getByTestId('study-rotate').count()) === 0, 'Lernmodus (iPhone quer): Uhr im Vollbild statt Hinweis');
+      {
+        const hint = p.getByTestId('iphone-fullscreen-hint');
+        const hb = (await hint.count()) ? await hint.boundingBox() : null;
+        check(!!hb && hb.x >= 0 && hb.x + hb.width <= portraitSize.height, 'Lernmodus (iPhone quer): Vollbild-Hinweis sichtbar und vollständig auf dem Bildschirm');
+      }
       const cb = await p.getByTestId('study-clock').boundingBox();
       check(cb.x >= 0 && cb.x + cb.width <= portraitSize.height, `Lernmodus (iPhone quer): Uhr passt auf den Bildschirm (${Math.round(cb.width)} px)`);
       check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Lernmodus, iPhone quer)');

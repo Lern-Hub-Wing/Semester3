@@ -121,6 +121,19 @@ html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   background: var(--ss-bg);
+  /* Kein Zoomen per Doppeltippen */
+  touch-action: manipulation;
+}
+
+/* iOS Safari zoomt beim Antippen eines Eingabefelds automatisch hinein, wenn
+   dessen Schrift kleiner als 16 px ist – und bleibt dann vergrößert.
+   Auf Touch-Geräten haben Eingabefelder deshalb immer mindestens 16 px. */
+@media (pointer: coarse) {
+  input:not([type='range'], [type='checkbox'], [type='radio'], [type='color'], [type='file']),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
 }
 
 body {
@@ -543,6 +556,9 @@ select {
 /* Inputs */
 .field {
   width: 100%;
+  /* Eingabefelder dürfen in Flex-Zeilen schrumpfen – sonst bestimmt ihre
+     Standardbreite (in Safari breiter als in Chrome) die Breite der Karte. */
+  min-width: 0;
   min-height: 44px;
   border-radius: 14px;
   border: 1px solid var(--ss-line);

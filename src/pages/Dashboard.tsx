@@ -22,6 +22,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Segmented } from '../components/ui/Segmented';
 import { Reveal } from '../components/ui/Reveal';
 import { startStudyMode } from '../lib/studyModeStart';
+import { isIPhone, isStandalone } from '../lib/fullscreen';
 
 export function Dashboard({ me }: { me: Member }) {
   const views = useTaskViews();
@@ -314,6 +315,7 @@ function StudyModeCard() {
   const now = useNow(1000);
   const d = new Date(now);
   const pad = (n: number) => String(n).padStart(2, '0');
+  const iphoneBrowser = isIPhone() && !isStandalone();
   return (
     <section
       aria-labelledby="study-mode-title"
@@ -339,6 +341,11 @@ function StudyModeCard() {
             <RotateCw className="size-4 shrink-0" aria-hidden />
             Handy quer hinlegen – die Uhrzeit läuft sekundengenau im Vollbild, alles andere blendet sich aus.
           </p>
+          {iphoneBrowser && (
+            <p className="mt-1.5 text-xs text-faint" data-testid="iphone-install-hint">
+              iPhone: Vollbild gibt es nur, wenn StudySpace über „Teilen → Zum Home-Bildschirm“ hinzugefügt und von dort geöffnet wird.
+            </p>
+          )}
         </div>
         <Button variant="primary" size="lg" icon={<Play className="size-4" />} onClick={startStudyMode} className="w-full md:w-auto">
           Lernmodus starten
