@@ -213,8 +213,13 @@ export function StudyMode() {
       </div>
 
       {iphoneHint && controls && !panel && !needsRotate && (
-        <p data-ui className="glass glass-strong absolute bottom-[max(env(safe-area-inset-bottom),14px)] left-1/2 max-w-[90vw] -translate-x-1/2 rounded-full px-4 py-2 text-center text-xs text-ink">
-          Tipp: Für echtes Vollbild StudySpace über „Teilen → Zum Home-Bildschirm“ hinzufügen.
+        <p
+          data-ui
+          data-testid="iphone-fullscreen-hint"
+          className="glass glass-strong absolute bottom-[max(env(safe-area-inset-bottom),14px)] left-1/2 w-max max-w-[min(92vw,560px)] -translate-x-1/2 rounded-2xl px-4 py-2 text-center text-xs leading-snug text-ink"
+        >
+          Safari erlaubt Webseiten auf dem iPhone kein Vollbild. <b className="font-semibold">So geht's:</b> Teilen → „Zum Home-Bildschirm“, dann
+          StudySpace vom Home-Bildschirm öffnen – dort läuft die Uhr ohne Browserleisten.
         </p>
       )}
 
