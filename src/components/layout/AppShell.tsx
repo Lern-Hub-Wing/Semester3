@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeftRight, CalendarPlus, History, Search, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, CalendarPlus, History, Search, Trash2, Clock3 } from 'lucide-react';
 import { Link, navigate, useLocation } from '../../lib/router';
 import { useAppName } from '../../store/derived';
 import { useSession } from '../../store/session';
@@ -11,6 +11,7 @@ import { IconButton } from '../ui/Button';
 import { NAV, isActive } from './nav';
 import { LiquidTabBar } from './LiquidTabBar';
 import { haptic } from '../../lib/haptics';
+import { startStudyMode } from '../../lib/studyModeStart';
 import { ProfileMenu } from './ProfileMenu';
 import { OfflineBanner, StatusPill } from './StatusPill';
 
@@ -85,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="flex flex-col gap-1">
             <SideAction icon={<Search className="size-5" strokeWidth={1.75} />} label="Suche" hint="⌘K" onClick={() => setUI({ searchOpen: true })} />
+            <SideAction icon={<Clock3 className="size-5" strokeWidth={1.75} />} label="Lernmodus" onClick={startStudyMode} />
             <SideAction icon={<Trash2 className="size-5" strokeWidth={1.75} />} label="Papierkorb" onClick={() => navigate('/papierkorb')} />
           </div>
         </div>
@@ -149,6 +151,7 @@ function MoreSheet() {
     { label: 'Suche', icon: Search, run: () => (close(), setUI({ searchOpen: true })) },
     { label: 'Papierkorb', icon: Trash2, run: () => go('/papierkorb') },
     { label: 'Änderungsverlauf', icon: History, run: () => go('/verlauf') },
+    { label: 'Lernmodus', icon: Clock3, run: () => (close(), startStudyMode()) },
     { label: 'Person wechseln', icon: ArrowLeftRight, run: () => (close(), select(null)) },
   ];
   return (

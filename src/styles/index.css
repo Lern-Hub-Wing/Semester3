@@ -45,11 +45,13 @@
   --ss-warn: #c4873a;
   /* Liquid Glass Material (eine Quelle für alle Glasflächen) – klares Glas:
      kaum Füllung, leuchtende Kante, moderate Unschärfe */
-  --ss-glass: rgba(255, 255, 255, 0.16);
+  /* --lg-k: Faktor aus dem Regler „Durchsichtigkeit“ (0,25 klar … 1 Standard … 4 milchig) */
+  --lg-k: 1;
+  --ss-glass: rgb(255 255 255 / clamp(0, calc(0.16 * var(--lg-k)), 0.9));
   --ss-glass-strong: rgba(255, 255, 255, 0.74);
   --ss-glass-edge: rgba(255, 255, 255, 0.7);
-  --lg-thin: rgba(255, 255, 255, 0.1);
-  --lg-blur: 14px;
+  --lg-thin: rgb(255 255 255 / clamp(0, calc(0.1 * var(--lg-k)), 0.85));
+  --lg-blur: calc(8px + 6px * var(--lg-k));
   --lg-filter: blur(var(--lg-blur)) saturate(170%);
   --lg-stroke: transparent;
   --lg-hi: rgba(255, 255, 255, 0.9);
@@ -86,10 +88,10 @@
   --ss-danger: #f0a29d;
   --ss-success: #8fd8bd;
   --ss-warn: #f1c58c;
-  --ss-glass: rgba(255, 255, 255, 0.045);
+  --ss-glass: rgb(40 50 72 / clamp(0, calc(0.16 * var(--lg-k)), 0.9));
   --ss-glass-strong: rgba(20, 26, 40, 0.8);
   --ss-glass-edge: rgba(255, 255, 255, 0.09);
-  --lg-thin: rgba(255, 255, 255, 0.03);
+  --lg-thin: rgb(40 50 72 / clamp(0, calc(0.1 * var(--lg-k)), 0.85));
   --lg-filter: blur(var(--lg-blur)) saturate(160%) brightness(1.08);
   --lg-hi: rgba(255, 255, 255, 0.16);
   --lg-rim: rgba(255, 255, 255, 0.04);
@@ -158,6 +160,72 @@ body {
   .pb-tabbar {
     padding-bottom: 3rem;
   }
+}
+
+/* Lernmodus: Hinweis „Bitte quer hinlegen“ */
+.study-rotate-icon {
+  animation: ss-rotate-hint 2.6s var(--ease-soft) infinite;
+}
+@keyframes ss-rotate-hint {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  55%,
+  85% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.study-mode {
+  background: #0c1018;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* Schieberegler */
+.ss-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+.ss-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ss-text) 22%, transparent), var(--ss-track));
+}
+.ss-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ss-text) 22%, transparent), var(--ss-track));
+}
+.ss-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(16, 22, 36, 0.3), inset 0 1px 0 #fff;
+}
+.ss-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(16, 22, 36, 0.3);
+}
+.ss-range:focus-visible {
+  outline: none;
+}
+.ss-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ss-accent) 35%, transparent), 0 2px 8px rgba(16, 22, 36, 0.3);
 }
 
 /* Visuelle Rückmeldung beim Antippen (auch dort, wo es keine Vibration gibt) */

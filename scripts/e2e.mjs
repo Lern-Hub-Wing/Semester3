@@ -492,6 +492,82 @@ try {
   await page.goto(`${BASE}#/team`);
   await page.waitForTimeout(2200);
   await checkRingGlow(page, 'Teamseite');
+
+  // --- Durchsichtigkeit des Glases: Regler wirkt sofort und bleibt gespeichert ---
+  {
+    await page.goto(`${BASE}#/einstellungen`);
+    const slider = page.locator('#ss-glass-clarity');
+    await slider.waitFor();
+    const lgK = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--lg-k').trim());
+    const previewBlur = () => page.getByTestId('glass-preview').evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
+    check((await lgK()) === '1', `Glas-Regler: Standardwert ausgewogen (--lg-k=${await lgK()})`);
+    await slider.fill('100');
+    const clear = await previewBlur();
+    check((await lgK()) === '0.25', `Glas-Regler: „Sehr klar“ wirkt sofort (--lg-k=${await lgK()})`);
+    await slider.fill('0');
+    const milky = await previewBlur();
+    check((await lgK()) === '4' && clear !== milky, `Glas-Regler: Live-Vorschau ändert sich (${clear} → ${milky})`);
+    await slider.fill('100');
+    await page.reload();
+    await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await slider.waitFor();
+    check((await slider.inputValue()) === '100' && (await lgK()) === '0.25', 'Glas-Regler: Einstellung bleibt nach dem Neuladen erhalten');
+    await page.getByRole('button', { name: 'Auf Standard zurücksetzen' }).click();
+    check((await lgK()) === '1' && (await slider.inputValue()) === '50', 'Glas-Regler: Zurücksetzen auf Standard');
+  }
+
+  // --- Lernmodus: Start, sekundengenaue Uhr, Ausblenden, Darstellung, Beenden ---
+  {
+    await page.goto(`${BASE}#/`);
+    await page.getByTestId('study-mode-card').waitFor();
+    await page.getByRole('button', { name: 'Lernmodus starten' }).click();
+    const clock = page.getByTestId('study-clock');
+    await clock.waitFor();
+    check(new URL(page.url()).hash === '#/lernmodus', 'Lernmodus: Knopf auf dem Dashboard öffnet den Lernmodus');
+    const secondsOfDay = (h, m, s) => h * 3600 + m * 60 + s;
+    const label = await clock.getAttribute('aria-label');
+    const now = await page.evaluate(() => { const d = new Date(); return [d.getHours(), d.getMinutes(), d.getSeconds()]; });
+    const m = /Uhrzeit (\d\d):(\d\d):(\d\d)$/.exec(label ?? '');
+    const diff = m ? Math.abs(secondsOfDay(+m[1], +m[2], +m[3]) - secondsOfDay(...now)) % 86398 : 99;
+    check(!!m && diff <= 2, `Lernmodus: Uhr zeigt die aktuelle Zeit mit Sekunden (${label})`);
+    await page.waitForTimeout(1300);
+    check((await clock.getAttribute('aria-label')) !== label, 'Lernmodus: Sekunden laufen weiter');
+    const root = page.getByTestId('study-mode');
+    check((await root.getAttribute('data-controls')) === 'visible', 'Lernmodus: Bedienelemente beim Start sichtbar');
+    await page.waitForTimeout(4000);
+    check((await root.getAttribute('data-controls')) === 'hidden', 'Lernmodus: ohne Eingabe blenden sich alle Bedienelemente aus');
+    await page.mouse.move(400, 300);
+    await page.mouse.move(420, 320);
+    await page.waitForTimeout(100);
+    check((await root.getAttribute('data-controls')) === 'visible', 'Lernmodus: Bewegung blendet die Bedienelemente wieder ein');
+
+    await page.getByRole('button', { name: 'Darstellung anpassen' }).click();
+    const panel = page.getByRole('dialog', { name: 'Darstellung des Lernmodus' });
+    await panel.waitFor();
+    await panel.getByRole('radio', { name: /Digital/ }).click();
+    await page.waitForTimeout(800);
+    const box = await clock.boundingBox();
+    check(box.x >= 0 && box.x + box.width <= 1440, `Lernmodus: breite Schrift passt auf den Bildschirm (${Math.round(box.x)}–${Math.round(box.x + box.width)} px)`);
+    const panelBox = await panel.boundingBox();
+    check(box.x + box.width <= panelBox.x, 'Lernmodus: Uhr bleibt neben dem Einstellungsfeld sichtbar (Live-Vorschau)');
+    await panel.getByRole('radio', { name: 'HH:MM', exact: true }).click();
+    check(/^Uhrzeit \d\d:\d\d$/.test((await clock.getAttribute('aria-label')) ?? ''), 'Lernmodus: Ziffern auf HH:MM umstellbar (ohne Sekunden)');
+    await panel.getByRole('radio', { name: 'Verlauf' }).click();
+    check((await page.getByTestId('study-bg').getAttribute('data-bg')) === 'gradient', 'Lernmodus: Hintergrund auf Farbverlauf umstellbar');
+    const family = await clock.evaluate((el) => getComputedStyle(el).fontFamily);
+    check(/Orbitron/.test(family), `Lernmodus: Schriftart der Uhr umstellbar (${family})`);
+    await page.reload();
+    await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await clock.waitFor();
+    const persisted = /^Uhrzeit \d\d:\d\d$/.test((await clock.getAttribute('aria-label')) ?? '') && (await page.getByTestId('study-bg').getAttribute('data-bg')) === 'gradient';
+    check(persisted, 'Lernmodus: Darstellung bleibt nach dem Neuladen erhalten');
+    check(!(await hasHorizontalOverflow(page)), 'L: kein horizontaler Überlauf (Lernmodus, 1440 px)');
+    await shot(page, '12-lernmodus-desktop');
+    await page.mouse.move(500, 300);
+    await page.getByRole('button', { name: 'Lernmodus beenden' }).click();
+    await page.getByTestId('study-mode-card').waitFor();
+    check(new URL(page.url()).hash === '#/', 'Lernmodus: Beenden führt zurück zum Dashboard');
+  }
   check(errors.length === 0, `keine JavaScript-Fehler (Desktop)${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await ctx.close();
 
@@ -527,6 +603,26 @@ try {
       await p.goto(`${BASE}#/einstellungen`);
       await p.getByRole('heading', { name: 'Einstellungen' }).waitFor();
       check((await p.getByRole('radiogroup', { name: 'Haptisches Feedback' }).count()) === 1, 'Haptik: Einstellung „Haptisches Feedback“ vorhanden, wo unterstützt');
+      // Lernmodus auf dem Smartphone: hochkant → Hinweis, quer → Uhr
+      const portraitSize = p.viewportSize();
+      await p.goto(`${BASE}#/lernmodus`);
+      await p.getByTestId('study-rotate').waitFor();
+      check((await p.getByText('Bitte quer hinlegen').count()) === 1 && (await p.getByTestId('study-clock').count()) === 0, 'Lernmodus (iPhone hochkant): Hinweis „Bitte quer hinlegen“');
+      await shot(p, '22-lernmodus-iphone-hochkant');
+      await p.setViewportSize({ width: portraitSize.height, height: portraitSize.width });
+      await p.getByTestId('study-clock').waitFor();
+      check((await p.getByTestId('study-rotate').count()) === 0, 'Lernmodus (iPhone quer): Uhr im Vollbild statt Hinweis');
+      const cb = await p.getByTestId('study-clock').boundingBox();
+      check(cb.x >= 0 && cb.x + cb.width <= portraitSize.height, `Lernmodus (iPhone quer): Uhr passt auf den Bildschirm (${Math.round(cb.width)} px)`);
+      check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Lernmodus, iPhone quer)');
+      // Antippen der freien Fläche blendet die Steuerung aus und wieder ein
+      const sm = p.getByTestId('study-mode');
+      await p.touchscreen.tap(Math.round(portraitSize.height * 0.06), Math.round(portraitSize.width / 2));
+      check((await sm.getAttribute('data-controls')) === 'hidden', 'Lernmodus (iPhone): Antippen blendet die Bedienelemente aus');
+      await p.touchscreen.tap(Math.round(portraitSize.height * 0.06), Math.round(portraitSize.width / 2));
+      check((await sm.getAttribute('data-controls')) === 'visible', 'Lernmodus (iPhone): erneutes Antippen blendet sie wieder ein');
+      await shot(p, '22-lernmodus-iphone-quer');
+      await p.setViewportSize(portraitSize);
       await p.goto(`${BASE}#/`);
     }
     for (const [path, pname] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan'], ['#/faecher', 'faecher'], ['#/team', 'team'], ['#/einstellungen', 'einstellungen']]) {

@@ -94,6 +94,7 @@ Supabase liefert maximal 1000 Zeilen pro Anfrage; `fetchTable` lädt seitenweise
 
 - Farb-Tokens als CSS-Variablen (`src/styles/index.css`) für Hell/Dunkel; Theme `System/Hell/Dunkel` pro Gerät.
 - Liquid Glass: **ein** Material in `src/styles/index.css` für alle Glasflächen – `.glass` (normal), `.glass-thin` (Seitenleiste, Tab-Leiste), `.glass-strong` (Menüs, Dialoge, Meldungen; gut lesbar), `.glass-tint` (dezenter Pastellschimmer), `.lens` (gläserne Hervorhebung des aktiven Elements). Hintergrundunschärfe per `backdrop-filter`/`-webkit-backdrop-filter`, Lichtkante und Spiegelung als Innenschatten bzw. `::before`, Werte als CSS-Variablen für Hell/Dunkel. Ohne `backdrop-filter`-Unterstützung automatisch deckend.
+- Durchsichtigkeit: Einstellung „Durchsichtigkeit des Glases“ (0–100, Standard 50) setzt die CSS-Variable `--lg-k` (`src/lib/glass.ts`, 100 → 0,25 · 50 → 1 · 0 → 4). Deckkraft der Glasfüllung und Stärke der Unschärfe werden damit in allen Glasklassen skaliert – ein Regler für die ganze App, sofort sichtbar.
 - Fortschrittskreise: Der Leuchtschein ist ein SVG-`<filter>` mit ausdrücklich festgelegter Filterfläche (`filterUnits="userSpaceOnUse"`). Kein CSS-`filter: blur()` auf SVG-Elementen – dessen automatisch berechnete, rechteckige Fläche wird mit Grafikkarten-Beschleunigung hart abgeschnitten (eckiges Leuchten).
 - `body` nutzt `overflow-x: clip` statt `hidden`, damit die Kopfzeile mit Logo (`position: sticky`) auch in iOS Safari stehen bleibt. Der untere Abstand des Inhalts wird aus `--tabbar-height` + Safe Area berechnet (`.pb-tabbar`).
 - Haptik: `src/lib/haptics.ts` (Vibration API nur bei echter Unterstützung, sehr kurze Impulse, Sperre gegen Wiederholung, abschaltbar). iOS Safari unterstützt die API nicht – dort gibt es nur die visuelle Rückmeldung (Drück-Animation).
@@ -102,6 +103,16 @@ Supabase liefert maximal 1000 Zeilen pro Anfrage; `fetchTable` lädt seitenweise
 - `prefers-reduced-motion` bzw. Einstellung „Animationen: Reduziert“ schaltet Animationen ab (CSS + `MotionConfig`).
 - Personenwechsel: Die gewählte Karte vergrößert sich mit Farbschimmer, die anderen treten zurück; der Avatar trägt eine gemeinsame `layoutId` (Shared-Element-Konzept), danach blendet das Dashboard weich ein.
 - Konfetti (canvas-confetti, nachgeladen, `pointer-events: none`) nur beim **Übergang** auf 100 % während der Nutzung – nicht beim Laden.
+
+## Lernmodus
+
+- Route `#/lernmodus` (`src/pages/StudyMode.tsx`, nachgeladen), ohne App-Rahmen. Start über `startStudyMode()` (`src/lib/studyModeStart.ts`), das direkt aus dem Klick heraus das Vollbild anfordert.
+- Uhr: Bei jedem Tick (`useNow(1000)`) wird die Zeit aus `new Date()` neu berechnet (`clockParts`) – kein Hochzählen, also keine Abweichung. Ziffern stehen in Boxen der Breite `1ch`, damit nichts springt; breite Schriften werden automatisch auf die freie Breite verkleinert.
+- Hochkant auf Touch-Geräten (`pointer: coarse` + `orientation: portrait`): Hinweis „Bitte quer hinlegen“.
+- Bedienelemente blenden sich nach 3,5 s ohne Eingabe aus (`data-controls`, Mauszeiger ebenfalls); Mausbewegung, Taste oder Antippen blendet sie ein, Antippen der freien Fläche wieder aus. Escape beendet.
+- Vollbild über die Fullscreen API (`src/lib/fullscreen.ts`), auf Android zusätzlich Querformat-Sperre. iPhone-Safari bietet kein Vollbild für Webseiten – dort Hinweis auf „Zum Home-Bildschirm“ (als installierte App ohne Browserleisten). Bildschirm bleibt per Wake Lock API an, wo unterstützt.
+- Darstellung (`src/lib/studyMode.ts`): Einstellungen und ein eigenes Hintergrundbild (verkleinert auf max. 1920 px, JPEG) liegen nur im `localStorage` des Geräts. Schriften (Inter, Nunito, Space Grotesk, JetBrains Mono, Playfair Display, Orbitron) werden erst bei Auswahl nachgeladen; die lateinischen Schnitte sind für die Offline-Nutzung im Service-Worker-Cache.
+- Einbrennschutz: optional verschiebt sich die Uhr jede Minute um wenige Pixel.
 
 ## Responsives Layout
 
