@@ -53,6 +53,12 @@
   --ss-blob-b: rgba(203, 184, 245, 0.35);
   --ss-blob-c: rgba(170, 220, 203, 0.32);
   --ss-track: rgba(29, 37, 51, 0.07);
+  --ss-liquid-bg: rgba(255, 255, 255, 0.42);
+  --ss-liquid-edge: rgba(255, 255, 255, 0.7);
+  --ss-liquid-hi: rgba(255, 255, 255, 0.85);
+  --ss-liquid-lo: rgba(255, 255, 255, 0.25);
+  --ss-lens-bg: rgba(255, 255, 255, 0.62);
+  --ss-lens-edge: rgba(255, 255, 255, 0.9);
 }
 
 .dark {
@@ -78,6 +84,12 @@
   --ss-blob-b: rgba(150, 120, 214, 0.16);
   --ss-blob-c: rgba(90, 170, 150, 0.12);
   --ss-track: rgba(255, 255, 255, 0.07);
+  --ss-liquid-bg: rgba(28, 36, 52, 0.45);
+  --ss-liquid-edge: rgba(255, 255, 255, 0.13);
+  --ss-liquid-hi: rgba(255, 255, 255, 0.16);
+  --ss-liquid-lo: rgba(255, 255, 255, 0.04);
+  --ss-lens-bg: rgba(255, 255, 255, 0.11);
+  --ss-lens-edge: rgba(255, 255, 255, 0.18);
 }
 
 /* ------------------------------------------------------------------ */
@@ -132,6 +144,18 @@ select {
   color: inherit;
 }
 
+/* Text optisch exakt mittig (Versalhöhe statt Zeilenhöhe) */
+.cap-center {
+  display: block;
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+@supports not (text-box: trim-both cap alphabetic) {
+  .cap-center {
+    padding-top: 0.08em;
+  }
+}
+
 /* Gleich breite Ziffern für Countdown und Prozentwerte */
 .num {
   font-variant-numeric: tabular-nums;
@@ -170,6 +194,65 @@ select {
   background: linear-gradient(160deg, var(--ss-sheen) 0%, transparent 38%, transparent 70%, color-mix(in srgb, var(--ss-sheen) 50%, transparent) 100%);
   opacity: 0.9;
   z-index: -1;
+}
+
+/* Liquid Glass Tab-Leiste: sehr durchsichtig, starke Unschärfe, Lichtkante */
+.liquid-bar {
+  background: var(--ss-liquid-bg);
+  -webkit-backdrop-filter: blur(30px) saturate(200%) brightness(1.05);
+  backdrop-filter: blur(30px) saturate(200%) brightness(1.05);
+  border: 1px solid var(--ss-liquid-edge);
+  box-shadow:
+    inset 0 1px 0 var(--ss-liquid-hi),
+    inset 0 -1px 0 var(--ss-liquid-lo),
+    0 14px 34px -16px rgba(16, 22, 36, 0.38),
+    0 2px 8px -3px rgba(16, 22, 36, 0.14);
+  isolation: isolate;
+}
+.liquid-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(120% 140% at 12% -30%, var(--ss-liquid-hi) 0%, transparent 46%),
+    linear-gradient(180deg, transparent 55%, var(--ss-liquid-lo) 100%);
+  opacity: 0.7;
+}
+.liquid-lens {
+  background: var(--ss-lens-bg);
+  border: 1px solid var(--ss-lens-edge);
+  box-shadow:
+    inset 0 1px 0 var(--ss-liquid-hi),
+    inset 0 -2px 4px -2px rgba(16, 22, 36, 0.08),
+    0 6px 16px -8px rgba(16, 22, 36, 0.3);
+  -webkit-backdrop-filter: blur(4px) saturate(170%);
+  backdrop-filter: blur(4px) saturate(170%);
+  transform-origin: center;
+}
+.liquid-lens.is-dragging {
+  box-shadow:
+    inset 0 1px 0 var(--ss-liquid-hi),
+    inset 0 -2px 6px -2px rgba(16, 22, 36, 0.1),
+    0 10px 26px -10px rgba(16, 22, 36, 0.38);
+}
+
+/* Für Wischgesten: kein natives Ziehen von Links/Bildern, kein iOS-Vorschaumenü */
+.no-native-drag,
+.no-native-drag * {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Kopfzeile beim Scrollen: Unschärfe, die nach unten weich ausläuft */
+.header-fade {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ss-bg) 78%, transparent) 0%, color-mix(in srgb, var(--ss-bg) 40%, transparent) 70%, transparent 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 60%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 60%, transparent 100%);
 }
 
 /* Sehr langsam wandernder Schimmer (Ruhezustand) */
@@ -348,7 +431,8 @@ input[type='time'].field {
 /* ------------------------------------------------------------------ */
 /* Reduzierte Effekte                                                  */
 /* ------------------------------------------------------------------ */
-.reduce-glass .glass {
+.reduce-glass .glass,
+.reduce-glass .liquid-bar {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--ss-card);
@@ -361,7 +445,8 @@ input[type='time'].field {
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .glass {
+  .glass,
+  .liquid-bar {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: var(--ss-card);

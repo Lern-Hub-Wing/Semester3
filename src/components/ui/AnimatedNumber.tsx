@@ -13,7 +13,7 @@ export function AnimatedNumber({ value, suffix = '', className = '', style }: { 
       return;
     }
     const controls = animate(from.current, value, {
-      duration: 0.9,
+      duration: 1.2,
       ease: [0.22, 1, 0.36, 1],
       onUpdate: (v) => setDisplay(v),
     });
