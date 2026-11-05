@@ -1,0 +1,331 @@
+// End-to-End-Test im echten Browser (Chromium via Playwright).
+//
+// Die Supabase-REST-API wird im Browser durch eine kleine In-Memory-
+// Nachbildung ersetzt (nur für diesen Test – die App selbst enthält keine
+// Demodaten). So laufen alle echten Codepfade: Laden, Speichern,
+// optimistische Updates, Versionsprüfung und Fehlerbehandlung.
+//
+// Aufruf:  npm run build:e2e && npm run test:e2e
+//          (SCREENSHOTS=1 speichert Bildschirmfotos in screenshots-local/)
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const { chromium, devices } = createRequire(import.meta.url)('playwright');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const SHOTS = process.env.SCREENSHOTS ? join(ROOT, 'screenshots-local') : null;
+const API = 'https://mock-project.supabase.co';
+const PORT = 4179;
+const BASE = `http://127.0.0.1:${PORT}/Semester3/`;
+
+// ---------------------------------------------------------------------
+// In-Memory-Datenbank mit denselben Regeln wie die SQL-Trigger
+// ---------------------------------------------------------------------
+const now = () => new Date().toISOString();
+const t0 = '2026-11-01T10:00:00.000Z';
+const base = (extra) => ({ version: 1, created_at: t0, updated_at: t0, changed_by: null, ...extra });
+const berlin = (date, time) => new Date(`${date}T${time}:00+01:00`).toISOString(); // Januar = MEZ
+
+function seed() {
+  const members = [
+    ['11111111-1111-4111-8111-000000000001', 'Person 1', '#AFC5F5'],
+    ['11111111-1111-4111-8111-000000000002', 'Person 2', '#CBB8F5'],
+    ['11111111-1111-4111-8111-000000000003', 'Person 3', '#AADCCB'],
+    ['11111111-1111-4111-8111-000000000004', 'Person 4', '#F5C6A5'],
+  ].map(([id, name, color], i) => base({ id, name, color, sort_order: i + 1, is_active: true }));
+  const mods = [
+    ['Werkstoffkunde', '#F4B9B6', '2027-01-06', '14:00', '15:30'],
+    ['Operations Research und Beschaffung und Produktion', '#E8CB9D', '2027-01-08', '08:30', '10:00'],
+    ['Thermodynamik und Strömungslehre', '#A6DED7', '2027-01-11', '14:00', '15:30'],
+    ['Angewandte Mathematik', '#C9B7F2', '2027-01-14', '14:00', '15:30'],
+    ['Controlling', '#B4D3F2', '2027-01-18', '14:00', '15:30'],
+    ['Konstruktion', '#C3D7AD', '2027-01-20', '11:00', '12:30'],
+  ];
+  const modules = mods.map(([name, color], i) => base({ id: `22222222-2222-4222-8222-00000000000${i + 1}`, name, color, description: null, sort_order: i + 1, archived_at: null }));
+  const exams = mods.map(([, , d, s, e], i) =>
+    base({ id: `44444444-4444-4444-8444-00000000000${i + 1}`, module_id: modules[i].id, starts_at: berlin(d, s), ends_at: berlin(d, e), timezone: 'Europe/Berlin', location: null, notes: null, deleted_at: null }),
+  );
+  const module_topics = [
+    ['21', 1, 'Operations Research'],
+    ['22', 1, 'Beschaffung und Produktion'],
+    ['31', 2, 'Thermodynamik'],
+    ['32', 2, 'Strömungslehre'],
+    ['61', 5, 'Technisches Zeichnen'],
+  ].map(([n, m, title], i) => base({ id: `33333333-3333-4333-8333-0000000000${n}`, module_id: modules[m].id, title, description: null, sort_order: i + 1, archived_at: null }));
+  return {
+    members, modules, module_topics, exams,
+    study_entries: [], tasks: [], task_completions: [], attachments: [],
+    app_settings: [{ key: 'app_name', value: 'StudySpace', version: 1, updated_at: t0, changed_by: null }],
+    activity_log: [],
+  };
+}
+
+let db = seed();
+const requests = [];
+const pk = (table, row) => (table === 'task_completions' ? `${row.task_id}:${row.member_id}` : table === 'app_settings' ? row.key : row.id);
+
+function parseFilters(url) {
+  const f = [];
+  for (const [k, v] of url.searchParams) {
+    if (['select', 'order', 'offset', 'limit', 'on_conflict', 'columns'].includes(k)) continue;
+    const m = /^(eq|lt|gt)\.(.*)$/.exec(v);
+    if (m) f.push([k, m[1], m[2]]);
+  }
+  return f;
+}
+const match = (row, filters) => filters.every(([k, op, v]) => (op === 'eq' ? String(row[k]) === v : op === 'lt' ? row[k] < Number(v) : row[k] > Number(v)));
+
+function touch(table, row, old) {
+  const t = now();
+  const next = { ...old, ...row, updated_at: t, version: old ? old.version + 1 : 1 };
+  if (!old && table !== 'app_settings') next.created_at = t;
+  if (table === 'attachments' && !old) next.uploaded_at = t;
+  if (table === 'task_completions') next.completed_at = next.is_completed ? (old?.is_completed ? old.completed_at : t) : null;
+  return next;
+}
+
+async function handle(route) {
+  const req = route.request();
+  const url = new URL(req.url());
+  const table = url.pathname.split('/').pop();
+  const method = req.method();
+  const single = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
+  const body = req.postData() ? JSON.parse(req.postData()) : null;
+  requests.push({ method, table, body, url: url.search });
+  if (process.env.FAIL_WRITES && method !== 'GET') return route.fulfill({ status: 503, body: JSON.stringify({ message: 'Service unavailable' }) });
+  const rows = db[table];
+  if (!rows) return route.fulfill({ status: 404, body: '{}' });
+  const reply = (list, status = 200) => {
+    if (single) {
+      if (list.length !== 1) return route.fulfill({ status: 406, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST116', message: 'no rows' }) });
+      return route.fulfill({ status, contentType: 'application/vnd.pgrst.object+json', body: JSON.stringify(list[0]) });
+    }
+    return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(list) });
+  };
+  const filters = parseFilters(url);
+  if (method === 'GET') {
+    let list = rows.filter((r) => match(r, filters));
+    const order = url.searchParams.get('order');
+    if (order?.includes('id.desc')) list = [...list].reverse();
+    const offset = Number(url.searchParams.get('offset') ?? 0);
+    const limit = Number(url.searchParams.get('limit') ?? 1000);
+    return reply(list.slice(offset, offset + limit));
+  }
+  if (method === 'POST') {
+    const items = Array.isArray(body) ? body : [body];
+    const upsert = url.searchParams.has('on_conflict');
+    const out = [];
+    for (const item of items) {
+      const idx = rows.findIndex((r) => pk(table, r) === pk(table, item));
+      if (idx >= 0 && !upsert) return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: '23505', message: 'duplicate' }) });
+      const next = touch(table, item, idx >= 0 ? rows[idx] : undefined);
+      if (idx >= 0) rows[idx] = next;
+      else rows.push(next);
+      out.push(next);
+    }
+    return reply(out, 201);
+  }
+  if (method === 'PATCH') {
+    const out = [];
+    rows.forEach((r, i) => {
+      if (match(r, filters)) {
+        rows[i] = touch(table, body, r);
+        out.push(rows[i]);
+      }
+    });
+    if (!single && out.length === 0) return reply([]);
+    return reply(out);
+  }
+  return route.fulfill({ status: 405, body: '{}' });
+}
+
+// ---------------------------------------------------------------------
+// Testablauf
+// ---------------------------------------------------------------------
+let failures = 0;
+function check(cond, msg) {
+  console.log(`${cond ? '✓' : '✗'} ${msg}`);
+  if (!cond) failures++;
+}
+
+async function newPage(browser, opts = {}) {
+  const ctx = await browser.newContext({ deviceScaleFactor: 1, serviceWorkers: 'block', ...opts });
+  await ctx.route(`${API}/rest/v1/**`, handle);
+  await ctx.route(`${API}/realtime/**`, (r) => r.abort());
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => m.type() === 'error' && !/WebSocket|realtime|ERR_FAILED|Failed to load resource/i.test(m.text()) && errors.push(m.text()));
+  return { ctx, page, errors };
+}
+
+async function shot(page, name) {
+  if (!SHOTS) return;
+  mkdirSync(SHOTS, { recursive: true });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: false });
+}
+
+async function hasHorizontalOverflow(page) {
+  return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+}
+
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdio: 'pipe', env: { ...process.env, VITE_BASE_PATH: '/Semester3/' } });
+await new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error('preview server timeout')), 20000);
+  server.stdout.on('data', (d) => String(d).includes(String(PORT)) && (clearTimeout(timer), resolve()));
+});
+
+const browser = await chromium.launch();
+try {
+  // --- Test A: Personenauswahl ------------------------------------------
+  const { page, errors, ctx } = await newPage(browser, { viewport: { width: 1440, height: 960 }, colorScheme: 'dark' });
+  await page.goto(BASE);
+  await page.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
+  const cards = page.getByRole('button', { name: /^Als .* lernen$/ });
+  await page.waitForTimeout(900);
+  check((await cards.count()) === 4, 'A: vier Profilkarten werden angezeigt');
+  await shot(page, '01-profilauswahl-desktop-dark');
+  await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+  await page.getByRole('heading', { name: /Person 1/ }).waitFor();
+  check(true, 'A: Dashboard von Person 1 geöffnet');
+  check((await page.getByText('NÄCHSTE PRÜFUNG', { exact: false }).count()) > 0 || (await page.getByText('Nächste Prüfung').count()) > 0, 'I: Countdown wird angezeigt');
+  check((await page.getByText('Werkstoffkunde').count()) > 0, 'I: nächste Prüfung ist Werkstoffkunde');
+  await shot(page, '02-dashboard-leer-desktop-dark');
+
+  // --- Lerntag mit Aufgaben anlegen ------------------------------------
+  await page.getByRole('button', { name: 'Ersten Lerntag anlegen' }).click();
+  await page.getByRole('dialog').waitFor();
+  await page.getByRole('radio', { name: 'Controlling' }).click();
+  await page.getByLabel('Titel').fill('Kostenstellenrechnung');
+  const taskTitles = ['Anbauverfahren verstehen', 'Stufenleiterverfahren verstehen', 'Übungsaufgaben lösen', 'Zusammenfassung wiederholen'];
+  for (let i = 0; i < taskTitles.length; i++) {
+    await page.getByLabel(`Aufgabe ${i + 1}`, { exact: true }).fill(taskTitles[i]);
+    if (i < taskTitles.length - 1) await page.getByLabel(`Aufgabe ${i + 1}`, { exact: true }).press('Enter');
+  }
+  await shot(page, '03-lerntag-editor-desktop-dark');
+  await page.getByRole('button', { name: 'Lerntag speichern' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  check(db.study_entries.length === 1 && db.tasks.length === 4, 'C: Lerntag mit 4 Aufgaben in der Datenbank gespeichert');
+  check(db.tasks.every((t) => t.changed_by === '11111111-1111-4111-8111-000000000001'), 'Änderungen tragen das aktive Profil (changed_by)');
+
+  // --- Test B: Haken setzen -------------------------------------------
+  const box = page.getByRole('checkbox', { name: /Anbauverfahren verstehen – offen für Person 1/ });
+  await box.click();
+  await page.waitForTimeout(400);
+  const c1 = db.task_completions.find((c) => c.member_id.endsWith('01'));
+  check(!!c1 && c1.is_completed, 'B: Haken für Person 1 gespeichert');
+  check(!db.task_completions.some((c) => c.member_id.endsWith('02')), 'B: Person 2 bleibt unberührt');
+  await shot(page, '04-dashboard-mit-aufgaben-desktop-dark');
+
+  // Neuladen: Profilauswahl bleibt in der Sitzung, Haken bleibt
+  await page.reload();
+  await page.getByRole('heading', { name: /Person 1/ }).waitFor();
+  check((await page.getByRole('checkbox', { name: /Anbauverfahren verstehen – erledigt für Person 1/ }).count()) === 1, 'B: Haken bleibt nach Neuladen erhalten');
+
+  // Personenwechsel über das Profilmenü
+  await page.getByRole('button', { name: /Profilmenü/ }).click();
+  await page.getByRole('menuitem', { name: 'Person 2' }).click();
+  await page.getByRole('heading', { name: /Person 2/ }).waitFor();
+  check((await page.getByRole('checkbox', { name: /Anbauverfahren verstehen – offen für Person 2/ }).count()) === 1, 'B: Person 2 sieht ihren eigenen (offenen) Status');
+
+  // --- Test D: Titel ändern behält Haken --------------------------------
+  const taskId = db.tasks.find((t) => t.title === 'Anbauverfahren verstehen').id;
+  await page.goto(`${BASE}#/lernplan?ansicht=liste`);
+  await page.getByText('Kostenstellenrechnung').first().waitFor();
+  await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
+  await page.getByRole('menuitem', { name: 'Bearbeiten' }).click();
+  await page.getByLabel('Aufgabe 1', { exact: true }).fill('Anbauverfahren sicher beherrschen');
+  await page.getByLabel('Datum').fill('2026-12-20');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  const renamed = db.tasks.find((t) => t.id === taskId);
+  check(renamed.title === 'Anbauverfahren sicher beherrschen', 'D: Titel geändert, gleiche Aufgaben-ID');
+  check(db.study_entries[0].study_date === '2026-12-20', 'E: Datum verschoben');
+  check(db.task_completions.some((c) => c.task_id === taskId && c.is_completed), 'D/E: Haken bleiben erhalten');
+
+  // --- Test K: Papierkorb ---------------------------------------------
+  await page.goto(`${BASE}#/lernplan?ansicht=tag&datum=2026-12-20`);
+  await page.getByText('Anbauverfahren sicher beherrschen').waitFor();
+  const row = page.locator('li', { hasText: 'Anbauverfahren sicher beherrschen' });
+  await row.hover();
+  await row.getByRole('button', { name: 'Weitere Aktionen' }).click();
+  await page.getByRole('menuitem', { name: 'In den Papierkorb' }).click();
+  await page.waitForTimeout(300);
+  check(!!db.tasks.find((t) => t.id === taskId).deleted_at, 'K: Aufgabe als gelöscht markiert (nicht entfernt)');
+  await page.goto(`${BASE}#/papierkorb`);
+  await page.getByRole('button', { name: 'Wiederherstellen' }).first().click();
+  await page.waitForTimeout(300);
+  check(!db.tasks.find((t) => t.id === taskId).deleted_at && db.task_completions.some((c) => c.task_id === taskId && c.is_completed), 'K: wiederhergestellt, Haken erhalten');
+
+  // --- Test F: neue Person ---------------------------------------------
+  await page.goto(`${BASE}#/team`);
+  await page.getByRole('button', { name: 'Person', exact: true }).click();
+  await page.getByLabel('Name').fill('Person 5');
+  await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  check(db.members.length === 5 && db.task_completions.filter((c) => c.is_completed).length === 1, 'F: neue Person angelegt, bestehende Haken unverändert');
+  await shot(page, '05-team-desktop-dark');
+
+  // --- Fehlerfall: Speichern schlägt fehl -> Rücksprung -----------------
+  process.env.FAIL_WRITES = '1';
+  await page.goto(`${BASE}#/lernplan?ansicht=tag&datum=2026-12-20`);
+  const other = page.getByRole('checkbox', { name: /Übungsaufgaben lösen – offen für Person 2/ });
+  await other.click();
+  await page.waitForTimeout(600);
+  check((await page.getByRole('checkbox', { name: /Übungsaufgaben lösen – offen für Person 2/ }).count()) === 1, 'Fehlgeschlagenes Speichern wird zurückgesetzt (nicht als gespeichert angezeigt)');
+  check((await page.getByText(/nicht gespeichert|Fehler/i).count()) > 0, 'Fehlermeldung wird angezeigt');
+  delete process.env.FAIL_WRITES;
+
+  // Seiten durchklicken (keine Laufzeitfehler)
+  for (const [path, name] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan-monat'], ['#/faecher', 'faecher'], [`#/faecher/${db.modules[4].id}`, 'modul-controlling'], ['#/pruefungen', 'pruefungen'], ['#/materialien', 'materialien'], ['#/einstellungen', 'einstellungen'], ['#/verlauf', 'verlauf']]) {
+    await page.goto(`${BASE}${path}`);
+    await page.waitForTimeout(500);
+    check(!(await hasHorizontalOverflow(page)), `L: kein horizontaler Überlauf (${name}, 1440 px)`);
+    await shot(page, `10-${name}-desktop-dark`);
+  }
+  check(errors.length === 0, `keine JavaScript-Fehler (Desktop)${errors.length ? ': ' + errors.join(' | ') : ''}`);
+  await ctx.close();
+
+  // --- Test L/M: Smartphone (320 px), iPhone, iPad; Light Mode -----------
+  const sizes = [
+    ['320', { viewport: { width: 320, height: 640 }, colorScheme: 'light', hasTouch: true, isMobile: true }],
+    ['iphone', { ...devices['iPhone 13'], colorScheme: 'dark' }],
+    ['ipad', { ...devices['iPad (gen 7)'], colorScheme: 'light' }],
+  ];
+  for (const [name, opts] of sizes) {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, opts);
+    await p.goto(BASE);
+    await p.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
+    await p.waitForTimeout(900);
+    check(!(await hasHorizontalOverflow(p)), `L: kein horizontaler Überlauf auf der Profilauswahl (${name})`);
+    await shot(p, `20-profilauswahl-${name}`);
+    await p.getByRole('button', { name: 'Als Person 3 lernen' }).click();
+    await p.getByRole('heading', { name: /Person 3/ }).waitFor();
+    for (const [path, pname] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan'], ['#/faecher', 'faecher'], ['#/team', 'team'], ['#/einstellungen', 'einstellungen']]) {
+      await p.goto(`${BASE}${path}`);
+      await p.waitForTimeout(500);
+      check(!(await hasHorizontalOverflow(p)), `L: kein horizontaler Überlauf (${pname}, ${name})`);
+      await shot(p, `21-${pname}-${name}`);
+    }
+    if (name === '320') {
+      const isDark = await p.evaluate(() => document.documentElement.classList.contains('dark'));
+      check(!isDark, 'M: Systemeinstellung „hell“ wird übernommen');
+      await p.getByRole('radio', { name: 'Dunkel' }).click();
+      check(await p.evaluate(() => document.documentElement.classList.contains('dark')), 'M: manuelle Umstellung auf Dunkel');
+    }
+    check(errs.length === 0, `keine JavaScript-Fehler (${name})${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+} catch (err) {
+  failures++;
+  console.error('✗ Abbruch:', err);
+} finally {
+  await browser.close();
+  server.kill();
+}
+
+console.log(failures ? `\n${failures} Prüfung(en) fehlgeschlagen` : '\nALLE BROWSERTESTS BESTANDEN');
+process.exit(failures ? 1 : 0);

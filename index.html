@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>StudySpace</title>
+    <meta name="description" content="StudySpace – gemeinsam lernen, gemeinsam Fortschritte machen, gemeinsam 100 Prozent erreichen." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0C1018" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F8FC" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0C1018" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="StudySpace" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png" />
+    <!-- iOS-Startbildschirme -->
+    <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="%BASE_URL%splash/splash-1290x2796.png" />
+    <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="%BASE_URL%splash/splash-1179x2556.png" />
+    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="%BASE_URL%splash/splash-1170x2532.png" />
+    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="%BASE_URL%splash/splash-750x1334.png" />
+    <link rel="apple-touch-startup-image" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2)" href="%BASE_URL%splash/splash-1640x2360.png" />
+    <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="%BASE_URL%splash/splash-2048x2732.png" />
+    <script>
+      // Theme vor dem ersten Rendern setzen (kein heller Blitz im Dark Mode)
+      (function () {
+        try {
+          var p = JSON.parse(localStorage.getItem('studyspace.prefs.v1') || '{}');
+          var dark = p.theme === 'dark' || (p.theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>StudySpace benötigt JavaScript.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
