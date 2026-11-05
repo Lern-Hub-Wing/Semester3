@@ -196,6 +196,9 @@ try {
   await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
   await page.getByRole('heading', { name: /Person 1/ }).waitFor();
   check(true, 'A: Dashboard von Person 1 geöffnet');
+  // Leuchtschein der Fortschrittskreise darf nicht eckig abgeschnitten werden
+  const ringOverflow = await page.locator('svg.-rotate-90').first().evaluate((el) => getComputedStyle(el).overflow);
+  check(ringOverflow === 'visible', `Fortschrittskreis: Leuchtschein wird nicht abgeschnitten (overflow=${ringOverflow})`);
   check((await page.getByText('NÄCHSTE PRÜFUNG', { exact: false }).count()) > 0 || (await page.getByText('Nächste Prüfung').count()) > 0, 'I: Countdown wird angezeigt');
   check((await page.getByText('Werkstoffkunde').count()) > 0, 'I: nächste Prüfung ist Werkstoffkunde');
   await shot(page, '02-dashboard-leer-desktop-dark');
@@ -227,6 +230,10 @@ try {
 
   // Neuladen: Profilauswahl bleibt in der Sitzung, Haken bleibt
   await page.reload();
+  // Bei jedem Öffnen wird wieder gefragt, wer lernt
+  await page.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
+  check(true, 'A: Nach dem Neuladen erscheint wieder „Wer lernt heute?“');
+  await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
   await page.getByRole('heading', { name: /Person 1/ }).waitFor();
   check((await page.getByRole('checkbox', { name: /Anbauverfahren verstehen – erledigt für Person 1/ }).count()) === 1, 'B: Haken bleibt nach Neuladen erhalten');
 
@@ -336,6 +343,34 @@ try {
     await shot(p, `20-profilauswahl-${name}`);
     await p.getByRole('button', { name: 'Als Person 3 lernen' }).click();
     await p.getByRole('heading', { name: /Person 3/ }).waitFor();
+    if (name === 'iphone') {
+      // Tab-Leiste: Antippen und seitliches Wischen (Finger folgt, Loslassen öffnet)
+      const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
+      await nav.getByRole('link', { name: 'Fächer' }).click();
+      await p.getByRole('heading', { name: 'Fächer' }).waitFor();
+      check(p.url().endsWith('#/faecher'), 'Tab-Leiste: Antippen öffnet „Fächer“');
+      const box = await nav.locator('.liquid-bar').boundingBox();
+      const y = box.y + box.height / 2;
+      const tab = (i) => box.x + 6 + ((box.width - 12) / 5) * (i + 0.5);
+      await p.mouse.move(tab(0), y);
+      await p.mouse.down();
+      await p.mouse.move(tab(1), y, { steps: 6 });
+      await p.mouse.move(tab(3), y, { steps: 10 });
+      await p.waitForTimeout(150);
+      const dragging = await p.locator('.liquid-lens.is-dragging').count();
+      await p.mouse.up();
+      await p.getByRole('heading', { name: 'Team' }).first().waitFor();
+      check(dragging === 1 && p.url().endsWith('#/team'), 'Tab-Leiste: Wischen von „Home“ bis „Team“ öffnet beim Loslassen „Team“');
+      // Dasselbe mit echten Touch-Ereignissen (Finger), rückwärts von „Team“ zu „Lernplan“
+      const cdp = await p.context().newCDPSession(p);
+      const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+      await touch('touchStart', tab(3));
+      for (let i = 1; i <= 10; i++) await touch('touchMove', tab(3) - ((tab(3) - tab(1)) * i) / 10);
+      await touch('touchEnd', tab(1));
+      await p.getByRole('heading', { name: 'Lernplan' }).first().waitFor();
+      check(p.url().includes('#/lernplan'), 'Tab-Leiste: Finger-Wischen von „Team“ zu „Lernplan“ öffnet „Lernplan“');
+      await p.goto(`${BASE}#/`);
+    }
     for (const [path, pname] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan'], ['#/faecher', 'faecher'], ['#/team', 'team'], ['#/einstellungen', 'einstellungen']]) {
       await p.goto(`${BASE}${path}`);
       await p.waitForTimeout(500);

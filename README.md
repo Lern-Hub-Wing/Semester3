@@ -162,7 +162,8 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 
 | Ich möchte … | So geht's |
 |---|---|
-| die Person wechseln | Avatar oben rechts → andere Person wählen |
+| die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
+| schnell zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder den Finger auf die Leiste legen und seitlich wischen, beim Loslassen öffnet sich der Tab |
 | einen Lerntag planen | Kalender-Plus-Symbol oben oder „Neuer Lerntag“ im Lernplan |
 | einen Lerntag verschieben | Desktop: im Monat/Woche per Drag & Drop · Smartphone: Lerntag bearbeiten → Datum |
 | eine einzelne Aufgabe verschieben | ⋮ an der Aufgabe → „Verschieben …“ |
@@ -172,6 +173,10 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | sichern | Einstellungen → Daten & Sicherheit → Datenexport |
 
 Der JSON-Export enthält alle Lernplandaten und Haken, **aber keine Dateien selbst** – nur deren Metadaten und Speicherorte im Storage. Dateien bei Bedarf in Supabase unter *Storage* separat herunterladen.
+
+## Sicherung und Zurücksetzen
+
+Die erste veröffentlichte Version ist als Branch **`backup/v1.0.0`** gesichert. Zurück zu diesem Stand: auf GitHub einen Pull Request von `backup/v1.0.0` nach `main` öffnen bzw. die späteren Merge-Commits mit **Revert** rückgängig machen – nach dem Merge veröffentlicht der Workflow automatisch wieder diese Version. Die Datenbank ist davon nicht betroffen.
 
 ## Tests
 

@@ -2,18 +2,13 @@ import { create } from 'zustand';
 
 /**
  * Aktives Lernprofil. Dies ist eine reine Auswahl und KEINE Anmeldung.
- * Gespeichert in sessionStorage: Neuladen behält die Auswahl, ein neuer
- * Start (neuer Tab, App neu geöffnet) zeigt wieder die Personenauswahl.
+ *
+ * Bei jedem Öffnen der App erscheint wieder „Wer lernt heute?“:
+ *  – Die Auswahl wird bewusst nicht gespeichert (auch nicht beim Neuladen).
+ *  – War die App länger als RESUME_PROMPT_MS im Hintergrund (Handy gesperrt,
+ *    andere App, Tab lange inaktiv), wird ebenfalls neu gefragt.
  */
-const KEY = 'studyspace.activeMember';
-
-function read(): string | null {
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+export const RESUME_PROMPT_MS = 15 * 60 * 1000;
 
 interface SessionState {
   activeMemberId: string | null;
@@ -21,16 +16,30 @@ interface SessionState {
 }
 
 export const useSession = create<SessionState>((set) => ({
-  activeMemberId: typeof window === 'undefined' ? null : read(),
-  select: (id) => {
-    try {
-      if (id) sessionStorage.setItem(KEY, id);
-      else sessionStorage.removeItem(KEY);
-    } catch {
-      /* privater Modus – Auswahl gilt dann nur bis zum Neuladen */
-    }
-    set({ activeMemberId: id });
-  },
+  activeMemberId: null,
+  select: (id) => set({ activeMemberId: id }),
 }));
 
 export const getActiveMemberId = () => useSession.getState().activeMemberId;
+
+let hiddenAt: number | null = null;
+let installed = false;
+
+/** Fragt nach längerer Abwesenheit erneut, wer gerade lernt. */
+export function installResumePrompt(now: () => number = Date.now) {
+  if (installed || typeof document === 'undefined') return;
+  installed = true;
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = now();
+    } else if (hiddenAt !== null) {
+      if (now() - hiddenAt >= RESUME_PROMPT_MS) useSession.getState().select(null);
+      hiddenAt = null;
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  // iOS-PWA aus dem Hintergrund-Cache (bfcache) zurückgeholt
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) useSession.getState().select(null);
+  });
+}

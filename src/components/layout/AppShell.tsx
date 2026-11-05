@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeftRight, CalendarPlus, History, Search, Trash2 } from 'lucide-react';
 import { Link, navigate, useLocation } from '../../lib/router';
@@ -8,7 +8,8 @@ import { useUI } from '../../store/ui';
 import { LogoMark } from '../Logo';
 import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/Button';
-import { MOBILE_NAV, NAV, isActive } from './nav';
+import { NAV, isActive } from './nav';
+import { LiquidTabBar } from './LiquidTabBar';
 import { ProfileMenu } from './ProfileMenu';
 import { OfflineBanner, StatusPill } from './StatusPill';
 
@@ -28,6 +29,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const appName = useAppName();
   const setUI = useUI((s) => s.set);
   const openEditor = useUI((s) => s.openEntryEditor);
+
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Neue Seite beginnt oben (Filter-/Datumswechsel innerhalb einer Seite behalten die Position)
   useEffect(() => {
@@ -82,6 +91,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="relative z-10 md:pl-[88px] lg:pl-[256px]">
         <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] md:px-6 md:pt-4 lg:px-8">
+          {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
+          <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-5 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
           <Link to="/" className="mr-auto flex items-center gap-2 md:hidden" aria-label={`${appName} – Dashboard`}>
             <LogoMark size={28} />
           </Link>
@@ -103,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      <BottomNav />
+      <LiquidTabBar />
       <MoreSheet />
     </div>
   );
@@ -120,41 +131,6 @@ function SideAction({ icon, label, hint, onClick }: { icon: ReactNode; label: st
       <span>{label}</span>
       {hint && <kbd className="ml-auto hidden rounded-md border border-line px-1.5 text-[10px] lg:inline">{hint}</kbd>}
     </button>
-  );
-}
-
-/** Schwebende Navigation im Liquid-Glass-Stil (nur Smartphone). */
-function BottomNav() {
-  const { path } = useLocation();
-  const setUI = useUI((s) => s.set);
-  return (
-    <nav aria-label="Hauptnavigation" className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom),10px)] md:hidden">
-      <div className="glass glass-strong mx-auto flex max-w-md items-stretch justify-between rounded-[26px] p-1.5">
-        {MOBILE_NAV.map((item) => {
-          const more = item.to === '#mehr';
-          const active = !more && isActive(path, item.to);
-          const content = (
-            <>
-              {active && (
-                <motion.span layoutId="mnav-active" className="absolute inset-0 rounded-[20px] bg-surface/90 shadow-sm" transition={{ type: 'spring', stiffness: 460, damping: 36 }} />
-              )}
-              <item.icon className="relative size-[22px]" strokeWidth={active ? 2 : 1.7} aria-hidden />
-              <span className="relative text-[10.5px] font-medium">{item.label}</span>
-            </>
-          );
-          const cls = `relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[20px] ${active ? 'text-ink' : 'text-muted'}`;
-          return more ? (
-            <button key={item.to} type="button" className={cls} onClick={() => setUI({ moreOpen: true })} aria-haspopup="dialog">
-              {content}
-            </button>
-          ) : (
-            <Link key={item.to} to={item.to} className={cls} aria-current={active ? 'page' : undefined}>
-              {content}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
   );
 }
 

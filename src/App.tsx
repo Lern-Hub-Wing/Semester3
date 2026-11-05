@@ -5,7 +5,7 @@ import { matchPath, useLocation } from './lib/router';
 import { useAppearance } from './hooks/useAppearance';
 import { useData } from './store/data';
 import { useCurrentMember } from './store/derived';
-import { useSession } from './store/session';
+import { installResumePrompt, useSession } from './store/session';
 import { startSync } from './store/sync';
 import { AppShell } from './components/layout/AppShell';
 import { Toasts } from './components/ui/Toasts';
@@ -57,6 +57,7 @@ function Main() {
 
   useEffect(() => {
     startSync();
+    installResumePrompt();
   }, []);
 
   // Gewähltes Profil wurde deaktiviert oder existiert nicht mehr → zurück zur Auswahl

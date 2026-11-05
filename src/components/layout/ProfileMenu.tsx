@@ -36,9 +36,9 @@ export function ProfileMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Profilmenü – aktiv: ${me.name}`}
-        className="glass flex h-10 items-center gap-2 rounded-full pl-1 pr-3"
+        className="glass flex h-10 items-center gap-2 rounded-full p-[3px] sm:pr-3.5"
       >
-        <Avatar name={me.name} color={me.color} size={32} layoutId={`avatar-${me.id}`} />
+        <Avatar name={me.name} color={me.color} size={34} layoutId={`avatar-${me.id}`} flat />
         <span className="hidden max-w-[120px] truncate text-sm font-medium sm:block">{me.name}</span>
       </button>
       <AnimatePresence>
