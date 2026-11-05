@@ -1,0 +1,106 @@
+# StudySpace – Tests und Veröffentlichung auf GitHub Pages
+#
+# * Bei jedem Pull Request: Typprüfung, Unit-Tests, Datenbanktests, Browsertests.
+# * Bei jedem Push auf "main" (oder manuell): zusätzlich Build + Deployment.
+#
+# Benötigte Repository-Variablen (Settings → Secrets and variables → Actions → Variables):
+#   VITE_SUPABASE_URL              z. B. https://abcd1234.supabase.co
+#   VITE_SUPABASE_PUBLISHABLE_KEY  der Publishable Key (sb_publishable_…) – NIEMALS den Secret Key!
+#   VITE_MAX_UPLOAD_MB             optional, Standard 10
+name: Test & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typprüfung
+        run: npm run typecheck
+      - name: Unit-Tests
+        run: npm test
+      - name: Datenbanktests (Migrationen, Rechte, Trigger)
+        run: npm run test:db
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Browser installieren
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Browsertests (mit nachgebildeter Supabase-API)
+        run: |
+          npm run build:e2e
+          npm run test:e2e
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Build
+        run: npm run build
+        env:
+          # Unterpfad automatisch (z. B. /Semester3/), bei eigener Domain "/"
+          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_MAX_UPLOAD_MB: ${{ vars.VITE_MAX_UPLOAD_MB || '10' }}
+      - name: Hinweis bei fehlender Konfiguration
+        env:
+          URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::warning::VITE_SUPABASE_URL ist nicht gesetzt – die Seite zeigt den Einrichtungsbildschirm. Siehe README, Schritt 9."
+          fi
+      - name: SPA-Fallback und .nojekyll
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
