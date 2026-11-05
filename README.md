@@ -165,7 +165,7 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
 | zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen; weitere Seiten unter „Mehr“ |
 | haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
-| das Glas klarer oder milchiger machen | Einstellungen → Erscheinungsbild → „Durchsichtigkeit des Glases“ (Regler mit Live-Vorschau; wirkt sofort auf alle Glasflächen, gespeichert pro Gerät) |
+| das Glas klarer oder milchiger machen | Einstellungen → Erscheinungsbild → „Durchsichtigkeit“ (Regler mit Live-Vorschau; wirkt sofort auf alle Glasflächen, gespeichert pro Gerät) |
 | den Lernmodus starten | Dashboard ganz unten → „Lernmodus starten“ (oder Seitenleiste bzw. „Mehr“ → „Lernmodus“). Handy quer halten: Die Uhr läuft sekundengenau im Vollbild, alle Bedienelemente blenden sich nach 3,5 s aus. Antippen blendet sie wieder ein. Unter ⚙ „Darstellung anpassen“: Ziffern (HH:MM oder HH:MM:SS), 24/12 Stunden, Schriftart, Stärke, Größe, Farbe, Leuchten, Hintergrund (Polarlicht, Farbverlauf, Farbe oder eigenes Bild), Datum und nächste Prüfung |
 | einen Lerntag planen | Kalender-Plus-Symbol oben oder „Neuer Lerntag“ im Lernplan |
 | einen Lerntag verschieben | Desktop: im Monat/Woche per Drag & Drop · Smartphone: Lerntag bearbeiten → Datum |
