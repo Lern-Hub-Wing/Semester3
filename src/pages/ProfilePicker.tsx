@@ -18,6 +18,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/AppShell';
 import { isDone } from '../lib/progress';
+import { haptic } from '../lib/haptics';
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -41,6 +42,7 @@ export function ProfilePicker() {
 
   const pick = (id: string) => {
     if (chosen) return;
+    haptic('select');
     setChosen(id);
     setTimeout(() => select(id), reduce ? 0 : 340);
   };
@@ -110,7 +112,7 @@ export function ProfilePicker() {
                         className="pointer-events-none absolute -top-16 left-1/2 size-48 -translate-x-1/2 rounded-full opacity-60 transition-opacity duration-500 group-hover:opacity-100"
                         style={{ background: `radial-gradient(circle, ${alpha(m.color, isChosen ? 0.8 : 0.45)}, transparent 65%)` }}
                       />
-                      <Avatar name={m.name} color={m.color} size={68} layoutId={`avatar-${m.id}`} ring={isChosen} />
+                      <Avatar name={m.name} color={m.color} size={68} ring={isChosen} />
                       <span className="relative w-full truncate px-1 text-[17px] font-semibold tracking-tight">{m.name}</span>
                       <div className="relative w-full px-3">
                         <ProgressBar ratio={r} color={m.color} height={6} label={`Fortschritt ${m.name}`} />

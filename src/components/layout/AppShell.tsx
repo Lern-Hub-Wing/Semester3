@@ -10,6 +10,7 @@ import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/Button';
 import { NAV, isActive } from './nav';
 import { LiquidTabBar } from './LiquidTabBar';
+import { haptic } from '../../lib/haptics';
 import { ProfileMenu } from './ProfileMenu';
 import { OfflineBanner, StatusPill } from './StatusPill';
 
@@ -52,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Seitenleiste: kompakt auf Tablets, ausführlich auf dem Desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[88px] flex-col p-3 md:flex lg:w-[256px]">
-        <div className="glass flex h-full flex-col rounded-[28px] p-2.5 lg:p-3">
+        <div className="glass glass-thin glass-tint flex h-full flex-col rounded-[28px] p-2.5 lg:p-3">
           <Link to="/" className="mb-4 flex items-center justify-center gap-2.5 rounded-2xl px-2 py-3 lg:justify-start" aria-label={`${appName} – Dashboard`}>
             <LogoMark size={34} />
             <span className="hidden truncate text-[17px] font-semibold tracking-tight lg:block">{appName}</span>
@@ -65,18 +66,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={item.to}
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
-                  className={`group relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-medium transition-colors lg:flex-row lg:gap-3 lg:px-3.5 lg:py-3 lg:text-sm ${
+                  className={`nav-item group relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-medium lg:flex-row lg:gap-3 lg:px-3.5 lg:py-3 lg:text-sm ${
                     active ? 'text-ink' : 'text-muted hover:text-ink'
                   }`}
                 >
                   {active && (
                     <motion.span
                       layoutId="nav-active"
-                      className="absolute inset-0 rounded-2xl bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_20px_-12px_rgba(0,0,0,0.25)]"
+                      className="lens absolute inset-0 rounded-2xl"
                       transition={{ type: 'spring', stiffness: 420, damping: 36 }}
                     />
                   )}
-                  <item.icon className="relative size-[21px] lg:size-5" strokeWidth={1.75} aria-hidden />
+                  <item.icon className="nav-item-icon relative size-[21px] lg:size-5" strokeWidth={active ? 2 : 1.75} aria-hidden />
                   <span className="relative">{item.label}</span>
                 </Link>
               );
@@ -93,8 +94,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] md:px-6 md:pt-4 lg:px-8">
           {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
           <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-5 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
-          <Link to="/" className="mr-auto flex items-center gap-2 md:hidden" aria-label={`${appName} – Dashboard`}>
-            <LogoMark size={28} />
+          <Link to="/" data-testid="mobile-logo" className="glass mr-auto grid size-10 shrink-0 place-items-center rounded-full md:hidden" aria-label={`${appName} – Dashboard`}>
+            <LogoMark size={26} />
           </Link>
           <StatusPill />
           <IconButton label="Neuer Lerntag" variant="glass" size="sm" className="!size-10 !rounded-full" onClick={() => openEditor()}>
@@ -105,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </IconButton>
           <ProfileMenu />
         </header>
-        <main id="main" className="mx-auto w-full max-w-[1320px] px-4 pb-[calc(env(safe-area-inset-bottom)+112px)] pt-2 md:px-6 md:pb-12 lg:px-8">
+        <main id="main" className="pb-tabbar mx-auto w-full max-w-[1320px] px-4 pt-2 md:px-6 lg:px-8">
           <OfflineBanner />
           {/* CSS-Übergang statt JS-Animation: läuft zuverlässig auch bei nachgeladenen Seiten */}
           <div key={path.split('/')[1] ?? ''} className="ss-page">
@@ -125,7 +126,7 @@ function SideAction({ icon, label, hint, onClick }: { icon: ReactNode; label: st
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-medium text-muted transition-colors hover:bg-surface-2/70 hover:text-ink lg:flex-row lg:gap-3 lg:px-3.5 lg:text-sm"
+      className="nav-item flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-[11px] font-medium text-muted hover:text-ink lg:flex-row lg:gap-3 lg:px-3.5 lg:text-sm"
     >
       {icon}
       <span>{label}</span>
@@ -157,7 +158,10 @@ function MoreSheet() {
           <button
             key={i.label}
             type="button"
-            onClick={i.run}
+            onClick={() => {
+              haptic('tap');
+              i.run();
+            }}
             className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl bg-surface-2/70 p-2 text-center text-[12.5px] font-medium transition-colors active:bg-surface-2"
           >
             <i.icon className="size-6 text-muted" strokeWidth={1.7} aria-hidden />

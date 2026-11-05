@@ -6,6 +6,7 @@ import { navigate } from '../../lib/router';
 import { useSession } from '../../store/session';
 import { useActiveMembers, useCurrentMember } from '../../store/derived';
 import { Avatar } from '../ui/Avatar';
+import { haptic } from '../../lib/haptics';
 
 /** Profilmenü: aktives Lernprofil, schneller Personenwechsel, Einstellungen. */
 export function ProfileMenu() {
@@ -32,13 +33,19 @@ export function ProfileMenu() {
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          haptic('tap');
+          setOpen((o) => !o);
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Profilmenü – aktiv: ${me.name}`}
-        className="glass flex h-10 items-center gap-2 rounded-full p-[3px] sm:pr-3.5"
+        data-testid="profile-button"
+        // Mobil: exakt runder Knopf, Avatar per Grid zentriert (40 px außen, 1 px Rand, 32 px Avatar → rundum 3 px).
+        // Ab sm: gleiche Höhe, Name daneben; linker Abstand = oberer/unterer Abstand.
+        className="glass grid size-10 shrink-0 place-items-center rounded-full sm:flex sm:w-auto sm:items-center sm:gap-2 sm:pl-[3px] sm:pr-3.5"
       >
-        <Avatar name={me.name} color={me.color} size={34} layoutId={`avatar-${me.id}`} flat />
+        <Avatar name={me.name} color={me.color} size={32} flat />
         <span className="hidden max-w-[120px] truncate text-sm font-medium sm:block">{me.name}</span>
       </button>
       <AnimatePresence>
@@ -68,6 +75,7 @@ export function ProfileMenu() {
                   role="menuitem"
                   type="button"
                   onClick={() => {
+                    haptic('select');
                     setOpen(false);
                     select(m.id);
                   }}

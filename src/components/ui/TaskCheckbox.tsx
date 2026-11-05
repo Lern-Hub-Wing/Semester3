@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
+import { haptic } from '../../lib/haptics';
 
 interface Props {
   checked: boolean;
@@ -24,6 +25,7 @@ export function TaskCheckbox({ checked, color, onChange, label, disabled, size =
       disabled={disabled}
       onClick={(e) => {
         e.stopPropagation();
+        haptic(checked ? 'toggle' : 'success');
         onChange(!checked);
       }}
       whileTap={reduce ? undefined : { scale: 0.82 }}

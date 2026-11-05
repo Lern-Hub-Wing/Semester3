@@ -1,5 +1,7 @@
 import type { Member } from '../lib/types';
-import type { Ratio } from '../lib/progress';
+import { memberRatio, type Ratio, type TaskView } from '../lib/progress';
+import { navigate } from '../lib/router';
+import { useData } from '../store/data';
 import { usePrefs } from '../store/prefs';
 import { ProgressBar, ProgressRing } from './ui/Progress';
 import { Avatar } from './ui/Avatar';
@@ -53,5 +55,34 @@ export function MemberProgress({ member, ratio, ringSize = 84, onClick, highligh
         <ProgressBar ratio={ratio} color={member.color} label={`Fortschritt ${member.name}`} />
       </div>
     </Tag>
+  );
+}
+
+/**
+ * Fortschritt aller aktiven Personen als responsives Raster (Kreise) bzw. Liste
+ * (Balken). Kreise brechen automatisch um – nie abgeschnitten, nie gequetscht.
+ */
+export function TeamProgressGrid({
+  members, views, meId, ringSize = 78, className = '',
+}: { members: Member[]; views: TaskView[]; meId: string; ringSize?: number; className?: string }) {
+  const completions = useData((s) => s.task_completions);
+  const style = usePrefs((s) => s.progressStyle);
+  return (
+    <div
+      data-testid="team-progress"
+      className={`${style === 'ring' ? 'grid justify-items-center gap-x-1 gap-y-2' : 'flex flex-col gap-1'} ${className}`}
+      style={style === 'ring' ? { gridTemplateColumns: `repeat(auto-fill, minmax(${ringSize + 22}px, 1fr))` } : undefined}
+    >
+      {members.map((m) => (
+        <MemberProgress
+          key={m.id}
+          member={m}
+          ratio={memberRatio(views, m.id, completions)}
+          ringSize={ringSize}
+          highlight={m.id === meId}
+          onClick={() => navigate(`/team/${m.id}`)}
+        />
+      ))}
+    </div>
   );
 }

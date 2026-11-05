@@ -7,7 +7,7 @@ export function Toasts() {
   const { toasts, dismiss } = useToasts();
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+92px)] z-[80] flex flex-col items-center gap-2 px-4 md:bottom-6"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tabbar-height)+var(--tabbar-gap)+12px)] z-[80] flex flex-col items-center gap-2 px-4 md:bottom-6"
       aria-live="polite"
       role="status"
     >

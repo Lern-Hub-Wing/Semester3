@@ -138,7 +138,7 @@ export function Countdown({ compact: compactProp, className = '' }: { compact?: 
             className="relative overflow-hidden rounded-2xl border border-[var(--ss-glass-edge)] bg-[color-mix(in_srgb,var(--ss-card)_55%,transparent)] px-1 py-2.5 text-center md:py-3.5"
           >
             <Digits value={u.key === 'days' ? parts.days : String(parts[u.key]).padStart(2, '0')} compact={compact} />
-            <div className="mt-0.5 truncate text-[8.5px] font-semibold uppercase tracking-[0.04em] text-muted min-[360px]:text-[10px] min-[360px]:tracking-[0.1em] md:text-[11px] md:tracking-[0.12em]">{u.label}</div>
+            <div className="mt-0.5 truncate text-[8.5px] font-semibold uppercase tracking-[0.04em] text-muted min-[360px]:text-[10px] min-[360px]:tracking-[0.05em] md:text-[11px] md:tracking-[0.12em]">{u.label}</div>
           </div>
         ))}
       </div>

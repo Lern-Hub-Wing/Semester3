@@ -3,6 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import { PresenceDiv } from './PresenceDiv';
 import { EllipsisVertical } from 'lucide-react';
 import { IconButton } from './Button';
+import { haptic } from '../../lib/haptics';
 
 export interface MenuItem {
   label: string;
@@ -44,7 +45,10 @@ export function Menu({ items, label = 'Weitere Aktionen', align = 'right' }: { i
 
   return (
     <div ref={root} className="relative" onClick={(e) => e.stopPropagation()}>
-      <IconButton label={label} size="sm" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <IconButton label={label} size="sm" aria-haspopup="menu" aria-expanded={open} onClick={() => {
+          if (!open) haptic('tap');
+          setOpen((o) => !o);
+        }}>
         <EllipsisVertical className="size-[18px]" />
       </IconButton>
       <AnimatePresence>

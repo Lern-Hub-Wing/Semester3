@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { setHapticsEnabled } from '../lib/haptics';
 
 /** Gerätebezogene Darstellungseinstellungen (lokal gespeichert, weil es keine Konten gibt). */
 export interface Prefs {
@@ -7,10 +8,12 @@ export interface Prefs {
   motion: 'system' | 'reduced' | 'full';
   glass: 'auto' | 'reduced';
   compact: boolean;
+  /** Kurze Vibration bei wichtigen Interaktionen (nur wo unterstützt) */
+  haptics: boolean;
 }
 
 const KEY = 'studyspace.prefs.v1';
-const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false };
+const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true };
 
 function load(): Prefs {
   try {
@@ -23,6 +26,7 @@ function load(): Prefs {
       motion: ['system', 'reduced', 'full'].includes(parsed.motion as string) ? parsed.motion! : DEFAULTS.motion,
       glass: parsed.glass === 'reduced' ? 'reduced' : 'auto',
       compact: parsed.compact === true,
+      haptics: parsed.haptics !== false,
     };
   } catch {
     return DEFAULTS;
@@ -33,9 +37,13 @@ interface PrefsState extends Prefs {
   set: (patch: Partial<Prefs>) => void;
 }
 
+const initial = typeof window === 'undefined' ? DEFAULTS : load();
+setHapticsEnabled(initial.haptics);
+
 export const usePrefs = create<PrefsState>((set, get) => ({
-  ...(typeof window === 'undefined' ? DEFAULTS : load()),
+  ...initial,
   set: (patch) => {
+    if (patch.haptics !== undefined) setHapticsEnabled(patch.haptics);
     set(patch);
     const { set: _omit, ...rest } = { ...get(), ...patch };
     void _omit;
