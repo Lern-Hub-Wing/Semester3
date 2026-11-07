@@ -351,13 +351,13 @@ export function EntryEditor() {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line px-4 py-4 text-sm font-medium text-muted hover:bg-surface-2/50">
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line px-4 py-4 text-sm font-medium text-muted hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
                   <Plus className="size-4" aria-hidden />
                   Dateien auswählen (werden nach dem Speichern hochgeladen)
                   <input type="file" className="sr-only" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={(e) => (addFiles(e.target.files), (e.target.value = ''))} />
                 </label>
                 {files.map((f, i) => (
-                  <div key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-xl bg-surface-2/60 px-3 py-2 text-sm">
+                  <div key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-3 py-2 text-sm">
                     <FileText className="size-4 text-muted" aria-hidden />
                     <span className="min-w-0 flex-1 truncate">{f.name}</span>
                     <span className="text-xs text-muted">{formatBytes(f.size)}</span>

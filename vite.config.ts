@@ -28,9 +28,13 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       VitePWA({
+        // Eigener Service Worker (src/sw.ts): Offline-Cache + Push-Benachrichtigungen
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
         registerType: 'autoUpdate',
         injectRegister: false,
-        includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'splash/*.png'],
+        includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'icons/badge-96.png', 'splash/*.png'],
         manifest: {
           id: base,
           name: 'StudySpace',
@@ -42,32 +46,22 @@ export default defineConfig(({ mode }) => {
           scope: base,
           display: 'standalone',
           orientation: 'any',
-          background_color: '#0C1018',
-          theme_color: '#0C1018',
+          background_color: '#0A0D16',
+          theme_color: '#0A0D16',
           categories: ['education', 'productivity'],
           icons: [
             { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
             { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
             { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
-        },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
-          globIgnores: ['splash/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
-          navigateFallback: 'index.html',
-          cleanupOutdatedCaches: true,
-          runtimeCaching: [
-            {
-              // Hochgeladene Dateien haben eindeutige, unveränderliche Pfade.
-              urlPattern: ({ url }) => url.pathname.includes('/storage/v1/object/public/'),
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'studyspace-materials',
-                expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
+          shortcuts: [
+            { name: 'Lernplan', short_name: 'Lernplan', url: `${base}#/lernplan`, icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+            { name: 'Fokus-Timer', short_name: 'Fokus', url: `${base}#/fokus`, icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
           ],
+        },
+        injectManifest: {
+          globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
+          globIgnores: ['splash/**', 'einrichtung/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
         },
       }),
     ],

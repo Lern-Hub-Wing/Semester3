@@ -39,6 +39,8 @@ Siehe `supabase/migrations/001_schema.sql`. Kernpunkte:
 | `attachments` | Datei-Metadaten (Datei selbst im Storage) |
 | `app_settings` | gemeinsame Einstellungen |
 | `activity_log` | Änderungsverlauf (nur durch Trigger) |
+| `focus_sessions` | gespeicherte Fokusphasen (Migration 004; nur lesen/anlegen) |
+| `push_devices`, `push_log`, `push_state` | Push-Abos, Versandprotokoll/Deduplizierung, Scheduler-Zustand (Migration 004; öffentlich gesperrt) |
 
 Hierarchie: **Modul → Themenbereich → Lerntag → Aufgaben**.
 
@@ -90,19 +92,47 @@ Supabase liefert maximal 1000 Zeilen pro Anfrage; `fetchTable` lädt seitenweise
 - Zustände: bevorstehend → „Prüfung läuft“ (Restdauer) → automatisch nächste Prüfung → Abschlussansicht.
 - „Heute“ und „überfällig“ beziehen sich auf das Kalenderdatum in Berlin.
 
-## Design und Animation
+## Design und Animation („Aurora Glass“, StudySpace 3.0)
 
-- Farb-Tokens als CSS-Variablen (`src/styles/index.css`) für Hell/Dunkel; Theme `System/Hell/Dunkel` pro Gerät.
-- Liquid Glass: **ein** Material in `src/styles/index.css` für alle Glasflächen – `.glass` (normal), `.glass-thin` (Seitenleiste, Tab-Leiste), `.glass-strong` (Menüs, Dialoge, Meldungen; gut lesbar), `.glass-tint` (dezenter Pastellschimmer), `.lens` (gläserne Hervorhebung des aktiven Elements). Hintergrundunschärfe per `backdrop-filter`/`-webkit-backdrop-filter`, Lichtkante und Spiegelung als Innenschatten bzw. `::before`, Werte als CSS-Variablen für Hell/Dunkel. Ohne `backdrop-filter`-Unterstützung automatisch deckend.
-- Durchsichtigkeit: Einstellung „Durchsichtigkeit“ (0–100, Standard 50) setzt die CSS-Variable `--lg-k` (`src/lib/glass.ts`, 100 → 0,25 · 50 → 1 · 0 → 4). Deckkraft der Glasfüllung und Stärke der Unschärfe werden damit in allen Glasklassen skaliert – ein Regler für die ganze App, sofort sichtbar.
-- Fortschrittskreise: Der Leuchtschein ist ein SVG-`<filter>` mit ausdrücklich festgelegter Filterfläche (`filterUnits="userSpaceOnUse"`). Kein CSS-`filter: blur()` auf SVG-Elementen – dessen automatisch berechnete, rechteckige Fläche wird mit Grafikkarten-Beschleunigung hart abgeschnitten (eckiges Leuchten).
-- `body` nutzt `overflow-x: clip` statt `hidden`, damit die Kopfzeile mit Logo (`position: sticky`) auch in iOS Safari stehen bleibt. Der untere Abstand des Inhalts wird aus `--tabbar-height` + Safe Area berechnet (`.pb-tabbar`).
-- Haptik: `src/lib/haptics.ts` (Vibration API nur bei echter Unterstützung, sehr kurze Impulse, Sperre gegen Wiederholung, abschaltbar). iOS Safari unterstützt die API nicht – dort gibt es nur die visuelle Rückmeldung (Drück-Animation).
-- `.sheen` (sehr langsamer Schimmer), langsam wandernde Hintergrundflächen (`.ambient`) – alles über `transform`/`opacity`.
-- Automatische Vereinfachung: `prefers-reduced-transparency`, schwache Geräte (`hardwareConcurrency`/`deviceMemory`) oder Einstellung „Glaseffekte: Einfach“.
-- `prefers-reduced-motion` bzw. Einstellung „Animationen: Reduziert“ schaltet Animationen ab (CSS + `MotionConfig`).
-- Personenwechsel: Die gewählte Karte vergrößert sich mit Farbschimmer, die anderen treten zurück; der Avatar trägt eine gemeinsame `layoutId` (Shared-Element-Konzept), danach blendet das Dashboard weich ein.
-- Konfetti (canvas-confetti, nachgeladen, `pointer-events: none`) nur beim **Übergang** auf 100 % während der Nutzung – nicht beim Laden.
+Ein Designsystem, zentral in `src/styles/index.css` (CSS-Variablen) und `src/lib/motion.ts` (Federn/Kurven für Motion).
+
+**Tokens:** Farben (Hell/Dunkel als eigenständige Varianten), Rundungen (`--r-*`, Karten 26 px), Abstände (`--gap-page`, `--gap-grid`), Bewegung (`--dur-micro/comp/page/moment`, `--ease-out/emph/spring`; federnde Kurve per CSS `linear()` mit Fallback).
+
+**Aurora-Hintergrund** (`components/layout/Ambient.tsx`): fünf sehr langsam wandernde Farbfelder plus feine Körnung. Die fünfte Fläche trägt die Farbe des aktiven Lernprofils und blendet beim Personenwechsel weich über. Ohne farbigen Untergrund wirkt Glas nur wie eine getönte Karte – deshalb ist der Hintergrund Teil des Materials.
+
+**Glasmaterialien** – ein Aufbau, fünf Stärken (`.glass` + Modifikator):
+
+| Klasse | Einsatz | Eigenschaften |
+|---|---|---|
+| `.mat-nav` (= `.glass-thin`) | Seitenleiste, Tab-Leiste, Werkzeugleisten | sehr klar, stärkste Unschärfe |
+| `.card` / `.glass` | Karten | ruhig, beste Lesbarkeit |
+| `.mat-float` (= `.glass-strong`) | Menüs, Dialoge, Meldungen | dichter, großer Schatten |
+| `.mat-interactive` | Knöpfe | Lichtfleck + Federn beim Drücken |
+| `.mat-hero` | Countdown, gemeinsames Ziel, Statuskarten | Prisma-Kante (konische Lichtkante), alle ~14 s ein langsamer Lichtimpuls |
+
+Ebenen jeder Glasfläche: transparente Füllung (skaliert mit `--lg-k` aus dem Regler „Durchsichtigkeit“) → diagonaler Brechungsverlauf und Glanz oben links → Lichtfleck, der dem Mauszeiger folgt (`lib/spotlight.ts`, ein gedrosselter Listener setzt `--mx/--my`) → Innenkante/Innenleuchten → leuchtende Glaskante (`::before` mit Maske, folgt jeder Rundung). `backdrop-filter: blur() saturate() brightness()`. Ohne Unterstützung, bei „Glaseffekte: Einfach“, schwachen Geräten oder `prefers-reduced-transparency` werden die Flächen deckend.
+
+**Bewegungshierarchie:**
+
+- *Große Momente:* App-Start (Logo entsteht aus vier Bögen, rastet ein, Lichtreflex, gleitet an seinen Platz; Überschrift erscheint Wort für Wort; Profilkarten fallen räumlich auf ihre Plätze), Profilwahl (Karte hebt sich, Farbschimmer breitet sich vom Avatar aus, Avatar fliegt per `layoutId` in den Profilknopf), 100 % (Welle am Fortschrittskreis + Konfetti).
+- *Seiten:* Tiefen-Übergang (Desktop leicht räumlich mit Perspektive), gestaffeltes Aufsteigen der Dashboard-Karten.
+- *Komponenten:* gleitende Linse in Seitenleiste/Tab-Leiste mit elastischer Dehnung (Elastic Tab Morph), Dialoge mit Feder und unscharfem Hintergrund, Klappziffern im Countdown (Countdown Flip), Säulen/Balken wachsen gestaffelt.
+- *Mikro:* Checkbox mit elastischem Haken und Farbimpuls, federnde Schalter (Fluid Toggle), Knöpfe mit Druckfeder.
+- *Ruhe:* Aurora-Drift, Lichtimpuls auf Hero-Flächen, Lichtreflex entlang neuer Fortschrittsbögen.
+
+Alles über `transform`/`opacity`; `prefers-reduced-motion` bzw. „Animationen: Reduziert“ schaltet ab (CSS + `MotionConfig`).
+
+**Fortschrittskreise:** SVG mit runden Enden; Leuchtschein als SVG-Filter mit ausdrücklich festgelegter Filterfläche (`filterUnits="userSpaceOnUse"`) – kein CSS-`filter: blur()` auf SVG (rechteckige Artefakte). Wird von den Browsertests strukturell und per Pixelprobe geprüft.
+
+**Haptik:** `src/lib/haptics.ts` (Vibration API nur bei echter Unterstützung, abschaltbar). iOS Safari bietet keine Vibration API – dort nur visuelle Rückmeldung. Bewusst keine Tricks.
+
+**Geräteklassen:** Smartphone mit schwebender, sehr klarer Tab-Leiste und kompakter Kopfzeile; Tablet mit schmaler Glas-Leiste (Kurzbeschriftungen) und dicht gepacktem 2-Spalten-Raster; Desktop mit Glas-Seitenleiste, Suchpille und 12-Spalten-Raster (max. 1360 px).
+
+## Neue Bereiche
+
+- **Semester-Timeline** (`lib/timeline.ts`, `components/SemesterTimeline.tsx`): Module × Kalenderwochen; Lernphase = erster bis letzter Lerntag, Füllung = echter Gruppenfortschritt, Rauten = Prüfungen, Linie = heute. Im Lernplan (Ansicht „Timeline“) und kompakt im Dashboard.
+- **Fokus-Timer** (`lib/focus.ts`, `store/focus.ts`): Restzeit immer aus Endzeitpunkt − jetzt (stimmt nach Standby), Zustand im `localStorage`, Rhythmen 25/5 · 50/10 · 90/15, Signalton (Web Audio). Beendete Fokusphasen (≥ 1 Min.) werden in `focus_sessions` gespeichert. Fehlt Migration 004, läuft der Timer trotzdem und die App weist darauf hin.
+- **Analyse** (`pages/Analytics.tsx`): ausschließlich echte Daten – `completed_at` der Haken (pro Tag/Woche), gespeicherte Fokuszeiten, Serie, Fortschritt je Modul im Vergleich zur Gruppe.
 
 ## Lernmodus
 
@@ -119,12 +149,31 @@ Supabase liefert maximal 1000 Zeilen pro Anfrage; `fetchTable` lädt seitenweise
 | Breite | Navigation | Layout |
 |---|---|---|
 | < 768 px | schwebende Glas-Tableiste unten (Home · Lernplan · Fächer · Team · Mehr), Safe Areas | einspaltig, kompakter Countdown, Wochenansicht als Tageskarten, Bottom Sheets |
-| 768–1199 px | kompakte Seitenleiste mit Icons | 1–2 Spalten |
-| ≥ 1200 px | Seitenleiste mit Beschriftung | 12-Spalten-Raster, max. 1320 px Inhaltsbreite, Monatsraster mit Drag & Drop |
+| 768–1199 px | schmale Glas-Leiste mit Kurzbeschriftungen | 2 Spalten, dicht gepackt |
+| ≥ 1200 px | Glas-Seitenleiste mit Beschriftung, Suchpille | 12-Spalten-Raster, max. 1360 px Inhaltsbreite, Monatsraster mit Drag & Drop |
 
 ## Push-Benachrichtigungen
 
-Bewusst **nicht** umgesetzt: Zuverlässige Web-Push-Benachrichtigungen bräuchten einen Server (VAPID, Zeitsteuerung) und funktionieren auf iOS nur für installierte PWAs. Stattdessen zeigt das Dashboard offene und überfällige Aufgaben deutlich an. Es gibt keine Benachrichtigungs-Einstellung ohne Funktion.
+```
+ Gerät (PWA)                         Supabase                               Push-Dienst
+ ┌───────────────────────┐  POST     ┌──────────────────────────┐            ┌───────────────┐
+ │ Einführung/Einstellung │────────►│ Edge Function push-api     │            │ Apple / FCM / │
+ │ PushManager.subscribe  │ Token +  │  register/update/status/   │──test────►│ Mozilla / WNS │
+ │ Service Worker (sw.ts) │ Abo      │  test/unregister           │            └──────┬────────┘
+ │   push → Systemmeldung │          │ push_devices (RLS gesperrt)│                   │
+ │   Klick → #/route      │◄─────────┼────────────────────────────┼───────────────────┘
+ └───────────────────────┘          │ Cron (5 min) → push-scheduler│
+                                     │  planNotifications() → push_log (dedupe) → senden
+                                     └──────────────────────────┘
+```
+
+- **Kein Login:** Jedes Gerät erzeugt einen geheimen Zufallstoken (32 Byte, nur im `localStorage`). Der Server speichert ausschließlich `sha256(token)`. Alle Aktionen wirken nur auf das Gerät mit diesem Token. Die Zuordnung zu einem Lernprofil ist eine Gerätepräferenz, keine verifizierte Identität. Mehrere Geräte pro Person sind möglich; ein Gerät gehört immer genau einem Profil (beim Personenwechsel fragt die App ausdrücklich).
+- **Sicherheit:** `push_devices`, `push_log`, `push_state` haben RLS ohne Policies und keine Rechte für `anon`/`authenticated` – Endpoints und Schlüssel sind öffentlich nicht auslesbar. Endpoints nur von bekannten Push-Diensten (keine beliebigen URLs → kein SSRF). Die Testnachricht hat einen festen Text und geht nur ans eigene Gerät; Sperrfrist 30 s, max. 10/Stunde; Rate Limit pro IP; max. 200 Geräte; Insert-Rate-Limit per Trigger. Privater VAPID-Schlüssel und `SCHEDULER_SECRET` nur als Edge-Function-Secrets; der Scheduler prüft das Secret in konstanter Zeit.
+- **Verschlüsselung:** RFC 8291 (aes128gcm) und VAPID (RFC 8292, ES256) mit WebCrypto in `supabase/functions/_shared/webpush.ts` – ohne Fremdbibliothek, getestet gegen den offiziellen Testvektor der RFC.
+- **Erinnerungslogik:** reine Funktion `planNotifications()` in `_shared/reminders.ts` (vollständig unit-getestet). Uhrzeiten in Europe/Berlin über `Intl` (Zeitumstellung korrekt). Ruhezeit: Morgenteil → Ende der Ruhezeit, Abendteil → 15 Min. vor Beginn; 2-Stunden-Prüfungserinnerung → Ende der Ruhezeit (wenn noch ≥ 30 Min. bleiben) sonst Vorabend, nie doppelt zur „Morgen“-Erinnerung. Prüfungsschlüssel enthalten `starts_at` → Verschiebung erzeugt neue Erinnerungen, alte verfallen. Erinnerungen werden nur innerhalb eines Zeitfensters nach dem geplanten Zeitpunkt verschickt – nie nachträglich. Überfällige Aufgaben: erneut nur bei neuen Fällen oder nach 3 Tagen. Lernplan-Änderungen über einen Cursor im `activity_log`, gesammelt bis 10 Minuten Ruhe, ohne eigene Änderungen. Erfolge über Zustandswechsel in `push_state` (erstes Erfassen löst nichts aus).
+- **Idempotenz:** Vor jedem Versand wird `(device_id, dedupe_key)` in `push_log` reserviert (eindeutiger Index). Doppelte oder verspätete Scheduler-Läufe können dieselbe Nachricht nie zweimal senden. Vorübergehende Fehler (5xx/429/Netz) geben die Reservierung frei → nächster Lauf versucht erneut; 404/410 → Abo wird gelöscht; wiederholte Fehler → Gerät deaktiviert.
+- **Service Worker** (`src/sw.ts`, `vite-plugin-pwa` mit `injectManifest`): zeigt zu jeder Push-Nachricht eine Systembenachrichtigung (iOS verlangt das), setzt den App-Badge, öffnet beim Antippen `scope + #/route` (nur Hash-Routen erlaubt → nie 404 unter `/Semester3/`) bzw. navigiert eine offene App per `postMessage`.
+- **Berechtigung:** wird ausschließlich beim Tippen auf „Benachrichtigungen aktivieren“ angefragt (als erster Aufruf im Klick, ohne vorheriges `await`). iPhone/iPad im Browser → Installationsanleitung statt Anfrage. Nach „Vielleicht später“ oder Ablehnung keine erneute automatische Nachfrage. Abgleich beim Start: erneuertes oder verlorenes Abo wird erkannt.
 
 ## Manuelle Abnahme
 
@@ -137,5 +186,9 @@ Diese Punkte lassen sich nur mit einem echten Supabase-Projekt prüfen:
 - [ ] **Test N:** `https://lern-hub-wing.github.io/Semester3/#/lernplan` direkt aufrufen und neu laden.
 - [ ] Flugmodus: zuletzt geladener Stand bleibt sichtbar, Hinweis erscheint, Haken werden nicht gespeichert.
 - [ ] Safari (iPhone/iPad), Chrome (Android), Firefox und Edge kurz durchklicken; PWA installieren.
+- [ ] **Push auf echtem iPhone (iOS ≥ 16.4):** zum Home-Bildschirm hinzufügen → Einführung → aktivieren → Testnachricht bei gesperrtem Gerät → Antippen öffnet die Einstellungen.
+- [ ] Push bei geschlossener App: am Vortag einer Lerneinheit Aufgaben offen lassen → 08:00/18:00-Erinnerung erscheint; alles erledigt → keine Erinnerung.
+- [ ] Zwei Geräte mit unterschiedlichen Personen → jedes erhält nur seine eigenen Zahlen.
+- [ ] Prüfungstermin verschieben → Erinnerungen folgen dem neuen Termin.
 
 Automatisch geprüft werden (siehe README → Tests): Tests A, B, D, E, F, G, H, I, K, L, M sowie Datenbankrechte, Trigger und der Fehler-/Rücksprungfall.

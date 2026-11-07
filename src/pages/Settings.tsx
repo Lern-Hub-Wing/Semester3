@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Archive, ArrowDown, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus,
+  Archive, ArrowDown, Bell, BellRing, ChevronRight, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
@@ -17,7 +17,9 @@ import { resync } from '../store/sync';
 import { toast } from '../store/toast';
 import { useDebouncedCallback } from '../hooks/useDebounced';
 import { PageHeader } from '../components/layout/AppShell';
-import { Card } from '../components/ui/Card';
+import { Card, IconTile } from '../components/ui/Card';
+import { NotificationSettings } from './NotificationSettings';
+import { initPush, usePush } from '../store/push';
 import { Button, IconButton } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
 import { Avatar } from '../components/ui/Avatar';
@@ -27,11 +29,13 @@ import { AddMemberDialog, MemberColorEditor } from './Team';
 import { ModuleEditor } from './Modules';
 import { StatusPill } from '../components/layout/StatusPill';
 
-export function Settings() {
+export function Settings({ section }: { section?: 'benachrichtigungen' }) {
+  if (section === 'benachrichtigungen') return <NotificationSettings />;
   return (
     <div>
       <PageHeader title="Einstellungen" subtitle="Darstellung gilt für dieses Gerät, alles andere für die ganze Gruppe." />
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-2">
+        <NotificationsSummary />
         <Appearance />
         <General />
         <People />
@@ -42,13 +46,43 @@ export function Settings() {
   );
 }
 
+/** Einstieg zu den Benachrichtigungen mit aktuellem Status */
+function NotificationsSummary() {
+  const phase = usePush((s) => s.phase);
+  useEffect(() => {
+    void initPush();
+  }, []);
+  const label: Record<string, string> = {
+    loading: 'Status wird geprüft …',
+    on: 'Aktiviert auf diesem Gerät',
+    off: 'Noch nicht aktiviert',
+    working: 'Wird eingerichtet …',
+    denied: 'Vom Gerät blockiert',
+    'needs-install': 'Zuerst zum Home-Bildschirm hinzufügen',
+    unsupported: 'Von diesem Browser nicht unterstützt',
+    'not-configured': 'Server noch nicht eingerichtet',
+  };
+  return (
+    <Link to="/einstellungen/benachrichtigungen" className="glass mat-hero lift group flex items-center gap-4 rounded-[var(--radius-card)] p-5 md:p-6 lg:col-span-2">
+      <IconTile tint={phase === 'on' ? 'var(--ss-success)' : 'var(--ss-accent)'} size={48}>
+        {phase === 'on' ? <BellRing /> : <Bell />}
+      </IconTile>
+      <span className="min-w-0 flex-1">
+        <span className="title block text-[17px]">Benachrichtigungen</span>
+        <span className="block text-[13.5px] text-muted">{label[phase]} · Erinnerungen, Ruhezeiten, Testnachricht</span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
+    </Link>
+  );
+}
+
 function Section({ title, icon, children, hint, className = '' }: { title: string; icon: ReactNode; children: ReactNode; hint?: string; className?: string }) {
   return (
     <Card className={`p-5 md:p-6 ${className}`}>
       <div className="mb-4 flex items-center gap-3">
-        <span className="grid size-9 place-items-center rounded-xl bg-surface-2 text-muted [&>svg]:size-[18px]">{icon}</span>
+        <IconTile>{icon}</IconTile>
         <div>
-          <h2 className="font-semibold tracking-tight">{title}</h2>
+          <h2 className="title">{title}</h2>
           {hint && <p className="text-xs text-muted">{hint}</p>}
         </div>
       </div>
@@ -196,7 +230,7 @@ function General() {
       <Row label="Zuletzt synchronisiert">
         <span className="text-sm text-muted">{lastSyncAt ? new Date(lastSyncAt).toLocaleString('de-DE') : '—'}</span>
       </Row>
-      <div className="mt-2 rounded-2xl bg-surface-2/70 p-4 text-xs leading-relaxed text-muted">
+      <div className="mt-2 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] p-4 text-xs leading-relaxed text-muted">
         <p className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
           <ShieldAlert className="size-4" aria-hidden /> Öffentlicher Zugriff
         </p>
@@ -319,7 +353,7 @@ function ModulesSection() {
         <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
           Modul hinzufügen
         </Button>
-        <Link to="/pruefungen" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-surface-2">
+        <Link to="/pruefungen" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
           Prüfungen verwalten
         </Link>
       </div>
@@ -454,7 +488,7 @@ function DataSection() {
             )}
             <ul className="grid grid-cols-2 gap-1 text-xs text-muted">
               {Object.entries(preview.counts).map(([t, n]) => (
-                <li key={t} className="flex justify-between rounded-lg bg-surface-2/60 px-3 py-1.5">
+                <li key={t} className="flex justify-between rounded-lg bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-3 py-1.5">
                   <span>{TABLE_LABELS[t] ?? t}</span>
                   <span className="num font-semibold text-ink">{n}</span>
                 </li>

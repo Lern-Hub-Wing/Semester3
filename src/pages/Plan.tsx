@@ -1,6 +1,6 @@
-import { useMemo, useState, type DragEvent } from 'react';
+import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { AlarmClock, CalendarDays, Check, ChevronLeft, ChevronRight, GraduationCap, List, Plus } from 'lucide-react';
+import { AlarmClock, CalendarDays, CalendarRange, Check, ChevronLeft, ChevronRight, GraduationCap, List, Plus } from 'lucide-react';
 import type { Exam, ISODate, Member, StudyEntry } from '../lib/types';
 import { groupBy, isDone, memberRatio, type TaskView } from '../lib/progress';
 import {
@@ -14,20 +14,30 @@ import { useUI } from '../store/ui';
 import { useToday } from '../hooks/useToday';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { PageHeader } from '../components/layout/AppShell';
+import { SemesterTimeline, TimelineLegend } from '../components/SemesterTimeline';
 import { EntryCard } from '../components/EntryCard';
 import { Button, IconButton } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ProgressBar } from '../components/ui/Progress';
 
-type View = 'tag' | 'woche' | 'monat' | 'liste';
+type View = 'tag' | 'woche' | 'monat' | 'liste' | 'timeline';
 type Status = 'alle' | 'offen' | 'erledigt' | 'ueberfaellig';
 
-const VIEWS: { value: View; label: string }[] = [
+const VIEWS: { value: View; label: ReactNode }[] = [
   { value: 'tag', label: 'Tag' },
   { value: 'woche', label: 'Woche' },
   { value: 'monat', label: 'Monat' },
   { value: 'liste', label: 'Liste' },
+  {
+    value: 'timeline',
+    label: (
+      <>
+        <CalendarRange className="size-4" aria-hidden />
+        <span className="sr-only lg:not-sr-only">Timeline</span>
+      </>
+    ),
+  },
 ];
 
 interface DayInfo {
@@ -45,7 +55,7 @@ export function Plan({ me }: { me: Member }) {
   const { query } = useLocation();
   const today = useToday();
   const mobile = useIsMobile();
-  const view = (['tag', 'woche', 'monat', 'liste'].includes(query.get('ansicht') ?? '') ? query.get('ansicht') : mobile ? 'woche' : 'monat') as View;
+  const view = (['tag', 'woche', 'monat', 'liste', 'timeline'].includes(query.get('ansicht') ?? '') ? query.get('ansicht') : mobile ? 'woche' : 'monat') as View;
   const date = isValidISODate(query.get('datum') ?? '') ? query.get('datum')! : today;
   const moduleFilter = query.get('modul');
   const status = (['offen', 'erledigt', 'ueberfaellig'].includes(query.get('status') ?? '') ? query.get('status') : 'alle') as Status;
@@ -145,9 +155,9 @@ export function Plan({ me }: { me: Member }) {
         }
       />
 
-      <div className="glass z-10 mb-4 flex flex-col gap-3 rounded-[22px] p-2.5 md:sticky md:top-[68px] md:flex-row md:flex-wrap md:items-center">
-        <Segmented label="Ansicht" value={view} onChange={(v) => setQuery({ ansicht: v })} options={VIEWS} className="w-full md:w-auto" />
-        {view !== 'liste' && (
+      <div className="glass mat-nav z-10 mb-4 flex flex-col gap-3 rounded-[26px] p-2.5 md:sticky md:top-[68px] md:flex-row md:flex-wrap md:items-center">
+        <Segmented label="Ansicht" value={view} onChange={(v) => setQuery({ ansicht: v })} options={VIEWS} size={mobile ? 'sm' : 'md'} dense={mobile} className="w-full md:w-auto" />
+        {view !== 'liste' && view !== 'timeline' && (
           <div className="flex min-w-0 items-center gap-1 md:flex-1">
             <IconButton label="Zurück" size="sm" onClick={() => step(-1)}>
               <ChevronLeft className="size-5" />
@@ -161,7 +171,8 @@ export function Plan({ me }: { me: Member }) {
             </Button>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-1.5 md:w-full xl:ml-auto xl:flex xl:w-auto xl:items-center">
+        {view === 'timeline' && <p className="px-2 text-[13px] text-muted md:flex-1">Alle Module auf einen Blick: Lernphasen, Fortschritt und Prüfungen.</p>}
+        <div className={`grid grid-cols-2 gap-1.5 md:w-full xl:ml-auto xl:flex xl:w-auto xl:items-center ${view === 'timeline' ? 'hidden' : ''}`}>
           <select
             aria-label="Nach Modul filtern"
             className="field !h-9 !min-h-9 !rounded-xl !py-0 text-[13px] xl:!w-auto xl:max-w-[220px]"
@@ -189,6 +200,14 @@ export function Plan({ me }: { me: Member }) {
         </div>
       </div>
 
+      {view === 'timeline' && (
+        <section className="card rounded-[var(--radius-card)] p-4 md:p-6">
+          <SemesterTimeline />
+          <div className="mt-5 border-t border-line pt-4">
+            <TimelineLegend />
+          </div>
+        </section>
+      )}
       {view === 'monat' && (mobile ? <MonthMobile date={date} today={today} info={dayInfo} me={me} members={members} /> : <MonthGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} />)}
       {view === 'woche' && (mobile ? <WeekMobile date={date} today={today} info={dayInfo} /> : <WeekGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} />)}
       {view === 'tag' && <DayView info={dayInfo(date)} me={me} members={members} views={views} />}
@@ -285,7 +304,7 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
                 onDrop(d)(e);
               }}
               className={`group relative flex min-h-[124px] flex-col gap-1 border-line p-1.5 transition-colors ${i % 7 !== 6 ? 'border-r' : ''} ${i < 35 ? 'border-b' : ''} ${
-                inMonth ? '' : 'bg-surface-2/40'
+                inMonth ? '' : 'bg-[color-mix(in_srgb,var(--ss-text)_3%,transparent)]'
               } ${over === d ? 'bg-[color-mix(in_srgb,var(--ss-accent)_12%,transparent)]' : ''}`}
             >
               <div className="flex items-center gap-1 px-0.5">
@@ -301,7 +320,7 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
                 <button
                   type="button"
                   onClick={() => openEditor({ date: d })}
-                  className="ml-auto grid size-6 place-items-center rounded-lg text-muted opacity-0 transition-opacity hover:bg-surface-2 focus:opacity-100 group-hover:opacity-100"
+                  className="ml-auto grid size-6 place-items-center rounded-lg text-muted opacity-0 transition-opacity hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)] focus:opacity-100 group-hover:opacity-100"
                   aria-label={`Lerntag am ${formatISODate(d)} anlegen`}
                 >
                   <Plus className="size-4" />
@@ -400,7 +419,7 @@ function WeekGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate
             }}
             className={`card flex min-h-[420px] flex-col gap-1.5 rounded-[20px] p-2 transition-colors ${over === d ? '!border-accent' : ''} ${d === today ? 'ring-2 ring-[color-mix(in_srgb,var(--ss-accent)_40%,transparent)]' : ''}`}
           >
-            <button type="button" onClick={() => setQuery({ ansicht: 'tag', datum: d })} className="flex items-center gap-2 rounded-xl px-1.5 py-1 text-left hover:bg-surface-2">
+            <button type="button" onClick={() => setQuery({ ansicht: 'tag', datum: d })} className="flex items-center gap-2 rounded-xl px-1.5 py-1 text-left hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
               <span className="text-[11px] font-semibold uppercase text-muted">{formatISODate(d, { weekday: 'short' })}</span>
               <span className="num text-lg font-semibold">{Number(d.slice(8))}</span>
               <span className="ml-auto">
@@ -414,7 +433,7 @@ function WeekGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate
             {di.entries.map((e) => (
               <EntryChip key={e.id} entry={e} info={di} />
             ))}
-            <button type="button" onClick={() => openEditor({ date: d })} className="mt-auto flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium text-muted hover:bg-surface-2">
+            <button type="button" onClick={() => openEditor({ date: d })} className="mt-auto flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium text-muted hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
               <Plus className="size-3.5" aria-hidden /> Lerntag
             </button>
           </div>
@@ -439,7 +458,7 @@ function WeekMobile({ date, today, info }: { date: ISODate; today: ISODate; info
               onClick={() => setQuery({ ansicht: 'tag', datum: d })}
               className={`card flex w-full items-center gap-3 rounded-[20px] p-3.5 text-left active:scale-[0.99] ${isToday ? 'ring-2 ring-[color-mix(in_srgb,var(--ss-accent)_45%,transparent)]' : ''}`}
             >
-              <span className={`grid w-12 shrink-0 place-items-center rounded-2xl py-1.5 ${isToday ? 'bg-ink text-canvas' : 'bg-surface-2'}`}>
+              <span className={`grid w-12 shrink-0 place-items-center rounded-2xl py-1.5 ${isToday ? 'bg-ink text-canvas' : 'lens'}`}>
                 <span className="text-[11px] font-semibold uppercase opacity-70">{formatISODate(d, { weekday: 'short' })}</span>
                 <span className="num text-xl font-semibold leading-tight">{Number(d.slice(8))}</span>
               </span>

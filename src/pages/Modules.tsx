@@ -93,11 +93,11 @@ export function Modules({ me }: { me: Member }) {
                   </div>
                   <div className="relative mt-4 flex flex-wrap gap-2 text-xs">
                     {exam && (
-                      <span className="num rounded-full bg-surface/70 px-2.5 py-1 font-semibold">
+                      <span className="num rounded-full lens px-2.5 py-1 font-semibold">
                         {daysUntil(exam.starts_at, now) === 0 ? 'Heute' : `noch ${daysUntil(exam.starts_at, now)} Tage`}
                       </span>
                     )}
-                    <span className="num rounded-full bg-surface/70 px-2.5 py-1 font-medium text-muted">
+                    <span className="num rounded-full lens px-2.5 py-1 font-medium text-muted">
                       {list.length === 0 ? 'Keine Aufgaben' : `${open} offen · ${list.length} Aufgaben`}
                     </span>
                   </div>

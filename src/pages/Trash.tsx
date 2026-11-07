@@ -76,7 +76,7 @@ export function Trash() {
         <ul className="flex flex-col gap-2">
           {items.map((i) => (
             <li key={`${i.kind}-${i.id}`} className="card flex items-center gap-3 rounded-2xl p-3 md:p-4">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-muted [&>svg]:size-[18px]">{i.icon}</span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)] text-muted [&>svg]:size-[18px]">{i.icon}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{i.title}</p>
                 <p className="truncate text-xs text-muted">

@@ -37,7 +37,7 @@ export const TaskRow = memo(function TaskRow({ task, member, members, showGroup 
   const setUI = useUI((s) => s.set);
 
   return (
-    <li className={`group/task relative flex items-start gap-3 rounded-2xl ${dense ? 'px-2 py-2' : 'px-2.5 py-2.5'} transition-colors hover:bg-surface-2/70`}>
+    <li className={`group/task relative flex items-start gap-3 rounded-2xl ${dense ? 'px-2 py-2' : 'px-2.5 py-2.5'} transition-colors hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]`}>
       <div className="pt-[1px]">
         <TaskCheckbox
           checked={checked}
@@ -151,7 +151,7 @@ function GroupStatus({ doneIds, members, allDone }: { doneIds: string[]; members
         aria-expanded={open}
         aria-label={`${doneIds.length} von ${members.length} Personen fertig – Details anzeigen`}
         className={`flex h-8 items-center gap-1.5 rounded-full px-2 text-xs font-medium transition-colors ${
-          allDone ? 'bg-[color-mix(in_srgb,var(--ss-success)_16%,transparent)] text-success' : 'text-muted hover:bg-surface-2'
+          allDone ? 'bg-[color-mix(in_srgb,var(--ss-success)_16%,transparent)] text-success' : 'text-muted hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]'
         }`}
       >
         <span className="flex -space-x-1" aria-hidden>

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig } from 'motion/react';
 import { config } from './lib/config';
+import { EASE_OUT } from './lib/motion';
 import { matchPath, useLocation } from './lib/router';
 import { useAppearance } from './hooks/useAppearance';
 import { useData } from './store/data';
-import { useCurrentMember } from './store/derived';
 import { installResumePrompt, useSession } from './store/session';
 import { startSync } from './store/sync';
 import { AppShell } from './components/layout/AppShell';
@@ -19,6 +19,12 @@ import { SearchPalette } from './components/SearchPalette';
 import { AttachmentPreview } from './components/Attachments';
 import { CelebrationWatcher } from './components/Celebration';
 import type { Member } from './lib/types';
+import { installSpotlight } from './lib/spotlight';
+import { FocusWatcher } from './components/FocusTimer';
+import { PushMemberSwitch, PushOnboarding } from './components/PushOnboarding';
+import { BadgeSync } from './components/BadgeSync';
+import { initPush } from './store/push';
+import { useActiveMembers, useCurrentMember } from './store/derived';
 
 // Seltener genutzte Seiten werden erst bei Bedarf geladen (kleineres Start-Bundle).
 const Plan = lazy(() => import('./pages/Plan').then((m) => ({ default: m.Plan })));
@@ -31,6 +37,8 @@ const Materials = lazy(() => import('./pages/Materials').then((m) => ({ default:
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
+const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
+const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
 function Routes({ me }: { me: Member }) {
@@ -45,6 +53,9 @@ function Routes({ me }: { me: Member }) {
   if (path === '/pruefungen') return <Exams />;
   if (path === '/materialien') return <Materials />;
   if (path === '/einstellungen') return <Settings />;
+  if (path === '/einstellungen/benachrichtigungen') return <Settings section="benachrichtigungen" />;
+  if (path === '/fokus') return <Focus me={me} />;
+  if (path === '/analyse') return <Analytics me={me} />;
   if (path === '/papierkorb') return <Trash />;
   if (path === '/verlauf') return <Activity />;
   return <Dashboard me={me} />;
@@ -56,10 +67,13 @@ function Main() {
   const phase = useData((s) => s.phase);
   const select = useSession((s) => s.select);
   const activeId = useSession((s) => s.activeMemberId);
+  const members = useActiveMembers();
 
   useEffect(() => {
     startSync();
     installResumePrompt();
+    installSpotlight();
+    void initPush();
   }, []);
 
   // Gewähltes Profil wurde deaktiviert oder existiert nicht mehr → zurück zur Auswahl
@@ -86,6 +100,10 @@ function Main() {
         )}
       </AnimatePresence>
       {me && <CelebrationWatcher />}
+      {me && <FocusWatcher />}
+      {me && me.is_active && <PushOnboarding me={me} />}
+      {me && me.is_active && <PushMemberSwitch me={me} members={members} />}
+      {me && <BadgeSync me={me} />}
       <EntryEditor />
       <MoveTaskDialog />
       <SearchPalette />
@@ -97,7 +115,7 @@ function Main() {
 export default function App() {
   const { reducedMotion } = useAppearance();
   return (
-    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'} transition={{ ease: [0.22, 1, 0.36, 1] }}>
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'} transition={{ ease: EASE_OUT }}>
       {config.isConfigured && !config.usesForbiddenKey ? <Main /> : <Setup />}
       <Toasts />
     </MotionConfig>

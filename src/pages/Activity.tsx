@@ -69,7 +69,7 @@ export function Activity() {
           </Button>
         }
       />
-      <p className="mb-4 flex items-start gap-2 rounded-2xl bg-surface-2/70 px-4 py-3 text-xs text-muted">
+      <p className="mb-4 flex items-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-4 py-3 text-xs text-muted">
         <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
         Die angezeigte Person ist das zum Zeitpunkt aktive Lernprofil. Da es keine Anmeldung gibt, ist diese Angabe nicht verifiziert.
       </p>
@@ -92,7 +92,7 @@ export function Activity() {
               const target = r.entity_type === 'task_completions' ? (r.details?.member_name as string | undefined) : undefined;
               return (
                 <li key={r.id} className="flex items-start gap-3 rounded-xl px-3 py-2.5">
-                  {actor ? <Avatar name={actor.name} color={actor.color} size={28} /> : <span className="grid size-7 place-items-center rounded-full bg-surface-2 text-[10px] text-muted">?</span>}
+                  {actor ? <Avatar name={actor.name} color={actor.color} size={28} /> : <span className="grid size-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)] text-[10px] text-muted">?</span>}
                   <div className="min-w-0 flex-1 text-sm">
                     <p>
                       <span className="font-medium">{r.actor_label ?? 'Unbekannt'}</span>{' '}

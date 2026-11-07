@@ -104,7 +104,7 @@ function ExamCard({ exam, now, onEdit }: { exam: Exam; now: number; onEdit: () =
           </p>
         )}
       </div>
-      <span className="num hidden shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold sm:block">
+      <span className="num hidden shrink-0 rounded-full bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)] px-3 py-1.5 text-xs font-semibold sm:block">
         {running ? 'läuft' : now > end ? 'vorbei' : d.days > 0 ? `${daysUntil(exam.starts_at, now)} Tage` : `${d.hours}:${String(d.minutes).padStart(2, '0')} h`}
       </span>
       <Menu
