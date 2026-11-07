@@ -3,7 +3,8 @@ import { useData, useSyncStatus } from '../../store/data';
 import { resync } from '../../store/sync';
 
 /** Kleiner Speicher- und Verbindungsstatus. */
-export function StatusPill({ withLabel = true }: { withLabel?: boolean }) {
+/** quiet: im Normalzustand („Gespeichert“, live) unsichtbar – erscheint nur bei Bedarf */
+export function StatusPill({ withLabel = true, quiet = false }: { withLabel?: boolean; quiet?: boolean }) {
   const { inflight, lastError, online, realtime } = useSyncStatus();
   const fromCache = useData((s) => s.fromCache);
   const loadError = useData((s) => s.error);
@@ -39,6 +40,7 @@ export function StatusPill({ withLabel = true }: { withLabel?: boolean }) {
     tone = 'text-warn';
   }
 
+  if (quiet && label === 'Gespeichert') return null;
   return (
     <button
       type="button"

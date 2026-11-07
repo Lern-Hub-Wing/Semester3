@@ -84,6 +84,7 @@ const pages = [
   ['team', '#/team'],
   ['pruefungen', '#/pruefungen'],
   ['fokus', '#/fokus'],
+  ['fokus-vollbild', '#/fokus/vollbild'],
   ['analyse', '#/analyse'],
   ['einstellungen', '#/einstellungen'],
   ['benachrichtigungen', '#/einstellungen/benachrichtigungen'],
@@ -96,7 +97,15 @@ try {
       await ctx.route(`${API}/rest/v1/**`, handle);
       await ctx.route(`${API}/realtime/**`, (r) => r.abort());
       await ctx.route(`${API}/functions/**`, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
-      await ctx.addInitScript(() => localStorage.setItem('studyspace.push.onboarding', 'dismissed'));
+      await ctx.addInitScript(() => {
+        localStorage.setItem('studyspace.push.onboarding', 'dismissed');
+        // Laufende Fokus-Session (seit 6 Minuten), damit der Countdown sichtbar läuft
+        if (!sessionStorage.getItem('seeded')) {
+          const now = Date.now();
+          localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer: { phase: 'focus', durationSec: 1500, endsAt: now + 19 * 60_000, pausedRemainingSec: null, startedAt: now - 6 * 60_000, elapsedBeforePauseSec: 0, moduleId: null }, settings: { presetIndex: 0, sound: true } }));
+          sessionStorage.setItem('seeded', '1');
+        }
+      });
       const page = await ctx.newPage();
       page.on('pageerror', (e) => console.log('  pageerror', String(e)));
       await page.goto(BASE);
@@ -108,6 +117,7 @@ try {
       for (const [name, hash] of pages.slice(1)) {
         if (ONLY && !ONLY.includes(name)) continue;
         await page.evaluate((h) => (location.hash = h), hash);
+        await page.mouse.move(2, 2);
         await page.waitForTimeout(2300);
         await page.screenshot({ path: join(OUT, `${device}-${scheme}-${name}.png`), fullPage: process.env.FULL === '1' });
       }

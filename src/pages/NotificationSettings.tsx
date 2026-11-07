@@ -16,7 +16,8 @@ import { Card, CardHeader, IconTile } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Switch } from '../components/ui/Switch';
 import { Avatar } from '../components/ui/Avatar';
-import { InstallSteps, NotificationPreview } from '../components/PushOnboarding';
+import { InstallSteps } from '../components/PushOnboarding';
+import { LockScreenPreview } from '../components/LockScreenPreview';
 
 export function NotificationSettings() {
   const me = useCurrentMember();
@@ -340,9 +341,8 @@ function Preview() {
   return (
     <Card className="p-5 md:p-6">
       <CardHeader title="So sieht es aus" subtitle="Beispiele – das Aussehen bestimmt dein Gerät" icon={<BellRing />} />
-      <div className="mt-4 flex flex-col gap-2.5">
-        <NotificationPreview title="Dein Lernplan für heute" body="Heute stehen 4 Aufgaben in Thermodynamik an. Du schaffst das!" time="08:00" />
-        <NotificationPreview title="Prüfung morgen" body="Morgen um 14:00 Uhr ist deine Werkstoffkunde Prüfung. Viel Erfolg bei der Vorbereitung!" time="17:00" delay={0.12} />
+      <div className="mt-4">
+        <LockScreenPreview title="Dein Lernplan für heute" body="Heute stehen 4 Aufgaben in Thermodynamik an. Du schaffst das!" when="Jetzt" />
       </div>
     </Card>
   );

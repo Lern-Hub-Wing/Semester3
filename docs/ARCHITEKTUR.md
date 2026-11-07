@@ -100,6 +100,8 @@ Ein Designsystem, zentral in `src/styles/index.css` (CSS-Variablen) und `src/lib
 
 **Aurora-Hintergrund** (`components/layout/Ambient.tsx`): fünf sehr langsam wandernde Farbfelder plus feine Körnung. Die fünfte Fläche trägt die Farbe des aktiven Lernprofils und blendet beim Personenwechsel weich über. Ohne farbigen Untergrund wirkt Glas nur wie eine getönte Karte – deshalb ist der Hintergrund Teil des Materials.
 
+**Berglandschaft (Hero):** `components/landscape/` – gestaffelte Bergketten als Vektorgrafik (Pfade aus `scripts/generate-landscape.mjs`, fester Seed), Nebelbänder, mondbeschienene Grate, Sterne/Mond nur im Dunkelmodus. Alle Farben als CSS-Variablen `--ls-*` (eigene Fassung für Hell: Lavendel-Dunst, Dunkel: violette Nacht). Eingesetzt im Desktop-/Tablet-Dashboard-Hero (Glaskarten „Heute“, „Fortschritt“, „Nächste Prüfung“ schweben darüber), als auslaufender Hintergrund oben im Smartphone-Dashboard und in der Personenauswahl, in der Fokus-Bühne, im Fokus-Vollbild und in der Sperrbildschirm-Vorschau. Ohne Bilddatei, gestochen scharf, Nebel driftet nur per `transform`.
+
 **Glasmaterialien** – ein Aufbau, fünf Stärken (`.glass` + Modifikator):
 
 | Klasse | Einsatz | Eigenschaften |
@@ -131,6 +133,8 @@ Alles über `transform`/`opacity`; `prefers-reduced-motion` bzw. „Animationen:
 ## Neue Bereiche
 
 - **Semester-Timeline** (`lib/timeline.ts`, `components/SemesterTimeline.tsx`): Module × Kalenderwochen; Lernphase = erster bis letzter Lerntag, Füllung = echter Gruppenfortschritt, Rauten = Prüfungen, Linie = heute. Im Lernplan (Ansicht „Timeline“) und kompakt im Dashboard.
+- **Fokus im Querformat** (`components/FocusPanel.tsx`): breites Panel mit Ring auf Glasscheibe, großem Countdown (jede Ziffer rollt), Live-Fortschrittsbalken, Status „Fokus läuft“ mit Puls, Lichtpunkt am Ende des Bogens, Steuerung (Signalton, Zurücksetzen, Start/Pause, Beenden, Einstellungen). **Fokus-Vollbild** (`#/fokus/vollbild`, `pages/FocusImmersive.tsx`): Landschaft, riesiger laufender Countdown, Steuerung blendet sich aus, Bildschirm bleibt an (Wake Lock), Escape kehrt zurück.
+- **Nächste Erinnerung** (`lib/nextReminder.ts`, `components/LockScreenPreview.tsx`): Sperrbildschirm-Darstellung mit Live-Uhr; der Inhalt wird mit derselben Funktion `planNotifications()` berechnet, die der Server nutzt (Zeit in 15-Minuten-Schritten vorgespult) – keine erfundenen Texte.
 - **Fokus-Timer** (`lib/focus.ts`, `store/focus.ts`): Restzeit immer aus Endzeitpunkt − jetzt (stimmt nach Standby), Zustand im `localStorage`, Rhythmen 25/5 · 50/10 · 90/15, Signalton (Web Audio). Beendete Fokusphasen (≥ 1 Min.) werden in `focus_sessions` gespeichert. Fehlt Migration 004, läuft der Timer trotzdem und die App weist darauf hin.
 - **Analyse** (`pages/Analytics.tsx`): ausschließlich echte Daten – `completed_at` der Haken (pro Tag/Woche), gespeicherte Fokuszeiten, Serie, Fortschritt je Modul im Vergleich zur Gruppe.
 

@@ -110,35 +110,35 @@
   --ss-glass-edge: rgba(255, 255, 255, 0.7);
 
   /* Aurora-Hintergrund: kräftig genug, dass Glas etwas zum Brechen hat */
-  --aurora-a: rgba(146, 140, 248, 0.42);
-  --aurora-b: rgba(196, 166, 249, 0.38);
-  --aurora-c: rgba(143, 217, 196, 0.36);
-  --aurora-d: rgba(244, 184, 160, 0.3);
-  --aurora-me: rgba(146, 140, 248, 0.28);
-  --aurora-base: linear-gradient(180deg, #f3f4fb 0%, #eceff8 55%, #e9ecf7 100%);
-  --grain-opacity: 0.05;
+  --aurora-a: rgba(150, 140, 246, 0.4);
+  --aurora-b: rgba(200, 170, 246, 0.34);
+  --aurora-c: rgba(150, 214, 210, 0.22);
+  --aurora-d: rgba(240, 190, 200, 0.22);
+  --aurora-me: rgba(146, 140, 248, 0.24);
+  --aurora-base: linear-gradient(180deg, #ecebfa 0%, #eef0fa 50%, #e9ecf7 100%);
+  --grain-opacity: 0.04;
 
   /* Glasmaterial: Füllung, Unschärfe, Licht */
   --m-fill: 255 255 255;
-  --m-card-a: 0.4;
-  --m-nav-a: 0.17;
-  --m-float-a: 0.72;
-  --m-hero-a: 0.3;
-  --m-int-a: 0.46;
-  --m-blur: 22px;
-  --m-sat: 185%;
-  --m-bright: 1.04;
-  --m-spec: rgba(255, 255, 255, 0.75);
-  --m-spec-2: rgba(255, 255, 255, 0.22);
-  --m-inner: rgba(255, 255, 255, 0.55);
-  --m-glow: rgba(255, 255, 255, 0.32);
+  --m-card-a: 0.2;
+  --m-nav-a: 0.12;
+  --m-float-a: 0.6;
+  --m-hero-a: 0.12;
+  --m-int-a: 0.26;
+  --m-blur: 14px;
+  --m-sat: 190%;
+  --m-bright: 1.07;
+  --m-spec: rgba(255, 255, 255, 0.5);
+  --m-spec-2: rgba(255, 255, 255, 0.14);
+  --m-inner: rgba(255, 255, 255, 0.85);
+  --m-glow: rgba(255, 255, 255, 0.2);
   --m-rim-a: rgba(255, 255, 255, 1);
-  --m-rim-mid: rgba(255, 255, 255, 0.4);
-  --m-rim-low: rgba(255, 255, 255, 0.14);
-  --m-rim-b: rgba(255, 255, 255, 0.85);
+  --m-rim-mid: rgba(255, 255, 255, 0.45);
+  --m-rim-low: rgba(255, 255, 255, 0.18);
+  --m-rim-b: rgba(255, 255, 255, 0.8);
   --m-hairline: rgba(42, 48, 92, 0.08);
-  --m-shadow: 0 1px 1px rgba(42, 48, 92, 0.04), 0 14px 34px -18px rgba(42, 48, 92, 0.32);
-  --m-shadow-float: 0 2px 6px rgba(42, 48, 92, 0.06), 0 32px 70px -24px rgba(42, 48, 92, 0.42);
+  --m-shadow: 0 1px 1px rgba(42, 48, 92, 0.03), 0 10px 28px -18px rgba(42, 48, 92, 0.26);
+  --m-shadow-float: 0 2px 6px rgba(42, 48, 92, 0.05), 0 28px 60px -26px rgba(42, 48, 92, 0.38);
   --m-prism-a: rgba(140, 200, 255, 0.55);
   --m-prism-b: rgba(232, 150, 236, 0.5);
   --m-prism-c: rgba(150, 236, 200, 0.5);
@@ -168,34 +168,34 @@
   --ss-sheen: rgba(255, 255, 255, 0.09);
   --ss-glass-edge: rgba(255, 255, 255, 0.1);
 
-  --aurora-a: rgba(108, 100, 236, 0.42);
-  --aurora-b: rgba(160, 112, 230, 0.32);
-  --aurora-c: rgba(64, 170, 150, 0.26);
-  --aurora-d: rgba(220, 130, 110, 0.16);
-  --aurora-me: rgba(108, 100, 236, 0.22);
-  --aurora-base: linear-gradient(180deg, #0c0f1b 0%, #0a0d16 60%, #090b13 100%);
-  --grain-opacity: 0.06;
+  --aurora-a: rgba(112, 96, 236, 0.4);
+  --aurora-b: rgba(150, 100, 220, 0.28);
+  --aurora-c: rgba(70, 120, 200, 0.18);
+  --aurora-d: rgba(200, 120, 170, 0.1);
+  --aurora-me: rgba(112, 96, 236, 0.2);
+  --aurora-base: linear-gradient(180deg, #13142e 0%, #0e1024 50%, #0b0c1c 100%);
+  --grain-opacity: 0.05;
 
-  --m-fill: 30 36 58;
-  --m-card-a: 0.34;
-  --m-nav-a: 0.14;
-  --m-float-a: 0.74;
-  --m-hero-a: 0.24;
-  --m-int-a: 0.38;
-  --m-blur: 24px;
-  --m-sat: 170%;
-  --m-bright: 1.1;
-  --m-spec: rgba(255, 255, 255, 0.13);
-  --m-spec-2: rgba(255, 255, 255, 0.04);
-  --m-inner: rgba(255, 255, 255, 0.1);
-  --m-glow: rgba(160, 170, 255, 0.05);
-  --m-rim-a: rgba(255, 255, 255, 0.5);
-  --m-rim-mid: rgba(255, 255, 255, 0.1);
-  --m-rim-low: rgba(255, 255, 255, 0.04);
-  --m-rim-b: rgba(255, 255, 255, 0.26);
+  --m-fill: 28 30 60;
+  --m-card-a: 0.18;
+  --m-nav-a: 0.1;
+  --m-float-a: 0.66;
+  --m-hero-a: 0.1;
+  --m-int-a: 0.2;
+  --m-blur: 16px;
+  --m-sat: 180%;
+  --m-bright: 1.14;
+  --m-spec: rgba(255, 255, 255, 0.1);
+  --m-spec-2: rgba(255, 255, 255, 0.035);
+  --m-inner: rgba(255, 255, 255, 0.16);
+  --m-glow: rgba(170, 160, 255, 0.04);
+  --m-rim-a: rgba(255, 255, 255, 0.55);
+  --m-rim-mid: rgba(255, 255, 255, 0.12);
+  --m-rim-low: rgba(255, 255, 255, 0.05);
+  --m-rim-b: rgba(255, 255, 255, 0.28);
   --m-hairline: rgba(0, 0, 0, 0.35);
-  --m-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 18px 44px -22px rgba(0, 0, 0, 0.75);
-  --m-shadow-float: 0 2px 8px rgba(0, 0, 0, 0.3), 0 36px 80px -24px rgba(0, 0, 0, 0.8);
+  --m-shadow: 0 12px 32px -20px rgba(0, 0, 0, 0.6);
+  --m-shadow-float: 0 2px 8px rgba(0, 0, 0, 0.25), 0 30px 70px -26px rgba(0, 0, 0, 0.75);
   --m-prism-a: rgba(120, 190, 255, 0.4);
   --m-prism-b: rgba(220, 130, 236, 0.36);
   --m-prism-c: rgba(120, 236, 196, 0.32);
@@ -250,13 +250,13 @@ body {
 
 /* Typografie: große, ruhige Überschriften mit enger Laufweite */
 .display {
-  font-weight: 680;
-  letter-spacing: -0.035em;
+  font-weight: 620;
+  letter-spacing: -0.026em;
   line-height: 1.04;
 }
 .title {
-  font-weight: 640;
-  letter-spacing: -0.022em;
+  font-weight: 600;
+  letter-spacing: -0.014em;
 }
 .eyebrow {
   font-size: 11px;
@@ -442,7 +442,7 @@ select {
   border: 1px solid transparent;
   box-shadow:
     inset 0 1px 0 0 var(--m-inner),
-    inset 0 0 22px 0 var(--m-glow),
+    inset 0 0 16px 0 var(--m-glow),
     0 0 0 0.5px var(--m-hairline),
     var(--m-shadow);
 }
@@ -481,7 +481,7 @@ select {
   --m-blur-x: calc(var(--m-blur) + 12px);
   box-shadow:
     inset 0 1px 0 0 var(--m-inner),
-    inset 0 0 22px 0 var(--m-glow),
+    inset 0 0 16px 0 var(--m-glow),
     0 0 0 0.5px var(--m-hairline),
     var(--m-shadow-float);
 }
@@ -647,7 +647,7 @@ select {
     --spot: 1;
     box-shadow:
       inset 0 1px 0 0 var(--m-inner),
-      inset 0 0 22px 0 var(--m-glow),
+      inset 0 0 16px 0 var(--m-glow),
       0 0 0 0.5px var(--m-hairline),
       var(--m-shadow-float);
   }
@@ -991,4 +991,112 @@ input[type='time'].field {
 /* Kompakte Darstellung: Abstände (rem) werden kleiner */
 html.compact {
   font-size: 87.5%;
+}
+
+/* ------------------------------------------------------------------ */
+/* Berglandschaft (Hero) – eigene Farbstimmung für Hell und Dunkel     */
+/* ------------------------------------------------------------------ */
+:root {
+  /* Hell: Lavendel-Dunst am Morgen */
+  --ls-sky-1: #aeb0ee;
+  --ls-sky-2: #d3cdf4;
+  --ls-sky-3: #f2e4f0;
+  --ls-glow: #fff1f6;
+  --ls-moon: #ffffff;
+  --ls-star: #ffffff;
+  --ls-stars-o: 0;
+  --ls-far-1: #fbfaff;
+  --ls-far-2: #a59fe0;
+  --ls-mid1-1: #b6b2ec;
+  --ls-mid1-2: #8a85cf;
+  --ls-mid2-1: #a1a2e0;
+  --ls-mid2-2: #7c82c6;
+  --ls-near-1: #b4bbe8;
+  --ls-near-2: #959ed6;
+  --ls-mist: #ffffff;
+  --ls-mist-o: 0.55;
+  --ls-rim: #ffffff;
+  /* Übergang vom Bild zur Oberfläche (unten im Hero) */
+  --hero-fade: linear-gradient(180deg, rgba(238, 240, 250, 0) 30%, rgba(238, 240, 250, 0.35) 62%, rgba(238, 240, 250, 0.82) 100%);
+  --hero-text-shadow: 0 1px 12px rgba(255, 255, 255, 0.45);
+}
+.dark {
+  /* Dunkel: violette Nacht mit Mondlicht */
+  --ls-sky-1: #0f0e2a;
+  --ls-sky-2: #2a2263;
+  --ls-sky-3: #6a52b8;
+  --ls-glow: #9b7be0;
+  --ls-moon: #e9e4ff;
+  --ls-star: #ffffff;
+  --ls-stars-o: 1;
+  --ls-far-1: #9c92e6;
+  --ls-far-2: #3e3a86;
+  --ls-mid1-1: #4f489e;
+  --ls-mid1-2: #25225a;
+  --ls-mid2-1: #2e2a6a;
+  --ls-mid2-2: #17163f;
+  --ls-near-1: #1a1940;
+  --ls-near-2: #0c0c22;
+  --ls-mist: #a99cf2;
+  --ls-mist-o: 1;
+  --ls-rim: #e8e2ff;
+  --hero-fade: linear-gradient(180deg, rgba(12, 13, 30, 0) 30%, rgba(12, 13, 30, 0.38) 60%, rgba(12, 13, 30, 0.86) 100%);
+  --hero-text-shadow: 0 1px 14px rgba(8, 8, 30, 0.55);
+}
+@layer components {
+.landscape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.landscape .ls-stars,
+.landscape .ls-moon {
+  opacity: var(--ls-stars-o);
+  transition: opacity 0.6s;
+}
+.landscape .ls-mist {
+  will-change: transform;
+  opacity: var(--ls-mist-o, 1);
+}
+.landscape .ls-mist-a {
+  animation: ls-drift 70s ease-in-out infinite alternate;
+}
+.landscape .ls-mist-b {
+  animation: ls-drift 90s ease-in-out infinite alternate-reverse;
+}
+@keyframes ls-drift {
+  from {
+    transform: translateX(-80px);
+  }
+  to {
+    transform: translateX(80px);
+  }
+}
+/* Hero-Bühne: Landschaft + weicher Übergang + Inhalt darüber */
+.hero-scene {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.hero-scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--hero-fade);
+}
+.hero-scene > :not(.landscape) {
+  position: relative;
+  z-index: 1;
+}
+.on-image {
+  text-shadow: var(--hero-text-shadow);
+}
+}
+
+.reduce-glass .landscape .ls-mist {
+  animation: none;
 }

@@ -17,11 +17,13 @@ interface Props<T extends string> {
   size?: 'sm' | 'md';
   /** schmalere Innenabstände (kleine Bildschirme) */
   dense?: boolean;
+  /** aktive Option in Akzentfarbe (wie Tabs „Woche / Monat / Semester“) */
+  accent?: boolean;
   className?: string;
 }
 
 /** iOS-artiger Segmented Control mit gleitender Markierung. */
-export function Segmented<T extends string>({ value, onChange, options, label, size = 'md', dense, className = '' }: Props<T>) {
+export function Segmented<T extends string>({ value, onChange, options, label, size = 'md', dense, accent, className = '' }: Props<T>) {
   const id = useId();
   return (
     <div role="radiogroup" aria-label={label} className={`inline-flex rounded-full bg-[var(--ss-track)] p-1 shadow-[inset_0_1px_2px_rgba(16,22,46,0.06)] ${className}`}>
@@ -39,12 +41,12 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
             }}
             className={`relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-colors ${
               size === 'sm' ? `h-8 ${dense ? 'px-2' : 'px-3'} text-[13px]` : 'h-9 px-3.5 text-sm'
-            } ${active ? 'text-ink' : 'text-muted hover:text-ink'}`}
+            } ${active ? (accent ? 'text-white dark:text-[#14152e]' : 'text-ink') : 'text-muted hover:text-ink'}`}
           >
             {active && (
               <motion.span
                 layoutId={`seg-${id}`}
-                className="lens absolute inset-0 rounded-full"
+                className={`absolute inset-0 rounded-full ${accent ? 'btn-primary' : 'lens'}`}
                 transition={spring.tab}
               />
             )}

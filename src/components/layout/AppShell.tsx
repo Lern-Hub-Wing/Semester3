@@ -1,8 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeftRight, CalendarPlus, Clock3, History, Search, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Bell, BellRing, Clock3, History, Search, Trash2 } from 'lucide-react';
 import { Link, navigate, useLocation } from '../../lib/router';
-import { useAppName, useCurrentMember } from '../../store/derived';
+import { useAppName, useCurrentMember, useTaskViews } from '../../store/derived';
+import { useData } from '../../store/data';
+import { usePush } from '../../store/push';
+import { isDone } from '../../lib/progress';
+import { useToday } from '../../hooks/useToday';
 import { useSession } from '../../store/session';
 import { useUI } from '../../store/ui';
 import { LogoMark } from '../Logo';
@@ -25,7 +29,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const appName = useAppName();
   const me = useCurrentMember();
   const setUI = useUI((s) => s.set);
-  const openEditor = useUI((s) => s.openEntryEditor);
 
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -79,26 +82,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] md:px-6 md:pt-4 lg:px-8">
           {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
           <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
-          <Link to="/" data-testid="mobile-logo" className="glass mat-interactive mr-auto grid size-10 shrink-0 place-items-center rounded-full md:hidden" aria-label={`${appName} – Dashboard`}>
-            <LogoMark size={26} />
-          </Link>
-          {/* Desktop: Suchfeld als gläserne Pille (öffnet die globale Suche) */}
-          <button
-            type="button"
-            onClick={() => setUI({ searchOpen: true })}
-            className="glass mat-interactive mr-auto hidden h-10 w-[min(360px,40vw)] items-center gap-2.5 rounded-full px-4 text-left text-sm text-muted lg:flex"
+          {/* Smartphone: Marke oben links (Zeichen + Schriftzug) */}
+          <Link
+            to="/"
+            data-testid="mobile-logo"
+            className="glass mat-interactive mr-auto flex h-10 shrink-0 items-center gap-2 rounded-full pl-[7px] pr-[7px] min-[360px]:pr-3.5 md:hidden"
+            aria-label={`${appName} – Dashboard`}
           >
-            <Search className="size-4 shrink-0" aria-hidden />
-            <span className="flex-1 truncate">Suchen in Fächern, Themen, Aufgaben …</span>
-            <kbd className="rounded-md border border-line px-1.5 text-[10px] font-medium">⌘K</kbd>
-          </button>
-          <StatusPill />
-          <IconButton label="Neuer Lerntag" variant="glass" size="sm" className="!size-10 !rounded-full" onClick={() => openEditor()}>
-            <CalendarPlus className="size-[18px]" />
-          </IconButton>
-          <IconButton label="Suche öffnen" variant="glass" size="sm" className="!size-10 !rounded-full lg:hidden" onClick={() => setUI({ searchOpen: true })}>
+            <LogoMark size={26} />
+            <span className="title hidden text-[15px] min-[360px]:inline">{appName}</span>
+          </Link>
+          <span className="hidden flex-1 md:block" aria-hidden />
+          <StatusPill quiet />
+          <IconButton label="Suche öffnen" variant="glass" size="sm" className="!size-10 !rounded-full" onClick={() => setUI({ searchOpen: true })}>
             <Search className="size-[18px]" />
           </IconButton>
+          <BellButton />
           <ProfileMenu />
         </header>
         <main id="main" className="pb-tabbar mx-auto w-full max-w-[1360px] px-4 pt-2 md:px-6 lg:px-8">
@@ -116,7 +115,29 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Glocke: führt zu den Benachrichtigungen; leuchtet, wenn sie auf diesem Gerät aktiv sind */
+function BellButton() {
+  const on = usePush((s) => s.phase === 'on');
+  return (
+    <IconButton label={on ? 'Benachrichtigungen (aktiv)' : 'Benachrichtigungen'} variant="glass" size="sm" className="relative !size-10 !rounded-full" onClick={() => navigate('/einstellungen/benachrichtigungen')}>
+      {on ? <BellRing className="size-[18px]" /> : <Bell className="size-[18px]" />}
+      {on && <span aria-hidden className="absolute right-[9px] top-[9px] size-2 rounded-full bg-[var(--ss-accent)] shadow-[0_0_0_2px_var(--ss-bg)]" />}
+    </IconButton>
+  );
+}
+
+/** Offene Aufgaben heute + überfällig für das aktive Profil (Badge in der Seitenleiste) */
+function useOpenBadge(): number {
+  const me = useCurrentMember();
+  const views = useTaskViews();
+  const completions = useData((s) => s.task_completions);
+  const today = useToday();
+  return useMemo(() => (me ? views.filter((v) => v.date <= today && !isDone(completions, v.task.id, me.id)).length : 0), [me, views, completions, today]);
+}
+
 function SideLink({ item, active }: { item: (typeof NAV)[number]; active: boolean }) {
+  const open = useOpenBadge();
+  const badge = item.to === '/lernplan' && open > 0 ? open : null;
   return (
     <Link
       to={item.to}
@@ -131,6 +152,11 @@ function SideLink({ item, active }: { item: (typeof NAV)[number]; active: boolea
       <item.icon className="nav-item-icon relative size-[21px] lg:size-[19px]" strokeWidth={active ? 2.1 : 1.75} aria-hidden />
       <span className="relative max-w-full truncate lg:hidden">{item.short ?? item.label}</span>
       <span className="relative hidden lg:inline">{item.label}</span>
+      {badge !== null && (
+        <span className="num relative ml-auto hidden min-w-[22px] rounded-full bg-[color-mix(in_srgb,var(--ss-accent)_18%,transparent)] px-1.5 py-0.5 text-center text-[11px] font-semibold text-accent lg:inline-block" aria-label={`${badge} offen`}>
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
