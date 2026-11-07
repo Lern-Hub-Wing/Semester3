@@ -203,9 +203,16 @@ export async function subscribeFromGesture(): Promise<{ subscription: PushSubscr
   if (permission !== 'granted') return { error: 'dismissed' };
   try {
     const reg = await registration();
+    const key = b64urlToBytes(vapidPublicKey);
     const existing = await reg.pushManager.getSubscription();
-    if (existing) return { subscription: existing };
-    const subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToBytes(vapidPublicKey) });
+    if (existing) {
+      // Abo mit altem Serverschlüssel (VAPID-Schlüssel wurden gewechselt) → neu anlegen
+      const oldKey = existing.options?.applicationServerKey;
+      const same = !oldKey || b64url(new Uint8Array(oldKey)) === b64url(key);
+      if (same) return { subscription: existing };
+      await existing.unsubscribe().catch(() => undefined);
+    }
+    const subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
     return { subscription };
   } catch (err) {
     const detail = err instanceof Error ? (err.message === 'sw-timeout' ? 'Der Service Worker ist noch nicht bereit. Bitte die App einmal neu laden.' : err.message) : String(err);

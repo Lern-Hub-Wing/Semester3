@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>StudySpace · Push-Schlüssel erzeugen</title>
+<style>
+  :root { color-scheme: light dark; --bg:#eef1f8; --card:rgba(255,255,255,.62); --text:#1b2232; --muted:#5f6a80; --line:rgba(27,34,50,.1); --accent:#6d69ec; --warn:#b97f2f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0a0d16; --card:rgba(30,36,58,.55); --text:#f2f5fa; --muted:#a2acbf; --line:rgba(255,255,255,.1); --accent:#a9a6ff; --warn:#f3c88f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100dvh; font:15px/1.55 Inter, ui-sans-serif, -apple-system, 'Segoe UI', sans-serif; color:var(--text);
+    background: radial-gradient(60vmax 60vmax at 0% 0%, rgba(146,140,248,.35), transparent 60%), radial-gradient(50vmax 50vmax at 100% 100%, rgba(143,217,196,.28), transparent 60%), var(--bg); padding: 32px 16px; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 34px; letter-spacing: -.03em; margin: 0 0 6px; }
+  p { color: var(--muted); margin: 0 0 12px; }
+  .card { background: var(--card); backdrop-filter: blur(24px) saturate(170%); -webkit-backdrop-filter: blur(24px) saturate(170%); border:1px solid var(--line); border-radius: 26px; padding: 22px; margin-top: 18px; box-shadow: 0 20px 50px -30px rgba(20,24,60,.45); }
+  button { font: inherit; font-weight: 600; color: #fff; border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; background: linear-gradient(135deg, #8f8cf6, #6d69ec); box-shadow: 0 10px 24px -10px #6d69ec; }
+  button.copy { padding: 6px 14px; font-size: 13px; background: rgba(127,127,160,.18); color: var(--text); box-shadow: none; }
+  label { display:flex; justify-content:space-between; align-items:center; gap:12px; font-weight:600; margin: 16px 0 6px; }
+  code { display:block; word-break: break-all; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(127,127,160,.12); border-radius: 14px; padding: 12px 14px; }
+  .warn { color: var(--warn); font-weight: 600; }
+  ol { color: var(--muted); padding-left: 20px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Push-Schlüssel erzeugen</h1>
+  <p>Für StudySpace-Benachrichtigungen brauchst du einmalig ein VAPID-Schlüsselpaar und ein Scheduler-Secret. Die Werte werden <strong>nur hier in deinem Browser</strong> erzeugt und nirgendwohin gesendet.</p>
+  <div class="card">
+    <button id="gen" type="button">Schlüssel erzeugen</button>
+    <div id="out" class="hidden">
+      <label>VAPID_PUBLIC_KEY <button class="copy" data-copy="pub" type="button">Kopieren</button></label>
+      <code id="pub"></code>
+      <label>VAPID_PRIVATE_KEY <button class="copy" data-copy="priv" type="button">Kopieren</button></label>
+      <code id="priv"></code>
+      <label>SCHEDULER_SECRET <button class="copy" data-copy="sec" type="button">Kopieren</button></label>
+      <code id="sec"></code>
+      <p class="warn" style="margin-top:16px">Den privaten Schlüssel und das Secret niemals auf GitHub, in die App oder in Chats kopieren.</p>
+      <ol>
+        <li><strong>VAPID_PUBLIC_KEY</strong> → GitHub: Settings → Secrets and variables → Actions → <em>Variables</em> → <code style="display:inline;padding:1px 6px">VITE_VAPID_PUBLIC_KEY</code></li>
+        <li><strong>Alle drei Werte</strong> + <code style="display:inline;padding:1px 6px">VAPID_SUBJECT</code> (z. B. mailto:eure@adresse.de) → Supabase: Edge Functions → Secrets</li>
+        <li><strong>SCHEDULER_SECRET</strong> zusätzlich in <code style="display:inline;padding:1px 6px">supabase/cron.sql</code> einsetzen (nur im SQL Editor, nicht im Repository speichern)</li>
+      </ol>
+      <p>Diese Seite danach schließen. Die Werte werden nicht gespeichert.</p>
+    </div>
+  </div>
+</main>
+<script>
+  const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  document.getElementById('gen').addEventListener('click', async () => {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const pub = await crypto.subtle.exportKey('raw', kp.publicKey);
+    const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    document.getElementById('pub').textContent = b64url(pub);
+    document.getElementById('priv').textContent = jwk.d;
+    document.getElementById('sec').textContent = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    document.getElementById('out').classList.remove('hidden');
+  });
+  document.addEventListener('click', async (e) => {
+    const id = e.target?.dataset?.copy;
+    if (!id) return;
+    await navigator.clipboard.writeText(document.getElementById(id).textContent);
+    e.target.textContent = 'Kopiert ✓';
+    setTimeout(() => (e.target.textContent = 'Kopieren'), 1500);
+  });
+</script>
+</body>
+</html>

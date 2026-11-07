@@ -7,6 +7,7 @@
 #   VITE_SUPABASE_URL              z. B. https://abcd1234.supabase.co
 #   VITE_SUPABASE_PUBLISHABLE_KEY  der Publishable Key (sb_publishable_…) – NIEMALS den Secret Key!
 #   VITE_MAX_UPLOAD_MB             optional, Standard 10
+#   VITE_VAPID_PUBLIC_KEY          optional, öffentlicher VAPID-Schlüssel für Push (README, Schritt 12)
 name: Test & Deploy
 
 on:
@@ -44,6 +45,11 @@ jobs:
       - run: npm ci
       - name: Typprüfung
         run: npm run typecheck
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typprüfung Edge Functions (Deno)
+        run: deno check supabase/functions/push-api/index.ts supabase/functions/push-scheduler/index.ts
       - name: Unit-Tests
         run: npm test
       - name: Datenbanktests (Migrationen, Rechte, Trigger)
@@ -88,6 +94,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_MAX_UPLOAD_MB: ${{ vars.VITE_MAX_UPLOAD_MB || '10' }}
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
       - name: Hinweis bei fehlender Konfiguration
         env:
           URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}

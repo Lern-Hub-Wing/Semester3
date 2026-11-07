@@ -23,7 +23,8 @@ clientsClaim();
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
+// Alle App-Routen liefern index.html (Hash-Router); Hilfsseiten unter /einrichtung/ bleiben eigenständig
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/einrichtung\//] }));
 
 // Hochgeladene Dateien haben eindeutige, unveränderliche Pfade.
 registerRoute(

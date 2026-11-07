@@ -1,7 +1,7 @@
 {
   "name": "studyspace",
   "private": true,
-  "version": "1.0.0",
+  "version": "3.0.0",
   "type": "module",
   "description": "StudySpace – gemeinsame Lernplattform für die Prüfungsvorbereitung",
   "scripts": {
