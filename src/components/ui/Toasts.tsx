@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
 import { useToasts } from '../../store/toast';
+import { spring } from '../../lib/motion';
 
 /** Rückmeldungen am unteren Rand (über der mobilen Navigation). */
 export function Toasts() {
@@ -16,11 +17,11 @@ export function Toasts() {
           <motion.div
             key={t.id}
             layout
-            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            initial={{ opacity: 0, y: 28, scale: 0.86 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-            className="glass glass-strong pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-sm"
+            exit={{ opacity: 0, y: 10, scale: 0.94, transition: { duration: 0.2 } }}
+            transition={spring.moment}
+            className="glass mat-float pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[22px] px-4 py-3 text-sm"
           >
             {t.kind === 'success' ? (
               <CircleCheck className="size-5 shrink-0 text-success" aria-hidden />

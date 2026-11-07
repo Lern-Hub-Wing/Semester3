@@ -1,6 +1,6 @@
-import { useMemo, useState, type DragEvent } from 'react';
+import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { AlarmClock, CalendarDays, Check, ChevronLeft, ChevronRight, GraduationCap, List, Plus } from 'lucide-react';
+import { AlarmClock, CalendarDays, CalendarRange, Check, ChevronLeft, ChevronRight, GraduationCap, List, Plus } from 'lucide-react';
 import type { Exam, ISODate, Member, StudyEntry } from '../lib/types';
 import { groupBy, isDone, memberRatio, type TaskView } from '../lib/progress';
 import {
@@ -14,20 +14,30 @@ import { useUI } from '../store/ui';
 import { useToday } from '../hooks/useToday';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { PageHeader } from '../components/layout/AppShell';
+import { SemesterTimeline, TimelineLegend } from '../components/SemesterTimeline';
 import { EntryCard } from '../components/EntryCard';
 import { Button, IconButton } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ProgressBar } from '../components/ui/Progress';
 
-type View = 'tag' | 'woche' | 'monat' | 'liste';
+type View = 'tag' | 'woche' | 'monat' | 'liste' | 'timeline';
 type Status = 'alle' | 'offen' | 'erledigt' | 'ueberfaellig';
 
-const VIEWS: { value: View; label: string }[] = [
+const VIEWS: { value: View; label: ReactNode }[] = [
   { value: 'tag', label: 'Tag' },
   { value: 'woche', label: 'Woche' },
   { value: 'monat', label: 'Monat' },
   { value: 'liste', label: 'Liste' },
+  {
+    value: 'timeline',
+    label: (
+      <>
+        <CalendarRange className="size-4" aria-hidden />
+        <span className="sr-only lg:not-sr-only">Timeline</span>
+      </>
+    ),
+  },
 ];
 
 interface DayInfo {
@@ -45,7 +55,7 @@ export function Plan({ me }: { me: Member }) {
   const { query } = useLocation();
   const today = useToday();
   const mobile = useIsMobile();
-  const view = (['tag', 'woche', 'monat', 'liste'].includes(query.get('ansicht') ?? '') ? query.get('ansicht') : mobile ? 'woche' : 'monat') as View;
+  const view = (['tag', 'woche', 'monat', 'liste', 'timeline'].includes(query.get('ansicht') ?? '') ? query.get('ansicht') : mobile ? 'woche' : 'monat') as View;
   const date = isValidISODate(query.get('datum') ?? '') ? query.get('datum')! : today;
   const moduleFilter = query.get('modul');
   const status = (['offen', 'erledigt', 'ueberfaellig'].includes(query.get('status') ?? '') ? query.get('status') : 'alle') as Status;
@@ -145,9 +155,9 @@ export function Plan({ me }: { me: Member }) {
         }
       />
 
-      <div className="glass z-10 mb-4 flex flex-col gap-3 rounded-[22px] p-2.5 md:sticky md:top-[68px] md:flex-row md:flex-wrap md:items-center">
-        <Segmented label="Ansicht" value={view} onChange={(v) => setQuery({ ansicht: v })} options={VIEWS} className="w-full md:w-auto" />
-        {view !== 'liste' && (
+      <div className="glass mat-nav z-10 mb-4 flex flex-col gap-3 rounded-[26px] p-2.5 md:sticky md:top-[68px] md:flex-row md:flex-wrap md:items-center">
+        <Segmented label="Ansicht" value={view} onChange={(v) => setQuery({ ansicht: v })} options={VIEWS} size={mobile ? 'sm' : 'md'} dense={mobile} className="w-full md:w-auto" />
+        {view !== 'liste' && view !== 'timeline' && (
           <div className="flex min-w-0 items-center gap-1 md:flex-1">
             <IconButton label="Zurück" size="sm" onClick={() => step(-1)}>
               <ChevronLeft className="size-5" />
@@ -161,7 +171,8 @@ export function Plan({ me }: { me: Member }) {
             </Button>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-1.5 md:w-full xl:ml-auto xl:flex xl:w-auto xl:items-center">
+        {view === 'timeline' && <p className="px-2 text-[13px] text-muted md:flex-1">Alle Module auf einen Blick: Lernphasen, Fortschritt und Prüfungen.</p>}
+        <div className={`grid grid-cols-2 gap-1.5 md:w-full xl:ml-auto xl:flex xl:w-auto xl:items-center ${view === 'timeline' ? 'hidden' : ''}`}>
           <select
             aria-label="Nach Modul filtern"
             className="field !h-9 !min-h-9 !rounded-xl !py-0 text-[13px] xl:!w-auto xl:max-w-[220px]"
@@ -189,6 +200,14 @@ export function Plan({ me }: { me: Member }) {
         </div>
       </div>
 
+      {view === 'timeline' && (
+        <section className="card rounded-[var(--radius-card)] p-4 md:p-6">
+          <SemesterTimeline />
+          <div className="mt-5 border-t border-line pt-4">
+            <TimelineLegend />
+          </div>
+        </section>
+      )}
       {view === 'monat' && (mobile ? <MonthMobile date={date} today={today} info={dayInfo} me={me} members={members} /> : <MonthGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} />)}
       {view === 'woche' && (mobile ? <WeekMobile date={date} today={today} info={dayInfo} /> : <WeekGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} />)}
       {view === 'tag' && <DayView info={dayInfo(date)} me={me} members={members} views={views} />}

@@ -81,7 +81,7 @@ export function Countdown({ compact: compactProp, className = '' }: { compact?: 
     <Shell className={className} color={color}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <p className="eyebrow flex items-center gap-2">
             {running ? (
               <>
                 <span className="relative flex size-2">
@@ -98,7 +98,7 @@ export function Countdown({ compact: compactProp, className = '' }: { compact?: 
           </p>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={exam.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
-              <h2 className={`mt-1 font-semibold tracking-tight ${compact ? 'text-xl' : 'text-2xl md:text-[28px]'} leading-tight`}>
+              <h2 className={`display mt-1.5 ${compact ? 'text-[24px]' : 'text-[28px] md:text-[38px]'}`}>
                 {module?.name ?? 'Prüfung'}
               </h2>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
@@ -131,14 +131,15 @@ export function Countdown({ compact: compactProp, className = '' }: { compact?: 
         )}
       </div>
 
-      <div className={`mt-4 grid grid-cols-4 ${compact ? 'gap-2' : 'gap-2.5 md:gap-3'}`} aria-live="off">
+      <div className={`mt-5 grid grid-cols-4 ${compact ? 'gap-2' : 'gap-2.5 md:gap-3.5'}`} aria-live="off">
         {UNITS.map((u) => (
           <div
             key={u.key}
-            className="relative overflow-hidden rounded-2xl border border-[var(--ss-glass-edge)] bg-[color-mix(in_srgb,var(--ss-card)_55%,transparent)] px-1 py-2.5 text-center md:py-3.5"
+            className="lens relative overflow-hidden rounded-[20px] px-1 py-3 text-center md:rounded-[22px] md:py-4"
           >
+            <span aria-hidden className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-[color-mix(in_srgb,var(--ss-text)_7%,transparent)]" />
             <Digits value={u.key === 'days' ? parts.days : String(parts[u.key]).padStart(2, '0')} compact={compact} />
-            <div className="mt-0.5 truncate text-[8.5px] font-semibold uppercase tracking-[0.04em] text-muted min-[360px]:text-[10px] min-[360px]:tracking-[0.05em] md:text-[11px] md:tracking-[0.12em]">{u.label}</div>
+            <div className="mt-1 truncate text-[8.5px] font-semibold uppercase tracking-[0.04em] text-muted min-[360px]:text-[10px] min-[360px]:tracking-[0.06em] md:text-[11px] md:tracking-[0.14em]">{u.label}</div>
           </div>
         ))}
       </div>
@@ -174,14 +175,19 @@ function Digits({ value, compact }: { value: number | string; compact?: boolean 
   const reduce = useReducedMotion();
   const text = String(value);
   return (
-    <div className={`num relative flex h-[1.15em] items-center justify-center overflow-hidden font-semibold leading-none tracking-tight ${compact ? 'text-[24px] min-[360px]:text-[28px]' : 'text-[34px] md:text-[44px]'}`}>
+    <div
+      className={`num relative flex h-[1.15em] items-center justify-center font-semibold leading-none ${compact ? 'text-[26px] min-[360px]:text-[30px]' : 'text-[38px] md:text-[52px]'}`}
+      style={{ perspective: 400, letterSpacing: '-0.04em' }}
+    >
+      {/* Countdown Flip: die Ziffer klappt räumlich nach unten weg */}
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={text}
-          initial={reduce ? false : { y: '60%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={reduce ? undefined : { y: '-60%', opacity: 0 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          style={{ transformOrigin: '50% 50% -0.4em', backfaceVisibility: 'hidden' }}
+          initial={reduce ? false : { rotateX: 75, opacity: 0, y: '-12%' }}
+          animate={{ rotateX: 0, opacity: 1, y: 0 }}
+          exit={reduce ? undefined : { rotateX: -75, opacity: 0, y: '12%' }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
           {text}
         </motion.span>
@@ -194,18 +200,18 @@ function Shell({ color, children, className = '' }: { color: string; children: R
   return (
     <section
       aria-label="Prüfungscountdown"
-      className={`glass sheen relative flex flex-col justify-center overflow-hidden rounded-[26px] p-5 md:p-6 ${className}`}
-      style={{ boxShadow: `var(--ss-glass-shadow), 0 24px 60px -36px ${alpha(color, 0.9)}` }}
+      className={`glass mat-hero relative flex flex-col justify-center rounded-[30px] p-5 md:p-7 ${className}`}
+      style={{ '--m-extra': `radial-gradient(90% 120% at 100% 0%, ${alpha(color, 0.3)}, transparent 60%)` } as React.CSSProperties}
     >
       {/* Dezente, sehr langsam wandernde Lichtfläche in Modulfarbe */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -right-24 -top-28 size-80 rounded-full opacity-70 [animation:ss-drift-b_26s_ease-in-out_infinite_alternate]"
-        style={{ background: `radial-gradient(circle, ${alpha(color, 0.55)}, transparent 65%)` }}
+        className="pointer-events-none absolute -right-24 -top-28 !z-0 size-96 rounded-full opacity-80 [animation:ss-drift-b_26s_ease-in-out_infinite_alternate]"
+        style={{ background: `radial-gradient(circle, ${alpha(color, 0.6)}, transparent 65%)` }}
       />
       <span
         aria-hidden
-        className="pointer-events-none absolute -bottom-32 -left-20 size-72 rounded-full opacity-50 [animation:ss-drift-a_32s_ease-in-out_infinite_alternate]"
+        className="pointer-events-none absolute -bottom-32 -left-20 !z-0 size-72 rounded-full opacity-50 [animation:ss-drift-a_32s_ease-in-out_infinite_alternate]"
         style={{ background: `radial-gradient(circle, ${alpha(color, 0.35)}, transparent 65%)` }}
       />
       <div className="relative">{children}</div>

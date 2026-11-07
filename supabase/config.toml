@@ -1,0 +1,11 @@
+# Supabase-CLI-Konfiguration für die Edge Functions von StudySpace.
+# (Nur für `supabase functions deploy` relevant – die App selbst braucht sie nicht.)
+
+[functions.push-api]
+# Die App hat keine Anmeldung und nutzt den Publishable Key (kein JWT).
+# Die Funktion prüft selbst: geheimer Gerätetoken, Eingaben, Rate Limits.
+verify_jwt = false
+
+[functions.push-scheduler]
+# Aufruf nur durch Supabase Cron mit dem Secret SCHEDULER_SECRET im Header.
+verify_jwt = false

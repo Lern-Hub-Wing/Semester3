@@ -45,7 +45,7 @@ export function StatusPill({ withLabel = true }: { withLabel?: boolean }) {
       onClick={() => void resync()}
       title={title}
       aria-label={`${label}. ${title} Tippen zum Aktualisieren.`}
-      className={`glass inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${tone}`}
+      className={`glass mat-interactive inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${tone}`}
     >
       {icon}
       {withLabel && <span className="hidden sm:inline">{label}</span>}

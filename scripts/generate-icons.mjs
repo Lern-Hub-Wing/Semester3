@@ -62,6 +62,21 @@ function splashSvg(w, h) {
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${defs()}
   <rect width="64" height="64" rx="15" fill="url(#bg)"/>${mark(32, 32, 19, 8.5)}</svg>`;
 
+/** Einfarbiges Symbol für die Statusleiste (Android-Benachrichtigungen): weiß auf transparent */
+function badgeSvg(size) {
+  const c = size / 2;
+  const r = size * 0.3;
+  const stroke = size * 0.13;
+  const len = 2 * Math.PI * r;
+  const seg = len / 4;
+  const gap = stroke * 1.45;
+  const arcs = [0, 1, 2, 3]
+    .map((i) => `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"
+        stroke-dasharray="${seg - gap} ${len - seg + gap}" stroke-dashoffset="${-i * seg - gap / 2}" transform="rotate(-90 ${c} ${c})"/>`)
+    .join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}<circle cx="${c}" cy="${c}" r="${r * 0.36}" fill="#fff"/></svg>`;
+}
+
 async function render(page, svg, w, h, out) {
   await page.setViewportSize({ width: w, height: h });
   await page.setContent(`<html><body style="margin:0;background:transparent">${svg}</body></html>`);
@@ -73,6 +88,11 @@ async function render(page, svg, w, h, out) {
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
+await render(page, badgeSvg(96), 96, 96, join(root, 'icons/badge-96.png'));
+if (process.env.ONLY === 'badge') {
+  await browser.close();
+  process.exit(0);
+}
 writeFileSync(join(root, 'favicon.svg'), favicon);
 await render(page, iconSvg(192), 192, 192, join(root, 'icons/icon-192.png'));
 await render(page, iconSvg(512), 512, 512, join(root, 'icons/icon-512.png'));

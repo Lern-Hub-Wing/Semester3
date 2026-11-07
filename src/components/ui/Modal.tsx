@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { IconButton } from './Button';
 import { PresenceContainer } from './PresenceDiv';
+import { spring } from '../../lib/motion';
 
 interface Props {
   open: boolean;
@@ -85,11 +86,11 @@ export function Modal({ open, onClose, title, description, children, footer, wid
       {open && (
         <PresenceContainer className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
           <motion.div
-            className="absolute inset-0 bg-[rgba(8,12,20,0.38)] backdrop-blur-[3px]"
+            className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-[10px] backdrop-saturate-150"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.3 }}
             onClick={onClose}
           />
           <motion.div
@@ -98,13 +99,13 @@ export function Modal({ open, onClose, title, description, children, footer, wid
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            className={`glass glass-strong relative flex max-h-[92dvh] w-full flex-col outline-none ${
-              mobile ? 'rounded-t-[28px] pb-[env(safe-area-inset-bottom)]' : `rounded-[28px] ${wide ? 'max-w-3xl' : 'max-w-lg'}`
+            className={`glass mat-float relative flex max-h-[92dvh] w-full flex-col outline-none ${
+              mobile ? 'rounded-t-[32px] pb-[env(safe-area-inset-bottom)]' : `rounded-[32px] ${wide ? 'max-w-3xl' : 'max-w-lg'}`
             }`}
-            initial={mobile ? { y: '100%' } : { opacity: 0, scale: 0.96, y: 12 }}
+            initial={mobile ? { y: '100%' } : { opacity: 0, scale: 0.9, y: 28 }}
             animate={mobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={mobile ? { y: '100%' } : { opacity: 0, scale: 0.97, y: 8 }}
-            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 36 }}
+            exit={mobile ? { y: '100%', transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } } : { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.2 } }}
+            transition={reduce ? { duration: 0 } : mobile ? spring.page : spring.moment}
             drag={mobile ? 'y' : false}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.6 }}
@@ -115,7 +116,7 @@ export function Modal({ open, onClose, title, description, children, footer, wid
             {mobile && <SheetHandle controls={dragControls} />}
             <header className="flex items-start gap-3 px-5 pt-4 md:px-6 md:pt-6">
               <div className="min-w-0 flex-1">
-                <h2 id={titleId} className="text-lg font-semibold tracking-tight">
+                <h2 id={titleId} className="title text-[19px]">
                   {title}
                 </h2>
                 {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}

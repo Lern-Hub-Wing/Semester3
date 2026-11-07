@@ -1,7 +1,7 @@
 import { Database, ShieldAlert } from 'lucide-react';
 import { config } from '../lib/config';
 import { LogoMark } from '../components/Logo';
-import { Ambient } from '../components/layout/AppShell';
+import { Ambient } from '../components/layout/Ambient';
 
 /** Wird angezeigt, wenn die Supabase-Verbindung fehlt oder ein unsicherer Schlüssel eingetragen wurde. */
 export function Setup() {
