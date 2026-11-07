@@ -34,7 +34,7 @@ export function Toasts() {
             {t.action && (
               <button
                 type="button"
-                className="shrink-0 rounded-lg px-2 py-1 font-semibold text-accent hover:bg-surface-2"
+                className="shrink-0 rounded-lg px-2 py-1 font-semibold text-accent hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]"
                 onClick={() => {
                   t.action!.run();
                   dismiss(t.id);

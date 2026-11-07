@@ -81,7 +81,7 @@ export function FileDrop({ target, disabled, onUploaded }: { target: UploadTarge
       onDrop={onDrop}
       animate={{ scale: over ? 1.01 : 1 }}
       className={`relative flex flex-col items-center justify-center gap-2 rounded-[22px] border-2 border-dashed px-6 py-8 text-center transition-colors ${
-        over ? 'border-accent bg-[color-mix(in_srgb,var(--ss-accent)_10%,transparent)]' : 'border-line bg-surface-2/40'
+        over ? 'border-accent bg-[color-mix(in_srgb,var(--ss-accent)_10%,transparent)]' : 'border-line bg-[color-mix(in_srgb,var(--ss-text)_3%,transparent)]'
       } ${disabled ? 'opacity-50' : ''}`}
     >
       {inputEl}
@@ -121,7 +121,7 @@ export function AttachmentChip({ attachment }: { attachment: Attachment }) {
     <button
       type="button"
       onClick={() => setUI({ previewId: attachment.id })}
-      className="flex max-w-[240px] items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-surface-2"
+      className="flex max-w-[240px] items-center gap-2 rounded-xl border border-line bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]"
     >
       {isImage(attachment.mime_type) ? <ImageIcon className="size-4 shrink-0 text-muted" aria-hidden /> : <FileText className="size-4 shrink-0 text-muted" aria-hidden />}
       <span className="truncate font-medium">{attachment.original_filename}</span>
@@ -137,7 +137,7 @@ export function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const image = isImage(attachment.mime_type);
   return (
     <article className="card lift group relative flex flex-col overflow-hidden rounded-[var(--radius-card)]">
-      <button type="button" onClick={() => setUI({ previewId: attachment.id })} className="relative block aspect-[4/3] w-full overflow-hidden bg-surface-2" aria-label={`Vorschau von ${attachment.original_filename}`}>
+      <button type="button" onClick={() => setUI({ previewId: attachment.id })} className="relative block aspect-[4/3] w-full overflow-hidden bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)]" aria-label={`Vorschau von ${attachment.original_filename}`}>
         {image ? (
           <img src={url} alt="" loading="lazy" decoding="async" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
         ) : (
@@ -202,7 +202,7 @@ export function AttachmentPreview() {
             >
               Papierkorb
             </Button>
-            <a href={download} className="inline-flex h-11 items-center gap-2 rounded-2xl border border-line bg-surface-2 px-4 text-sm font-medium">
+            <a href={download} className="inline-flex h-11 items-center gap-2 rounded-2xl border border-line bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)] px-4 text-sm font-medium">
               <Download className="size-4" aria-hidden /> Herunterladen
             </a>
             <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center gap-2 rounded-2xl bg-ink px-4 text-sm font-medium text-canvas">

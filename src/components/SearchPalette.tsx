@@ -156,7 +156,7 @@ export function SearchPalette() {
                         type="button"
                         onMouseEnter={() => setActive(i)}
                         onClick={() => choose(r)}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${i === active ? 'bg-surface-2' : ''}`}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${i === active ? 'lens' : ''}`}
                       >
                         <span className="grid size-8 shrink-0 place-items-center rounded-lg" style={{ background: r.color ? `color-mix(in srgb, ${r.color} 30%, transparent)` : 'var(--ss-track)' }}>
                           <Icon className="size-4" aria-hidden />

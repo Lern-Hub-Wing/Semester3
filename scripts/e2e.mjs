@@ -20,7 +20,7 @@ const API = 'https://mock-project.supabase.co';
 const PORT = 4179;
 const BASE = `http://127.0.0.1:${PORT}/Semester3/`;
 
-import { db, requests, handle, berlin, base, now } from './mock-supabase.mjs';
+import { db, requests, handle, handleFunctions, push } from './mock-supabase.mjs';
 
 // ---------------------------------------------------------------------
 // Testablauf
@@ -31,10 +31,30 @@ function check(cond, msg) {
   if (!cond) failures++;
 }
 
-async function newPage(browser, opts = {}) {
+/**
+ * Headless-Chromium unterstützt die Benachrichtigungsberechtigung nicht
+ * (meldet immer „denied“). Für die Push-Tests wird sie wie in einem echten
+ * Browser nachgebildet: „default“, bis requestPermission() aufgerufen wird.
+ */
+function fakeNotificationPermission() {
+  window.__permissionRequests = 0;
+  let state = localStorage.getItem('e2e.perm') ?? 'default';
+  Object.defineProperty(Notification, 'permission', { get: () => state, configurable: true });
+  Notification.requestPermission = async () => {
+    window.__permissionRequests++;
+    state = 'granted';
+    localStorage.setItem('e2e.perm', state);
+    return state;
+  };
+}
+
+async function newPage(browser, { freshPush, ...opts } = {}) {
   const ctx = await browser.newContext({ deviceScaleFactor: 1, serviceWorkers: 'block', ...opts });
   await ctx.route(`${API}/rest/v1/**`, handle);
   await ctx.route(`${API}/realtime/**`, (r) => r.abort());
+  await ctx.route(`${API}/functions/v1/**`, handleFunctions);
+  // Die Push-Einführung nur in den Tests dafür zeigen (sonst überdeckt sie die übrigen Abläufe)
+  if (!freshPush) await ctx.addInitScript(() => localStorage.setItem('studyspace.push.onboarding', 'dismissed'));
   await ctx.addInitScript(() => {
     if (typeof navigator.vibrate === 'function') {
       window.__vibrations = [];
@@ -543,7 +563,17 @@ try {
       await p.setViewportSize(portraitSize);
       await p.goto(`${BASE}#/`);
     }
-    for (const [path, pname] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan'], ['#/faecher', 'faecher'], ['#/team', 'team'], ['#/einstellungen', 'einstellungen']]) {
+    for (const [path, pname] of [
+      ['#/', 'dashboard'],
+      ['#/lernplan', 'lernplan'],
+      ['#/lernplan?ansicht=timeline', 'timeline'],
+      ['#/faecher', 'faecher'],
+      ['#/team', 'team'],
+      ['#/fokus', 'fokus'],
+      ['#/analyse', 'analyse'],
+      ['#/einstellungen/benachrichtigungen', 'benachrichtigungen'],
+      ['#/einstellungen', 'einstellungen'],
+    ]) {
       await p.goto(`${BASE}${path}`);
       await p.waitForTimeout(500);
       check(!(await hasHorizontalOverflow(p)), `L: kein horizontaler Überlauf (${pname}, ${name})`);
@@ -556,6 +586,185 @@ try {
       check(await p.evaluate(() => document.documentElement.classList.contains('dark')), 'M: manuelle Umstellung auf Dunkel');
     }
     check(errs.length === 0, `keine JavaScript-Fehler (${name})${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Neue Bereiche: Timeline, Analyse, Fokus ---------------------------
+  {
+    const t0 = Date.now();
+    // Laufender Timer, der in gut einer Sekunde endet (25 Min. Fokus fast vorbei)
+    const timer = { phase: 'focus', durationSec: 1500, endsAt: t0 + 2500, pausedRemainingSec: null, startedAt: t0 - 1497500, elapsedBeforePauseSec: 0, moduleId: db.modules[4].id };
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+    await c.addInitScript((t) => {
+      if (!sessionStorage.getItem('focus-seeded')) {
+        localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer: t, settings: { presetIndex: 0, sound: false } }));
+        sessionStorage.setItem('focus-seeded', '1');
+      }
+    }, timer);
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByRole('heading', { name: /Person 1/ }).waitFor();
+
+    // Fokus: abgelaufene Phase wird gespeichert und die Pause beginnt
+    await p.waitForTimeout(3500);
+    const fs = db.focus_sessions;
+    check(fs.length === 1 && fs[0].duration_seconds === 1500 && fs[0].member_id.endsWith('01') && fs[0].module_id === db.modules[4].id, `Fokus: abgelaufene Fokusphase gespeichert (${JSON.stringify(fs.map((x) => x.duration_seconds))})`);
+    await p.goto(`${BASE}#/fokus`);
+    await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
+    check((await p.getByText('Pause', { exact: true }).count()) > 0, 'Fokus: nach der Fokusphase folgt automatisch die Pause');
+    await p.getByRole('radio', { name: '25 / 5' }).click();
+    const clock = () => p.locator('p.num').filter({ hasText: /^\d\d:\d\d$/ }).first().textContent();
+    check((await clock()) === '25:00', 'Fokus: Rhythmus 25/5 setzt den Timer zurück');
+    await p.getByRole('button', { name: 'Fokus starten' }).click();
+    await p.waitForTimeout(2300);
+    const running = await clock();
+    check(/^24:5\d$/.test(running ?? ''), `Fokus: Timer läuft (${running})`);
+    await p.getByRole('button', { name: 'Fokus pausieren' }).click();
+    const paused = await clock();
+    await p.waitForTimeout(1500);
+    check((await clock()) === paused, 'Fokus: Pause hält den Timer an');
+    await p.reload();
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
+    check((await clock()) === paused, 'Fokus: angehaltener Stand bleibt nach dem Neuladen erhalten');
+    check((await p.getByText('25 Min.').count()) > 0, 'Fokus: gespeicherte Lernzeit wird angezeigt');
+    await shot(p, '30-fokus-desktop-light');
+
+    // Timeline: alle Module als Zeilen, sechs Prüfungen als Rauten
+    await p.goto(`${BASE}#/lernplan?ansicht=timeline`);
+    const tl = p.getByTestId('semester-timeline');
+    await tl.waitFor();
+    check((await tl.locator(':scope > div:first-child li').count()) === db.modules.length, 'Timeline: jedes Modul hat eine Zeile');
+    check((await tl.locator('[title^="Prüfung "]').count()) === 6, 'Timeline: alle sechs Prüfungen sind eingetragen');
+    check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Timeline, 1280 px)');
+    await shot(p, '31-timeline-desktop-light');
+
+    // Analyse: Werte entsprechen der Datenbank
+    await p.goto(`${BASE}#/analyse`);
+    const stat = p.getByTestId('stat-done');
+    await stat.waitFor();
+    const activeTasks = new Set(db.tasks.filter((t) => !t.deleted_at).map((t) => t.id));
+    const expected = db.task_completions.filter((x) => x.member_id.endsWith('01') && x.is_completed && activeTasks.has(x.task_id)).length;
+    check(Number(await stat.getAttribute('data-value')) === expected, `Analyse: „Erledigt diese Woche“ = echte Erledigungen (${expected})`);
+    check((await p.getByText('Fokus-Timer').count()) > 0 && (await p.getByText('25 Min.').count()) > 0, 'Analyse: Lernzeit aus gespeicherten Fokusphasen');
+    await shot(p, '32-analyse-desktop-light');
+    check(errs.length === 0, `keine JavaScript-Fehler (Fokus/Analyse)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Push: iPhone im Browser → Installationsanleitung --------------------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { ...devices['iPhone 13'], colorScheme: 'dark', freshPush: true });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 2 lernen' }).click();
+    const dlg = p.getByRole('dialog', { name: 'Erst auf den Home-Bildschirm' });
+    await dlg.waitFor({ timeout: 6000 });
+    check((await dlg.getByText('Zum Home-Bildschirm').count()) > 0, 'Push (iPhone-Browser): Anleitung „Zum Home-Bildschirm“ statt Berechtigungsanfrage');
+    check(!push.calls.some((x) => x.action === 'register'), 'Push (iPhone-Browser): keine Registrierung ohne Installation');
+    await shot(p, '40-push-installieren-iphone');
+    await dlg.getByRole('button', { name: 'Verstanden' }).click();
+    await p.reload();
+    await p.getByRole('button', { name: 'Als Person 2 lernen' }).click();
+    await p.waitForTimeout(2200);
+    check((await p.getByRole('dialog').count()) === 0, 'Push (iPhone-Browser): Anleitung erscheint nicht bei jedem Start erneut');
+    await p.goto(`${BASE}#/einstellungen/benachrichtigungen`);
+    await p.getByRole('heading', { name: 'Zuerst zum Home-Bildschirm hinzufügen' }).waitFor();
+    check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Benachrichtigungen, iPhone)');
+    check(errs.length === 0, `keine JavaScript-Fehler (Push iPhone)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Push: „Vielleicht später“ fragt nicht erneut -------------------------
+  {
+    // Headless-Chromium meldet sonst pauschal „denied“; die Anfrage selbst wird mitgezählt
+    const { page: p, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, freshPush: true, serviceWorkers: 'allow' });
+    await c.addInitScript(fakeNotificationPermission);
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 3 lernen' }).click();
+    const dlg = p.getByRole('dialog', { name: 'Bleib auf dem Laufenden.' });
+    await dlg.waitFor({ timeout: 6000 });
+    check((await dlg.getByText('Controlling steht heute an.').count()) === 1, 'Push-Einführung: Beispielbenachrichtigung wird gezeigt');
+    check(await p.evaluate(() => window.__permissionRequests === 0), 'Push-Einführung: Systemberechtigung wird nicht automatisch angefragt');
+    await dlg.getByRole('button', { name: 'Vielleicht später' }).click();
+    await p.reload();
+    await p.getByRole('button', { name: 'Als Person 3 lernen' }).click();
+    await p.waitForTimeout(2200);
+    check((await p.getByRole('dialog').count()) === 0, 'Push-Einführung: nach „Vielleicht später“ keine erneute Nachfrage');
+    await c.close();
+  }
+
+  // --- Push: Aktivieren, Einstellungen, Test, Profilwechsel, Abmelden ------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, {
+      viewport: { width: 1280, height: 900 },
+      colorScheme: 'dark',
+      freshPush: true,
+      serviceWorkers: 'allow',
+    });
+    await c.addInitScript(fakeNotificationPermission);
+    // Headless-Chromium hat keinen Push-Dienst: subscribe() wird durch ein gleichwertiges Abo ersetzt.
+    await c.addInitScript(() => {
+      const make = (endpoint) => ({
+        endpoint,
+        toJSON: () => ({ endpoint, keys: { p256dh: 'B' + 'A'.repeat(86), auth: 'A'.repeat(22) } }),
+        unsubscribe: async () => (localStorage.removeItem('e2e.sub'), true),
+      });
+      PushManager.prototype.subscribe = async function () {
+        localStorage.setItem('e2e.sub', 'https://web.push.apple.com/e2e-endpoint');
+        return make('https://web.push.apple.com/e2e-endpoint');
+      };
+      PushManager.prototype.getSubscription = async function () {
+        const e = localStorage.getItem('e2e.sub');
+        return e ? make(e) : null;
+      };
+    });
+    await p.goto(BASE);
+    await p.waitForTimeout(1500); // Service Worker registrieren lassen
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    const dlg = p.getByRole('dialog', { name: 'Bleib auf dem Laufenden.' });
+    await dlg.waitFor({ timeout: 8000 });
+    await shot(p, '41-push-einfuehrung-desktop');
+    check(await p.evaluate(() => window.__permissionRequests === 0), 'Push: keine Berechtigungsanfrage vor dem Tippen');
+    await dlg.getByRole('button', { name: 'Benachrichtigungen aktivieren' }).click();
+    await p.getByRole('dialog', { name: 'Alles eingerichtet!' }).waitFor({ timeout: 15000 });
+    check(await p.evaluate(() => window.__permissionRequests === 1), 'Push: Berechtigung genau einmal – beim Tippen auf „aktivieren“ – angefragt');
+    const reg = [...push.devices.values()][0];
+    check(!!reg && reg.memberId.endsWith('01') && reg.endpoint === 'https://web.push.apple.com/e2e-endpoint', 'Push: Gerät mit Abo für Person 1 registriert');
+    check(push.calls.filter((x) => x.action === 'register').every((x) => /^[A-Za-z0-9_-]{43}$/.test(x.token)), 'Push: geheimer Gerätetoken wird mitgeschickt');
+    await p.getByRole('button', { name: 'Einstellungen öffnen' }).click();
+    await p.getByRole('heading', { name: 'Benachrichtigungen sind aktiviert' }).waitFor();
+    check((await p.getByText('Dieses Gerät empfängt Erinnerungen für Person 1.').count()) === 1, 'Push: Status „aktiviert“ mit Lernprofil');
+    await p.getByRole('switch', { name: 'Prüfungserinnerungen' }).click();
+    await p.waitForTimeout(900);
+    check(reg.prefs.exams === false, 'Push: Einstellung (Prüfungserinnerungen aus) wird gespeichert');
+    await p.getByRole('button', { name: 'Testbenachrichtigung senden' }).click();
+    await p.getByText('Vom Push-Dienst zum Versand angenommen.').waitFor();
+    check(push.tests.length === 1, 'Push: Testbenachrichtigung über den Server angefordert');
+    await shot(p, '42-push-einstellungen-desktop');
+    check(await p.getByRole('button', { name: /Erneut möglich in|Testbenachrichtigung senden/ }).isEnabled(), 'Push: Testknopf nach Erfolg weiter erreichbar');
+    await p.getByRole('button', { name: 'Testbenachrichtigung senden' }).click();
+    await p.getByRole('button', { name: /Erneut möglich in \d+ s/ }).waitFor();
+    check(push.tests.length === 1, 'Push: Sperrfrist verhindert Serien von Testnachrichten');
+    // Profilwechsel: ausdrücklich fragen, für wen das Gerät Erinnerungen erhält
+    await p.getByRole('button', { name: /Profilmenü/ }).click();
+    await p.getByRole('menuitem', { name: 'Person 2' }).click();
+    const sw = p.getByRole('alertdialog', { name: 'Erinnerungen für Person 2 erhalten?' });
+    await sw.waitFor();
+    await sw.getByRole('button', { name: 'Für Person 2' }).click();
+    await p.waitForTimeout(500);
+    check(reg.memberId.endsWith('02'), 'Push: Profilwechsel überträgt die Erinnerungen auf Person 2');
+    check(push.devices.size === 1, 'Push: kein doppeltes Abo beim Profilwechsel');
+    // Neuladen: kein erneutes Fragen, Status bleibt aktiv
+    await p.reload();
+    await p.getByRole('button', { name: 'Als Person 2 lernen' }).click();
+    await p.goto(`${BASE}#/einstellungen/benachrichtigungen`);
+    await p.getByRole('heading', { name: 'Benachrichtigungen sind aktiviert' }).waitFor();
+    check((await p.getByRole('dialog').count()) === 0, 'Push: nach der Aktivierung keine erneute Einführung');
+    await p.getByRole('switch', { name: 'Benachrichtigungen auf diesem Gerät' }).click();
+    await p.getByRole('button', { name: 'Ausschalten' }).click();
+    await p.getByRole('heading', { name: 'Benachrichtigungen sind deaktiviert' }).waitFor();
+    check(push.devices.size === 0, 'Push: Deaktivieren meldet das Gerät beim Server ab');
+    check(errs.length === 0, `keine JavaScript-Fehler (Push Desktop)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
   }
 } catch (err) {

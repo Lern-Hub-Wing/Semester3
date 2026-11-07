@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:db": "bash scripts/test-db.sh",
     "icons": "node scripts/generate-icons.mjs",
-    "build:e2e": "VITE_SUPABASE_URL=https://mock-project.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_e2e_only_not_a_real_key_000 VITE_BASE_PATH=/Semester3/ vite build",
+    "build:e2e": "VITE_SUPABASE_URL=https://mock-project.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_e2e_only_not_a_real_key_000 VITE_BASE_PATH=/Semester3/ VITE_VAPID_PUBLIC_KEY=BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA vite build",
     "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {

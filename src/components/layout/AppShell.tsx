@@ -51,8 +51,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
 
       {/* Seitenleiste aus echtem Liquid Glass: kompakt auf Tablets, ausführlich auf dem Desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[92px] flex-col p-3 md:flex lg:w-[264px] lg:p-4">
-        <div className="glass mat-nav glass-tint flex h-full flex-col rounded-[30px] p-2.5 lg:p-3">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[100px] flex-col p-2.5 md:flex lg:w-[264px] lg:p-4">
+        <div className="glass mat-nav glass-tint flex h-full flex-col rounded-[30px] p-2 lg:p-3">
           <Link to="/" className="mb-5 mt-1 flex items-center justify-center gap-3 rounded-2xl px-2 py-2.5 lg:justify-start lg:px-3" aria-label={`${appName} – Dashboard`}>
             <LogoMark size={36} />
             <span className="title hidden truncate text-[18px] lg:block">{appName}</span>
@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="relative z-10 md:pl-[92px] lg:pl-[264px]">
+      <div className="relative z-10 md:pl-[100px] lg:pl-[264px]">
         <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] md:px-6 md:pt-4 lg:px-8">
           {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
           <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
@@ -122,13 +122,15 @@ function SideLink({ item, active }: { item: (typeof NAV)[number]; active: boolea
       to={item.to}
       aria-current={active ? 'page' : undefined}
       onClick={() => haptic('tap')}
-      className={`nav-item group relative flex flex-col items-center gap-1 rounded-[18px] px-2 py-2.5 text-[11px] font-medium lg:flex-row lg:gap-3 lg:px-3.5 lg:py-[11px] lg:text-[14px] ${
+      title={item.label}
+      className={`nav-item group relative flex flex-col items-center gap-1 rounded-[18px] px-1 py-2.5 text-[10.5px] font-medium lg:flex-row lg:gap-3 lg:px-3.5 lg:py-[11px] lg:text-[14px] ${
         active ? 'text-ink' : 'text-muted hover:text-ink'
       }`}
     >
       {active && <motion.span layoutId="nav-active" className="lens absolute inset-0 rounded-[18px]" transition={spring.tab} />}
       <item.icon className="nav-item-icon relative size-[21px] lg:size-[19px]" strokeWidth={active ? 2.1 : 1.75} aria-hidden />
-      <span className="relative">{item.label}</span>
+      <span className="relative max-w-full truncate lg:hidden">{item.short ?? item.label}</span>
+      <span className="relative hidden lg:inline">{item.label}</span>
     </Link>
   );
 }
@@ -138,7 +140,7 @@ function SideAction({ icon, label, hint, onClick }: { icon: ReactNode; label: st
     <button
       type="button"
       onClick={onClick}
-      className="nav-item flex flex-col items-center gap-1 rounded-[18px] px-2 py-2 text-[11px] font-medium text-muted hover:text-ink lg:flex-row lg:gap-3 lg:px-3.5 lg:text-[13.5px]"
+      className="nav-item flex flex-col items-center gap-1 rounded-[18px] px-1 py-2 text-[10.5px] font-medium text-muted hover:text-ink lg:flex-row lg:gap-3 lg:px-3.5 lg:text-[13.5px]"
     >
       <span className="nav-item-icon">{icon}</span>
       <span>{label}</span>

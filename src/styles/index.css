@@ -121,7 +121,7 @@
   /* Glasmaterial: Füllung, Unschärfe, Licht */
   --m-fill: 255 255 255;
   --m-card-a: 0.4;
-  --m-nav-a: 0.26;
+  --m-nav-a: 0.17;
   --m-float-a: 0.72;
   --m-hero-a: 0.3;
   --m-int-a: 0.46;
@@ -178,7 +178,7 @@
 
   --m-fill: 30 36 58;
   --m-card-a: 0.34;
-  --m-nav-a: 0.2;
+  --m-nav-a: 0.14;
   --m-float-a: 0.74;
   --m-hero-a: 0.24;
   --m-int-a: 0.38;

@@ -99,7 +99,7 @@ export function EntryCard({ entry, views, member, members, showDate }: Props) {
         >
           <Plus className="ml-1 size-4 shrink-0 text-faint" aria-hidden />
           <input
-            className="h-10 min-w-0 flex-1 rounded-xl bg-transparent px-1 text-sm outline-none placeholder:text-faint focus:bg-surface-2/60"
+            className="h-10 min-w-0 flex-1 rounded-xl bg-transparent px-1 text-sm outline-none placeholder:text-faint focus:bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)]"
             placeholder="Aufgabe hinzufügen"
             aria-label={`Aufgabe zu „${entry.title}“ hinzufügen`}
             value={adding}

@@ -75,12 +75,12 @@ export function Dashboard({ me }: { me: Member }) {
         hasOpen={openToday > 0 || overdue.length > 0}
       />
 
-      <div className="stagger grid grid-cols-1 gap-[var(--gap-grid)] md:grid-cols-2 lg:grid-cols-12">
+      <div className="stagger grid grid-flow-row-dense grid-cols-1 gap-[var(--gap-grid)] md:grid-cols-2 lg:grid-cols-12">
         <div className="md:col-span-2 lg:col-span-8">
           <Countdown className="h-full" />
         </div>
 
-        <div className="md:col-span-2 lg:col-span-4">
+        <div className="md:col-span-1 lg:col-span-4">
           <GoalCard me={me} mine={mine} group={group} compact={mobile} />
         </div>
 
@@ -120,7 +120,7 @@ export function Dashboard({ me }: { me: Member }) {
           </Card>
         </div>
 
-        <div className="md:col-span-2 lg:col-span-4">
+        <div className="md:col-span-1 lg:col-span-4">
           <TeamCard me={me} members={members} views={views} />
         </div>
 

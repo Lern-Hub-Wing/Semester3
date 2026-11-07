@@ -70,7 +70,7 @@ export function Menu({ items, label = 'Weitere Aktionen', align = 'right' }: { i
                   setOpen(false);
                   item.onSelect();
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 ${
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)] focus-visible:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)] ${
                   item.danger ? 'text-danger' : 'text-ink'
                 }`}
               >

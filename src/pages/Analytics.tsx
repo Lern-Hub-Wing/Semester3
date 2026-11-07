@@ -133,7 +133,7 @@ export function Analytics({ me }: { me: Member }) {
       ) : (
         <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-12 [&>*]:min-w-0">
           <div className="grid grid-cols-2 gap-[var(--gap-grid)] md:grid-cols-4 lg:col-span-12">
-            <Stat icon={<CheckCheck />} tint={me.color} label={`Erledigt ${periodLabel}`} value={mineInRange.length} unit={mineInRange.length === 1 ? 'Aufgabe' : 'Aufgaben'} />
+            <Stat testId="stat-done" icon={<CheckCheck />} tint={me.color} label={`Erledigt ${periodLabel}`} value={mineInRange.length} unit={mineInRange.length === 1 ? 'Aufgabe' : 'Aufgaben'} />
             <Stat
               icon={<Timer />}
               tint="var(--ss-accent)"
@@ -205,7 +205,7 @@ export function Analytics({ me }: { me: Member }) {
   );
 }
 
-function Stat({ icon, tint, label, value, text, unit }: { icon: React.ReactNode; tint: string; label: string; value?: number; text?: string; unit: string }) {
+function Stat({ icon, tint, label, value, text, unit, testId }: { icon: React.ReactNode; tint: string; label: string; value?: number; text?: string; unit: string; testId?: string }) {
   return (
     <Card className="flex flex-col gap-3 p-4 md:p-5">
       <IconTile tint={tint} size={34}>
@@ -213,7 +213,7 @@ function Stat({ icon, tint, label, value, text, unit }: { icon: React.ReactNode;
       </IconTile>
       <div className="min-w-0">
         <p className="truncate text-[12px] text-muted">{label}</p>
-        <p className="num mt-0.5 text-[28px] font-semibold leading-tight tracking-tight md:text-[32px]">
+        <p className="num mt-0.5 text-[28px] font-semibold leading-tight tracking-tight md:text-[32px]" data-testid={testId} data-value={value}>
           {value !== undefined ? <AnimatedNumber value={value} /> : text}
         </p>
         <p className="truncate text-[12px] text-faint">{unit}</p>
@@ -264,7 +264,7 @@ function BarChart({ data, color }: { data: { key: string; label: string; title: 
             <div
               key={d.key}
               className="group relative flex h-full flex-1 cursor-default items-end justify-center"
-              onPointerEnter={() => setHover(d.key)}
+              onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(d.key)}
               onPointerLeave={() => setHover((k) => (k === d.key ? null : k))}
               onClick={() => setHover(d.key)}
             >
@@ -273,7 +273,7 @@ function BarChart({ data, color }: { data: { key: string; label: string; title: 
                 style={{
                   height: d.value > 0 ? `max(${pct * 100}%, 4px)` : 2,
                   transformOrigin: 'bottom',
-                  background: d.value > 0 ? `linear-gradient(180deg, color-mix(in srgb, ${color} 70%, white), ${color})` : 'var(--ss-track)',
+                  background: d.value > 0 ? `linear-gradient(180deg, ${color}, color-mix(in srgb, ${color} 72%, #2a2f5a))` : 'var(--ss-track)',
                   opacity: d.future ? 0.35 : hover && !active ? 0.55 : 1,
                   boxShadow: active && d.value > 0 ? `0 0 16px -2px ${color}` : undefined,
                 }}
@@ -282,7 +282,10 @@ function BarChart({ data, color }: { data: { key: string; label: string; title: 
                 transition={{ duration: 0.75, delay: reduce ? 0 : 0.05 + i * (data.length > 14 ? 0.015 : 0.05), ease: EASE_EMPH }}
               />
               {active && (
-                <div className="glass mat-float pointer-events-none absolute bottom-full z-10 mb-2 whitespace-nowrap rounded-[12px] px-2.5 py-1.5 text-center text-[11.5px]">
+                <div
+                  className="glass mat-float pointer-events-none absolute z-10 whitespace-nowrap rounded-[12px] px-2.5 py-1.5 text-center text-[11.5px]"
+                  style={{ bottom: `calc(${Math.max(pct * 100, 2)}% + 8px)`, ...(i < 2 ? { left: 0 } : i > data.length - 3 ? { right: 0 } : {}) }}
+                >
                   <p className="text-muted">{d.title}</p>
                   <p className="num font-semibold">
                     {d.value} {d.value === 1 ? 'Aufgabe' : 'Aufgaben'}

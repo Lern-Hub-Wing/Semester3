@@ -464,7 +464,7 @@ function SettingsPanel({
     >
       <header className="flex items-center gap-2 px-5 pb-2 pt-4">
         <h2 className="flex-1 text-[17px] font-semibold">Darstellung</h2>
-        <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-surface-2" aria-label="Schließen" onClick={onClose}>
+        <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]" aria-label="Schließen" onClick={onClose}>
           <X className="size-5" />
         </button>
       </header>
@@ -490,7 +490,7 @@ function SettingsPanel({
                   void loadClockFont(f.id);
                   onChange({ font: f.id, weight: f.defaultWeight });
                 }}
-                className={`flex items-center justify-between rounded-2xl border px-3 py-2.5 text-left transition-colors ${settings.font === f.id ? 'lens border-transparent' : 'border-line hover:bg-surface-2'}`}
+                className={`flex items-center justify-between rounded-2xl border px-3 py-2.5 text-left transition-colors ${settings.font === f.id ? 'lens border-transparent' : 'border-line hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]'}`}
               >
                 <span className="text-[13px] font-medium">{f.label}</span>
                 <span className="text-lg leading-none" style={{ fontFamily: f.family, fontWeight: f.defaultWeight }}>
@@ -566,11 +566,11 @@ function SettingsPanel({
             <>
               {image && <img src={image} alt="Aktuelles Hintergrundbild" className="h-24 w-full rounded-xl object-cover" />}
               <div className="flex gap-2">
-                <button type="button" onClick={() => fileRef.current?.click()} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-medium hover:bg-surface-2">
+                <button type="button" onClick={() => fileRef.current?.click()} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-medium hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
                   <ImagePlus className="size-4" /> {image ? 'Anderes Bild' : 'Bild wählen'}
                 </button>
                 {image && (
-                  <button type="button" onClick={() => (onImage(null), onChange({ background: 'aurora' }))} className="grid size-10 place-items-center rounded-xl border border-line hover:bg-surface-2" aria-label="Bild entfernen">
+                  <button type="button" onClick={() => (onImage(null), onChange({ background: 'aurora' }))} className="grid size-10 place-items-center rounded-xl border border-line hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]" aria-label="Bild entfernen">
                     <Trash2 className="size-4" />
                   </button>
                 )}

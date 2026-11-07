@@ -153,6 +153,31 @@ export function Countdown({ compact: compactProp, className = '' }: { compact?: 
         </div>
       )}
 
+      {/* Desktop: die folgenden Prüfungen als kompakte Leiste (Antippen wechselt die Anzeige) */}
+      {!compact && list.length > 1 && (
+        <div className="no-scrollbar mt-5 hidden gap-2 overflow-x-auto lg:flex" role="list" aria-label="Weitere Prüfungen">
+          {list.map((e, i) => {
+            if (i === index) return null;
+            const m = modules[e.module_id];
+            const d = Math.max(0, Math.ceil((Date.parse(e.starts_at) - now) / 86_400_000));
+            return (
+              <button
+                key={e.id}
+                type="button"
+                role="listitem"
+                onClick={() => setOffset(i)}
+                className="lens flex shrink-0 items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3 text-[12px] font-medium transition-transform hover:-translate-y-px"
+                title={m?.name}
+              >
+                <span className="size-2 rounded-full" style={{ background: m?.color, boxShadow: `0 0 8px ${m?.color}` }} aria-hidden />
+                <span className="max-w-[150px] truncate">{m?.name ?? 'Prüfung'}</span>
+                <span className="num text-muted">{d} T.</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {list.length > 1 && (
         <div className="mt-3 flex justify-center gap-1.5" aria-hidden>
           {list.map((e, i) => (

@@ -73,7 +73,7 @@ export function MoveTaskDialog() {
             Lerntage am {isValidISODate(date) ? formatISODate(date, { weekday: 'long', day: 'numeric', month: 'long' }) : '…'}
           </p>
           {targets.length === 0 ? (
-            <p className="rounded-2xl bg-surface-2/60 px-4 py-3 text-sm text-muted">An diesem Tag ist noch nichts geplant.</p>
+            <p className="rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-4 py-3 text-sm text-muted">An diesem Tag ist noch nichts geplant.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {targets.map((e) => {
@@ -84,7 +84,7 @@ export function MoveTaskDialog() {
                       type="button"
                       disabled={busy}
                       onClick={() => void moveTo(e.id)}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3 text-left transition-colors hover:bg-surface-2"
+                      className="flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{e.title}</p>

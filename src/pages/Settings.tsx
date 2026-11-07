@@ -230,7 +230,7 @@ function General() {
       <Row label="Zuletzt synchronisiert">
         <span className="text-sm text-muted">{lastSyncAt ? new Date(lastSyncAt).toLocaleString('de-DE') : '—'}</span>
       </Row>
-      <div className="mt-2 rounded-2xl bg-surface-2/70 p-4 text-xs leading-relaxed text-muted">
+      <div className="mt-2 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] p-4 text-xs leading-relaxed text-muted">
         <p className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
           <ShieldAlert className="size-4" aria-hidden /> Öffentlicher Zugriff
         </p>
@@ -353,7 +353,7 @@ function ModulesSection() {
         <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
           Modul hinzufügen
         </Button>
-        <Link to="/pruefungen" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-surface-2">
+        <Link to="/pruefungen" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
           Prüfungen verwalten
         </Link>
       </div>
@@ -488,7 +488,7 @@ function DataSection() {
             )}
             <ul className="grid grid-cols-2 gap-1 text-xs text-muted">
               {Object.entries(preview.counts).map(([t, n]) => (
-                <li key={t} className="flex justify-between rounded-lg bg-surface-2/60 px-3 py-1.5">
+                <li key={t} className="flex justify-between rounded-lg bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-3 py-1.5">
                   <span>{TABLE_LABELS[t] ?? t}</span>
                   <span className="num font-semibold text-ink">{n}</span>
                 </li>

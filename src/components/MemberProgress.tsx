@@ -24,7 +24,7 @@ export function MemberProgress({ member, ratio, ringSize = 84, onClick, highligh
       <Tag
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className={`group flex flex-col items-center gap-2 rounded-2xl p-2 text-center transition-colors ${onClick ? 'hover:bg-surface-2' : ''}`}
+        className={`group flex flex-col items-center gap-2 rounded-2xl p-2 text-center transition-colors ${onClick ? 'hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]' : ''}`}
         aria-label={onClick ? `Details zu ${member.name}` : undefined}
       >
         <ProgressRing ratio={ratio} color={member.color} size={ringSize} stroke={Math.max(6, ringSize / 10)} sublabel={member.name} />
@@ -40,7 +40,7 @@ export function MemberProgress({ member, ratio, ringSize = 84, onClick, highligh
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors ${onClick ? 'hover:bg-surface-2' : ''}`}
+      className={`flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors ${onClick ? 'hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]' : ''}`}
       aria-label={onClick ? `Details zu ${member.name}` : undefined}
     >
       <Avatar name={member.name} color={member.color} size={30} />

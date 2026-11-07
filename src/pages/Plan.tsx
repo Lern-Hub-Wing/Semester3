@@ -304,7 +304,7 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
                 onDrop(d)(e);
               }}
               className={`group relative flex min-h-[124px] flex-col gap-1 border-line p-1.5 transition-colors ${i % 7 !== 6 ? 'border-r' : ''} ${i < 35 ? 'border-b' : ''} ${
-                inMonth ? '' : 'bg-surface-2/40'
+                inMonth ? '' : 'bg-[color-mix(in_srgb,var(--ss-text)_3%,transparent)]'
               } ${over === d ? 'bg-[color-mix(in_srgb,var(--ss-accent)_12%,transparent)]' : ''}`}
             >
               <div className="flex items-center gap-1 px-0.5">
@@ -320,7 +320,7 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
                 <button
                   type="button"
                   onClick={() => openEditor({ date: d })}
-                  className="ml-auto grid size-6 place-items-center rounded-lg text-muted opacity-0 transition-opacity hover:bg-surface-2 focus:opacity-100 group-hover:opacity-100"
+                  className="ml-auto grid size-6 place-items-center rounded-lg text-muted opacity-0 transition-opacity hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)] focus:opacity-100 group-hover:opacity-100"
                   aria-label={`Lerntag am ${formatISODate(d)} anlegen`}
                 >
                   <Plus className="size-4" />
@@ -419,7 +419,7 @@ function WeekGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate
             }}
             className={`card flex min-h-[420px] flex-col gap-1.5 rounded-[20px] p-2 transition-colors ${over === d ? '!border-accent' : ''} ${d === today ? 'ring-2 ring-[color-mix(in_srgb,var(--ss-accent)_40%,transparent)]' : ''}`}
           >
-            <button type="button" onClick={() => setQuery({ ansicht: 'tag', datum: d })} className="flex items-center gap-2 rounded-xl px-1.5 py-1 text-left hover:bg-surface-2">
+            <button type="button" onClick={() => setQuery({ ansicht: 'tag', datum: d })} className="flex items-center gap-2 rounded-xl px-1.5 py-1 text-left hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
               <span className="text-[11px] font-semibold uppercase text-muted">{formatISODate(d, { weekday: 'short' })}</span>
               <span className="num text-lg font-semibold">{Number(d.slice(8))}</span>
               <span className="ml-auto">
@@ -433,7 +433,7 @@ function WeekGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate
             {di.entries.map((e) => (
               <EntryChip key={e.id} entry={e} info={di} />
             ))}
-            <button type="button" onClick={() => openEditor({ date: d })} className="mt-auto flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium text-muted hover:bg-surface-2">
+            <button type="button" onClick={() => openEditor({ date: d })} className="mt-auto flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-medium text-muted hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
               <Plus className="size-3.5" aria-hidden /> Lerntag
             </button>
           </div>
@@ -458,7 +458,7 @@ function WeekMobile({ date, today, info }: { date: ISODate; today: ISODate; info
               onClick={() => setQuery({ ansicht: 'tag', datum: d })}
               className={`card flex w-full items-center gap-3 rounded-[20px] p-3.5 text-left active:scale-[0.99] ${isToday ? 'ring-2 ring-[color-mix(in_srgb,var(--ss-accent)_45%,transparent)]' : ''}`}
             >
-              <span className={`grid w-12 shrink-0 place-items-center rounded-2xl py-1.5 ${isToday ? 'bg-ink text-canvas' : 'bg-surface-2'}`}>
+              <span className={`grid w-12 shrink-0 place-items-center rounded-2xl py-1.5 ${isToday ? 'bg-ink text-canvas' : 'lens'}`}>
                 <span className="text-[11px] font-semibold uppercase opacity-70">{formatISODate(d, { weekday: 'short' })}</span>
                 <span className="num text-xl font-semibold leading-tight">{Number(d.slice(8))}</span>
               </span>

@@ -34,7 +34,7 @@ export function SemesterTimeline({ compact, className = '' }: Props) {
   );
   const todayPos = dayPosition(t, today);
   const currentWeek = startOfWeekISO(today);
-  const weekWidth = compact ? 58 : 76;
+  const weekWidth = compact ? 54 : 62;
   const rowH = compact ? 40 : 48;
 
   if (modules.length === 0) return <p className="py-6 text-center text-sm text-muted">Noch keine Module angelegt.</p>;

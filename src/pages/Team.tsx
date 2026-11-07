@@ -104,7 +104,7 @@ export function Team({ me }: { me: Member }) {
               {members.map((m) => {
                 const r = memberRatio(views, m.id, completions);
                 return (
-                  <span key={m.id} className="inline-flex items-center gap-2 rounded-full bg-surface/70 py-1 pl-1 pr-3 text-[13px]">
+                  <span key={m.id} className="inline-flex items-center gap-2 rounded-full lens py-1 pl-1 pr-3 text-[13px]">
                     <Avatar name={m.name} color={m.color} size={24} />
                     <span className="font-medium">{m.name}</span>
                     <span className="num text-muted">{r.pct === null ? '–' : `${r.pct}%`}</span>
@@ -357,7 +357,7 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
             />
           </div>
           {viewingOther && (
-            <p className="mt-3 rounded-2xl bg-surface-2/70 px-3 py-2 text-xs text-muted">
+            <p className="mt-3 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-3 py-2 text-xs text-muted">
               Du siehst die Haken von {member.name}. Änderungen hier betreffen {member.name} – nicht dich.
             </p>
           )}

@@ -41,6 +41,7 @@ export function seed() {
     study_entries: [], tasks: [], task_completions: [], attachments: [],
     app_settings: [{ key: 'app_name', value: 'StudySpace', version: 1, updated_at: t0, changed_by: null }],
     activity_log: [],
+    focus_sessions: [],
   };
 }
 
@@ -123,3 +124,47 @@ export async function handle(route) {
   return route.fulfill({ status: 405, body: '{}' });
 }
 
+
+// ---------------------------------------------------------------------
+// Nachbildung der Edge Function „push-api“ (gleiche Antworten/Regeln)
+// ---------------------------------------------------------------------
+export const push = { devices: new Map(), calls: [], tests: [] };
+
+export async function handleFunctions(route) {
+  const req = route.request();
+  const body = req.postData() ? JSON.parse(req.postData()) : {};
+  push.calls.push(body);
+  const reply = (status, data) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
+  if (!/^[A-Za-z0-9_-]{43}$/.test(body.token ?? '')) return reply(400, { error: 'Ungültiger Gerätetoken.' });
+  const dev = push.devices.get(body.token);
+  const status = (d) => (d ? { registered: true, enabled: d.enabled, memberId: d.memberId, prefs: d.prefs, lastSuccessAt: d.lastSuccessAt ?? null, lastError: null } : { registered: false });
+  switch (body.action) {
+    case 'register': {
+      if (!body.subscription?.endpoint?.startsWith('https://web.push.apple.com/') && !body.subscription?.endpoint?.startsWith('https://fcm.googleapis.com/')) return reply(400, { error: 'Unbekannter Push-Dienst.' });
+      const d = { endpoint: body.subscription.endpoint, memberId: body.memberId, prefs: { ...(dev?.prefs ?? {}), ...(body.prefs ?? {}) }, enabled: true };
+      push.devices.set(body.token, d);
+      return reply(dev ? 200 : 201, status(d));
+    }
+    case 'status':
+      return reply(200, status(dev));
+    case 'update':
+      if (!dev) return reply(404, { registered: false });
+      if (body.memberId) dev.memberId = body.memberId;
+      if (body.prefs) dev.prefs = { ...dev.prefs, ...body.prefs };
+      if (typeof body.enabled === 'boolean') dev.enabled = body.enabled;
+      return reply(200, status(dev));
+    case 'unregister':
+      push.devices.delete(body.token);
+      return reply(200, { registered: false });
+    case 'test': {
+      if (!dev) return reply(404, { error: 'Dieses Gerät ist nicht registriert.', code: 'not_registered' });
+      const last = push.tests[push.tests.length - 1];
+      if (last && Date.now() - last < 30000) return reply(429, { error: 'Bitte noch 30 Sekunden warten.', retryAfter: 30 });
+      push.tests.push(Date.now());
+      dev.lastSuccessAt = new Date().toISOString();
+      return reply(200, { accepted: true, status: 201 });
+    }
+    default:
+      return reply(400, { error: 'Unbekannte Aktion.' });
+  }
+}
