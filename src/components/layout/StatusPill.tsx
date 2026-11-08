@@ -4,7 +4,7 @@ import { resync } from '../../store/sync';
 
 /** Kleiner Speicher- und Verbindungsstatus. */
 /** quiet: im Normalzustand („Gespeichert“, live) unsichtbar – erscheint nur bei Bedarf */
-export function StatusPill({ withLabel = true, quiet = false }: { withLabel?: boolean; quiet?: boolean }) {
+export function StatusPill({ withLabel = true, quiet = false, className = '' }: { withLabel?: boolean; quiet?: boolean; className?: string }) {
   const { inflight, lastError, online, realtime } = useSyncStatus();
   const fromCache = useData((s) => s.fromCache);
   const loadError = useData((s) => s.error);
@@ -47,7 +47,7 @@ export function StatusPill({ withLabel = true, quiet = false }: { withLabel?: bo
       onClick={() => void resync()}
       title={title}
       aria-label={`${label}. ${title} Tippen zum Aktualisieren.`}
-      className={`glass mat-interactive inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${tone}`}
+      className={`glass mat-interactive inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${tone} ${className}`}
     >
       {icon}
       {withLabel && <span className="hidden sm:inline">{label}</span>}

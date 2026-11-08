@@ -81,7 +81,7 @@ export function Dashboard({ me }: { me: Member }) {
               <Landscape />
             </div>
           </div>
-          <div className="relative">
+          <div className="relative on-image">
             <Greeting me={me} today={today} motivation={motivation} />
             <QuickActions onContinue={continueLearning} onNewEntry={() => openEditor({ date: today })} hasOpen={openToday > 0 || overdue.length > 0} />
           </div>
