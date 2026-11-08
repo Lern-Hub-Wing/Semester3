@@ -39,6 +39,7 @@ const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
+const FocusImmersive = lazy(() => import('./pages/FocusImmersive').then((m) => ({ default: m.FocusImmersive })));
 const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
 function Routes({ me }: { me: Member }) {
@@ -86,6 +87,10 @@ function Main() {
       <AnimatePresence mode="wait">
         {!me || !me.is_active ? (
           <ProfilePicker key="picker" />
+        ) : path === '/fokus/vollbild' ? (
+          <Suspense key="focus-full" fallback={<div className="fixed inset-0 bg-[#0b0c1c]" />}>
+            <FocusImmersive />
+          </Suspense>
         ) : path === '/lernmodus' ? (
           // Lernmodus: Vollbild ohne App-Rahmen
           <Suspense key="study" fallback={<div className="fixed inset-0 bg-[#0C1018]" />}>

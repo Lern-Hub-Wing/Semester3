@@ -10,6 +10,7 @@ import { navigate } from '../lib/router';
 import { enablePush, setPushMember, usePush } from '../store/push';
 import { toast } from '../store/toast';
 import { LogoMark } from './Logo';
+import { LockScreenPreview } from './LockScreenPreview';
 import { Button } from './ui/Button';
 import { PresenceContainer } from './ui/PresenceDiv';
 
@@ -216,7 +217,7 @@ export function PushOnboarding({ me }: { me: Member }) {
                       StudySpace erinnert dich an deine Lernaufgaben, kommende Prüfungen und eure gemeinsamen Erfolge. Damit du nichts Wichtiges verpasst.
                     </p>
                     <div className="mt-5 w-full">
-                      <NotificationPreview title="Controlling steht heute an." body="Du hast noch 3 Aufgaben offen. Viel Erfolg beim Lernen!" delay={0.7} />
+                      <LockScreenPreview compact title="Controlling steht heute an." body="Du hast noch 3 Aufgaben offen. Viel Erfolg beim Lernen!" />
                       <p className="mt-2 text-[11px] text-faint">Beispiel – das Aussehen bestimmt dein Gerät.</p>
                     </div>
                     <div className="mt-6 flex w-full flex-col gap-2">

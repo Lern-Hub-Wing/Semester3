@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { BarChart3, CheckCheck, Flame, Layers, Timer, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
@@ -114,6 +114,7 @@ export function Analytics({ me }: { me: Member }) {
         subtitle="Dein Lernverlauf aus echten Daten: erledigte Aufgaben und gespeicherte Fokuszeiten."
         actions={
           <Segmented
+            accent
             label="Zeitraum"
             value={period}
             onChange={setPeriod}
@@ -147,7 +148,7 @@ export function Analytics({ me }: { me: Member }) {
 
           <Card className="p-5 md:p-6 lg:col-span-8">
             <CardHeader title="Erledigte Aufgaben" subtitle={period === 'semester' ? 'pro Kalenderwoche' : 'pro Tag'} icon={<BarChart3 />} />
-            <BarChart data={buckets} color={me.color} />
+            <AreaChart data={buckets} color="var(--ss-accent)" />
             {focusAvailable === false && period !== 'woche' && <MigrationHint />}
           </Card>
 
@@ -207,15 +208,15 @@ export function Analytics({ me }: { me: Member }) {
 
 function Stat({ icon, tint, label, value, text, unit, testId }: { icon: React.ReactNode; tint: string; label: string; value?: number; text?: string; unit: string; testId?: string }) {
   return (
-    <Card className="flex flex-col gap-3 p-4 md:p-5">
-      <IconTile tint={tint} size={34}>
+    <Card className="flex flex-col gap-2 p-3.5 md:gap-2.5 md:p-5">
+      <IconTile tint={tint} size={32}>
         {icon}
       </IconTile>
       <div className="min-w-0">
-        <p className="truncate text-[12px] text-muted">{label}</p>
-        <p className="num mt-0.5 text-[28px] font-semibold leading-tight tracking-tight md:text-[32px]" data-testid={testId} data-value={value}>
+        <p className="num text-[26px] font-semibold leading-tight tracking-[-0.03em] md:text-[34px]" data-testid={testId} data-value={value}>
           {value !== undefined ? <AnimatedNumber value={value} /> : text}
         </p>
+        <p className="truncate text-[13px] font-medium">{label}</p>
         <p className="truncate text-[12px] text-faint">{unit}</p>
       </div>
     </Card>
@@ -238,65 +239,104 @@ function HBar({ value, color, delay, label }: { value: number; color: string; de
 }
 
 /**
- * Säulendiagramm (eine Reihe → keine Legende; der Titel benennt sie).
- * Dünne Säulen mit 4-px-Rundung, Werte beim Überfahren/Antippen.
+ * Flächendiagramm (eine Reihe → keine Legende; der Titel benennt sie):
+ * weiche Kurve, zarte Fläche, Punkte; Werte per Fadenkreuz beim Überfahren/Antippen.
  */
-function BarChart({ data, color }: { data: { key: string; label: string; title: string; value: number; future: boolean }[]; color: string }) {
+function AreaChart({ data, color }: { data: { key: string; label: string; title: string; value: number; future: boolean }[]; color: string }) {
   const reduce = useReducedMotion();
-  const [hover, setHover] = useState<string | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const gid = `ac-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const W = 640;
+  const H = 210;
+  const padX = 14;
+  const padTop = 18;
+  const padBottom = 10;
   const max = Math.max(1, ...data.map((d) => d.value));
   const niceMax = max <= 4 ? max : Math.ceil(max / 2) * 2;
   const total = data.reduce((a, d) => a + d.value, 0);
-  const h = 190;
+  const n = data.length;
+  const x = (i: number) => (n <= 1 ? W / 2 : padX + (i / (n - 1)) * (W - padX * 2));
+  const y = (v: number) => padTop + (1 - v / niceMax) * (H - padTop - padBottom);
+  const pts = data.map((d, i) => [x(i), y(d.value)] as const);
+  // Monotone, weiche Kurve (kein Überschwingen unter null)
+  const line = pts.reduce((acc, [px, py], i) => {
+    if (i === 0) return `M${px},${py}`;
+    const [qx, qy] = pts[i - 1];
+    const mx = (qx + px) / 2;
+    return `${acc} C${mx},${qy} ${mx},${py} ${px},${py}`;
+  }, '');
+  const area = n ? `${line} L${pts[n - 1][0]},${H} L${pts[0][0]},${H} Z` : '';
+  const showDots = n <= 31;
+  const h = hover === null ? null : data[hover];
+
   return (
     <div className="mt-5">
-      <div className="relative flex gap-[3px] md:gap-1.5" style={{ height: h }} role="img" aria-label={`Säulendiagramm: insgesamt ${total} erledigte Aufgaben`}>
-        {/* Grundlinie + Hilfslinie (zurückhaltend) */}
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[var(--ss-line)]" aria-hidden />
-        <span className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-line" aria-hidden />
-        <span className="num pointer-events-none absolute -top-2 right-0 -translate-y-full text-[10.5px] text-faint" aria-hidden>
-          {niceMax}
-        </span>
-        {data.map((d, i) => {
-          const pct = d.value / niceMax;
-          const active = hover === d.key;
-          return (
-            <div
-              key={d.key}
-              className="group relative flex h-full flex-1 cursor-default items-end justify-center"
-              onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(d.key)}
-              onPointerLeave={() => setHover((k) => (k === d.key ? null : k))}
-              onClick={() => setHover(d.key)}
-            >
-              <motion.div
-                className="w-full max-w-[34px] rounded-t-[4px]"
-                style={{
-                  height: d.value > 0 ? `max(${pct * 100}%, 4px)` : 2,
-                  transformOrigin: 'bottom',
-                  background: d.value > 0 ? `linear-gradient(180deg, ${color}, color-mix(in srgb, ${color} 72%, #2a2f5a))` : 'var(--ss-track)',
-                  opacity: d.future ? 0.35 : hover && !active ? 0.55 : 1,
-                  boxShadow: active && d.value > 0 ? `0 0 16px -2px ${color}` : undefined,
-                }}
-                initial={reduce ? false : { scaleY: 0 }}
-                animate={{ scaleY: 1 }}
-                transition={{ duration: 0.75, delay: reduce ? 0 : 0.05 + i * (data.length > 14 ? 0.015 : 0.05), ease: EASE_EMPH }}
-              />
-              {active && (
-                <div
-                  className="glass mat-float pointer-events-none absolute z-10 whitespace-nowrap rounded-[12px] px-2.5 py-1.5 text-center text-[11.5px]"
-                  style={{ bottom: `calc(${Math.max(pct * 100, 2)}% + 8px)`, ...(i < 2 ? { left: 0 } : i > data.length - 3 ? { right: 0 } : {}) }}
-                >
-                  <p className="text-muted">{d.title}</p>
-                  <p className="num font-semibold">
-                    {d.value} {d.value === 1 ? 'Aufgabe' : 'Aufgaben'}
-                  </p>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <div className="relative" onPointerLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="block h-[210px] w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label={`Verlauf: insgesamt ${total} erledigte Aufgaben`}>
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.42} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75, 1].map((f) => (
+            <line key={f} x1={0} x2={W} y1={y(niceMax * f)} y2={y(niceMax * f)} stroke="var(--ss-line)" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />
+          ))}
+          <line x1={0} x2={W} y1={H - padBottom} y2={H - padBottom} stroke="var(--ss-line)" vectorEffect="non-scaling-stroke" />
+          <motion.path d={area} fill={`url(#${gid})`} initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.9, delay: 0.3 }} />
+          <motion.path
+            d={line}
+            fill="none"
+            stroke={color}
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            initial={reduce ? false : { pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          />
+          {hover !== null && <line x1={pts[hover][0]} x2={pts[hover][0]} y1={padTop - 6} y2={H - padBottom} stroke="var(--ss-text-3)" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />}
+        </svg>
+        {/* Punkte als HTML (bleiben rund trotz gestrecktem SVG) */}
+        {pts.map(([px, py], i) =>
+          showDots || hover === i ? (
+            <motion.span
+              key={data[i].key}
+              aria-hidden
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                left: `${(px / W) * 100}%`,
+                top: `${(py / H) * 100}%`,
+                width: hover === i ? 12 : 8,
+                height: hover === i ? 12 : 8,
+                background: data[i].future ? 'var(--ss-track)' : color,
+                boxShadow: `0 0 0 2px var(--ss-bg)${hover === i ? `, 0 0 14px ${color}` : ''}`,
+              }}
+              initial={reduce ? false : { scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 18, delay: reduce ? 0 : 0.6 + i * 0.03 }}
+            />
+          ) : null,
+        )}
+        {/* Treffflächen (größer als die Punkte) */}
+        <div className="absolute inset-0 flex">
+          {data.map((d, i) => (
+            <button key={d.key} type="button" tabIndex={-1} aria-hidden className="h-full flex-1 cursor-default" onPointerEnter={() => setHover(i)} onClick={() => setHover(i)} />
+          ))}
+        </div>
+        {h && hover !== null && (
+          <div
+            className="glass mat-float pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-[12px] px-2.5 py-1.5 text-center text-[11.5px]"
+            style={{ left: `clamp(60px, ${(pts[hover][0] / W) * 100}%, calc(100% - 60px))`, top: `calc(${(pts[hover][1] / H) * 100}% - 52px)` }}
+          >
+            <p className="text-muted">{h.title}</p>
+            <p className="num font-semibold">
+              {h.value} {h.value === 1 ? 'Aufgabe' : 'Aufgaben'}
+            </p>
+          </div>
+        )}
       </div>
-      <div className="mt-2 flex gap-[3px] md:gap-1.5" aria-hidden>
+      <div className="mt-2 flex" aria-hidden>
         {data.map((d) => (
           <span key={d.key} className="num flex-1 truncate text-center text-[10.5px] text-muted">
             {d.label}

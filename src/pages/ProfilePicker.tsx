@@ -18,6 +18,7 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
+import { Landscape } from '../components/landscape/Landscape';
 import { haptic } from '../lib/haptics';
 
 /** Die ausführliche Startanimation läuft nur beim ersten Öffnen der Seite. */
@@ -59,6 +60,18 @@ export function ProfilePicker() {
     <div className="relative grid min-h-dvh place-items-center overflow-hidden px-4 py-[max(env(safe-area-inset-top),28px)]">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: d(1.1) }}>
         <Ambient color={chosen?.color} />
+      </motion.div>
+      {/* Gleiche Stimmung wie im Dashboard: Berglandschaft läuft weich in den Hintergrund aus */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[62vh] overflow-hidden [mask-image:linear-gradient(180deg,#000_40%,transparent)]"
+        initial={{ opacity: 0, scale: 1.06 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: d(1.6), ease: EASE_OUT }}
+      >
+        <div className="hero-scene absolute inset-0">
+          <Landscape />
+        </div>
       </motion.div>
 
       {/* Farbschimmer der gewählten Person breitet sich vom Avatar aus */}

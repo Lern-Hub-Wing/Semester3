@@ -1,27 +1,22 @@
 import { useEffect, useMemo } from 'react';
-import { Database, History, Timer, Users } from 'lucide-react';
+import { Database, History, Maximize2, Timer, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { formatStudyTime } from '../lib/focus';
 import { formatISODate, formatInstant, instantToZoned, startOfWeekISO } from '../lib/time';
 import { PageHeader } from '../components/layout/AppShell';
 import { Card, CardHeader } from '../components/ui/Card';
-import { Switch } from '../components/ui/Switch';
 import { Avatar } from '../components/ui/Avatar';
-import { FocusControls, FocusDial, FocusPresetPicker } from '../components/FocusTimer';
+import { FocusPanel, openFocusFullscreen } from '../components/FocusPanel';
+import { Landscape } from '../components/landscape/Landscape';
+import { Button } from '../components/ui/Button';
 import { focusActions, loadFocusSessions, useFocus } from '../store/focus';
-import { useActiveMembers, useModules } from '../store/derived';
+import { useActiveMembers } from '../store/derived';
 import { useData } from '../store/data';
 import { useToday } from '../hooks/useToday';
-import { useIsMobile } from '../hooks/useMediaQuery';
 
 export function Focus({ me }: { me: Member }) {
-  const mobile = useIsMobile();
-  const timer = useFocus((s) => s.timer);
-  const sound = useFocus((s) => s.settings.sound);
-  const setSettings = useFocus((s) => s.setSettings);
   const sessions = useFocus((s) => s.sessions);
   const available = useFocus((s) => s.available);
-  const modules = useModules();
   const modulesMap = useData((s) => s.modules);
   const members = useActiveMembers();
   const today = useToday();
@@ -52,30 +47,20 @@ export function Focus({ me }: { me: Member }) {
       <PageHeader eyebrow="Werkzeuge" title="Fokus" subtitle="Konzentrierte Lernphasen mit Pausen. Der Timer läuft auch weiter, wenn du die App kurz verlässt." />
 
       <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-12 [&>*]:min-w-0">
-        <Card material="hero" className="flex flex-col items-center gap-6 px-5 py-8 md:py-10 lg:col-span-7 lg:row-span-2">
-          <FocusPresetPicker />
-          <FocusDial size={mobile ? 248 : 300} stroke={mobile ? 11 : 13} />
-          <FocusControls />
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-muted">Lernen für</span>
-              <select className="field !min-h-10 max-w-[60%] !py-2" value={timer.moduleId ?? ''} onChange={(e) => focusActions.setModule(e.target.value || null)} aria-label="Modul für diese Fokusphase">
-                <option value="">Kein bestimmtes Modul</option>
-                {modules.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-muted">Signalton am Ende</span>
-              <Switch label="Signalton am Ende" checked={sound} onChange={(v) => setSettings({ sound: v })} />
-            </div>
+        <section className="hero-scene rounded-[34px] px-5 py-7 md:px-10 md:py-10 lg:col-span-12" data-testid="focus-stage">
+          <Landscape />
+          <FocusPanel stage />
+          <div className="mt-7 flex justify-center">
+            <Button variant="glass" icon={<Maximize2 className="size-4" />} onClick={() => {
+              if (!useFocus.getState().timer.endsAt) focusActions.start();
+              openFocusFullscreen();
+            }}>
+              Fokus im Vollbild
+            </Button>
           </div>
-        </Card>
+        </section>
 
-        <Card className="p-5 lg:col-span-5">
+        <Card className="p-5 lg:col-span-6">
           <CardHeader title="Deine Lernzeit" subtitle="Gespeicherte Fokusphasen" icon={<Timer />} />
           {available === false ? (
             <MigrationHint />
@@ -109,7 +94,7 @@ export function Focus({ me }: { me: Member }) {
           {available !== false && stats.recent.length === 0 && <p className="mt-4 text-sm text-muted">Noch keine Fokusphase gespeichert. Starte den Timer – nach Ablauf wird die Zeit automatisch gespeichert.</p>}
         </Card>
 
-        <Card className="p-5 lg:col-span-5">
+        <Card className="p-5 lg:col-span-6">
           <CardHeader title="Team diese Woche" subtitle={`Seit Montag, ${formatISODate(weekStart, { day: 'numeric', month: 'long' })}`} icon={<Users />} />
           {available === false ? (
             <p className="mt-3 text-sm text-muted">Verfügbar, sobald die Fokuszeiten gespeichert werden können.</p>

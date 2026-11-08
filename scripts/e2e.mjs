@@ -612,8 +612,10 @@ try {
     await p.goto(`${BASE}#/fokus`);
     await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
     check((await p.getByText('Pause', { exact: true }).count()) > 0, 'Fokus: nach der Fokusphase folgt automatisch die Pause');
+    await p.getByRole('button', { name: 'Fokus-Einstellungen' }).click();
     await p.getByRole('radio', { name: '25 / 5' }).click();
-    const clock = () => p.locator('p.num').filter({ hasText: /^\d\d:\d\d$/ }).first().textContent();
+    await p.getByRole('button', { name: 'Fokus-Einstellungen' }).click();
+    const clock = () => p.getByTestId('focus-time').getAttribute('data-value');
     check((await clock()) === '25:00', 'Fokus: Rhythmus 25/5 setzt den Timer zurück');
     await p.getByRole('button', { name: 'Fokus starten' }).click();
     await p.waitForTimeout(2300);
@@ -628,6 +630,29 @@ try {
     await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
     check((await clock()) === paused, 'Fokus: angehaltener Stand bleibt nach dem Neuladen erhalten');
     check((await p.getByText('25 Min.').count()) > 0, 'Fokus: gespeicherte Lernzeit wird angezeigt');
+    // Fokus im Vollbild: Countdown läuft sichtbar herunter, Escape kehrt zurück
+    await p.getByRole('button', { name: 'Fokus im Vollbild', exact: true }).first().click();
+    await p.getByTestId('focus-immersive').waitFor();
+    check(new URL(p.url()).hash === '#/fokus/vollbild', 'Fokus-Vollbild: eigene Ansicht geöffnet');
+    check((await p.getByTestId('focus-status').textContent())?.includes('Fokus läuft'), 'Fokus-Vollbild: Session läuft (Start aus dem Klick)');
+    const t1 = await clock();
+    await p.waitForTimeout(2200);
+    const t2 = await clock();
+    check(!!t1 && !!t2 && t1 !== t2 && t2 < t1, `Fokus-Vollbild: Countdown läuft herunter (${t1} → ${t2})`);
+    check((await p.getByTestId('focus-immersive').locator('svg.landscape').count()) === 1, 'Fokus-Vollbild: Berglandschaft im Hintergrund');
+    check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Fokus-Vollbild)');
+    await shot(p, '33-fokus-vollbild-desktop');
+    await p.keyboard.press('Escape');
+    await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
+    check(new URL(p.url()).hash === '#/fokus', 'Fokus-Vollbild: Escape führt zurück');
+    await p.getByRole('button', { name: 'Fokus pausieren' }).click();
+    // Dashboard: Hero mit Berglandschaft, Karten „Heute“, „Fortschritt“, „Nächste Prüfung“, Erinnerungsvorschau
+    await p.goto(`${BASE}#/`);
+    const hero = p.getByTestId('dashboard-hero');
+    await hero.waitFor();
+    check((await hero.locator('svg.landscape').count()) === 1, 'Dashboard: Hero mit Berglandschaft');
+    check((await hero.getByText('Heute', { exact: true }).count()) === 1 && (await hero.getByText('Fortschritt', { exact: true }).count()) === 1 && (await hero.getByLabel('Prüfungscountdown').count()) === 1, 'Dashboard: Heute, Fortschritt und Nächste Prüfung im Hero');
+    check((await p.getByTestId('lockscreen-preview').count()) >= 1, 'Dashboard: Vorschau der nächsten Erinnerung (Sperrbildschirm-Stil)');
     await shot(p, '30-fokus-desktop-light');
 
     // Timeline: alle Module als Zeilen, sechs Prüfungen als Rauten
