@@ -82,18 +82,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] md:px-6 md:pt-4 lg:px-8">
           {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
           <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
-          {/* Smartphone: Marke oben links (Zeichen + Schriftzug) */}
-          <Link
-            to="/"
-            data-testid="mobile-logo"
-            className="glass mat-interactive mr-auto flex h-10 shrink-0 items-center gap-2 rounded-full pl-[7px] pr-[7px] min-[360px]:pr-3.5 md:hidden"
-            aria-label={`${appName} – Dashboard`}
-          >
-            <LogoMark size={26} />
-            <span className="title hidden text-[15px] min-[360px]:inline">{appName}</span>
-          </Link>
-          <span className="hidden flex-1 md:block" aria-hidden />
-          <StatusPill quiet />
+          {/* Smartphone: bewusst ohne Logo und ohne Sync-Symbol – nur Suche, Glocke, Profil */}
+          <span className="flex-1" aria-hidden />
+          <span className="hidden md:contents">
+            <StatusPill quiet />
+          </span>
           <IconButton label="Suche öffnen" variant="glass" size="sm" className="!size-10 !rounded-full" onClick={() => setUI({ searchOpen: true })}>
             <Search className="size-[18px]" />
           </IconButton>

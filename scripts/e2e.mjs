@@ -178,7 +178,7 @@ async function mobileDesignChecks(p, name) {
   check(touchAction !== 'none', `Tab-Leiste (${name}): normales Scrollen nicht blockiert (touch-action=${touchAction})`);
 
   // Liquid Glass: Hintergrundunschärfe auf Leiste, Logo und Profilbutton
-  for (const [what, loc] of [['Tab-Leiste', bar], ['Logo', p.getByTestId('mobile-logo')], ['Profilbutton', p.getByTestId('profile-button')]]) {
+  for (const [what, loc] of [['Tab-Leiste', bar], ['Suche', p.getByRole('button', { name: 'Suche öffnen' })], ['Profilbutton', p.getByTestId('profile-button')]]) {
     const bf = await loc.evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
     check(/blur\(/.test(bf), `Liquid Glass (${name}): ${what} mit Hintergrundunschärfe`);
   }
@@ -191,14 +191,17 @@ async function mobileDesignChecks(p, name) {
   const dy = Math.abs(btn.y + btn.height / 2 - (av.y + av.height / 2));
   check(dx <= 0.5 && dy <= 0.5 && Math.abs(btn.width - btn.height) <= 0.5, `Profilbutton (${name}): Avatar zentriert (Δx=${dx}, Δy=${dy}), Knopf rund (${btn.width}×${btn.height})`);
 
-  // Logo bleibt beim Scrollen an seiner Position
-  const logo = p.getByTestId('mobile-logo');
+  // Kopfzeile bleibt beim Scrollen an ihrer Position
+  // Kopfzeile auf dem Handy: bewusst ohne Logo und ohne Sync-Symbol
+  check((await p.getByTestId('mobile-logo').count()) === 0, `Kopfzeile (${name}): kein Logo oben`);
+  check((await p.locator('header button[aria-label*="Tippen zum Aktualisieren"]').filter({ visible: true }).count()) === 0, `Kopfzeile (${name}): kein Sync-Symbol`);
+  const logo = p.getByTestId('profile-button');
   const before = await logo.boundingBox();
   await p.evaluate(() => window.scrollTo(0, 700));
   await p.waitForTimeout(400);
   const after = await logo.boundingBox();
   const scrolled = await p.evaluate(() => window.scrollY);
-  check(scrolled > 0 && Math.abs(after.y - before.y) <= 1, `Kopfzeile (${name}): Logo bleibt beim Scrollen oben (vorher ${before.y}, nachher ${after.y})`);
+  check(scrolled > 0 && Math.abs(after.y - before.y) <= 1, `Kopfzeile (${name}): Kopfzeile bleibt beim Scrollen oben (vorher ${before.y}, nachher ${after.y})`);
 
   // Seitenende: nichts liegt dauerhaft unter der Tab-Leiste
   await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
