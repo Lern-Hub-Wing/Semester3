@@ -32,7 +32,7 @@ export function setAmbienceVolume(v: number) {
   if (current && c) current.master.gain.setTargetAtTime(gainFor(current.kind), c.currentTime, 0.15);
 }
 
-const gainFor = (kind: AmbienceKind) => volume * (kind === 'lofi' ? 0.55 : kind === 'rain' ? 0.5 : 0.35);
+const gainFor = (kind: AmbienceKind) => volume * (kind === 'lofi' ? 1.4 : kind === 'rain' ? 0.4 : 0.45);
 
 /** Startet einen Klang (muss aus einer Benutzeraktion kommen). Ein laufender Klang wird ersetzt. */
 export function startAmbience(kind: AmbienceKind) {
