@@ -14,7 +14,9 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 - **Fokus 2.0:** immersive Vollbildansicht mit Pomodoro-Runden (Kurz, Klassisch, Intensiv, Individuell, eigene Vorlagen), lange Pause nach N Runden, frei gestaltbarer Anzeige und Hintergrund; nur echte Fokuszeit zählt als Lernzeit
 - **Hausaufgaben** mit Abgabedatum, Unteraufgaben, Priorität, Anhängen, Erledigt-Status je Person und optionaler Verteilung von Arbeitseinheiten bis zum Vortag der Abgabe (Migration 005)
 - **Push-Benachrichtigungen** auf iPhone (als Home-Bildschirm-App), Android und Desktop – Morgenübersicht, offene und überfällige Aufgaben, Prüfungserinnerungen, Lernplan-Änderungen, gemeinsame Erfolge; mit Ruhezeiten und Testnachricht
-- Dark/Light Mode, Liquid-Glass-Design „Aurora Glass“ mit [Glisse](https://glisse.kelvinzhang.com)-Bedienelementen (Tab-Leiste mit Ziehen, Schalter, Regler, Segmente), installierbar als App (PWA)
+- **Fokus-Statistik:** Lernzeit heute und Verlauf der letzten 7 Tage direkt im Dashboard (nur echte, gespeicherte Fokuszeit)
+- **Musik-Bibliothek:** gemeinsame YouTube-Links in Kategorien (10 Lofi-Plätze, Regen, Gewitter, starker Wind, Natur, Lagerfeuer, Kamin, Konzentration, Eigene) – einmal eingetragen, für alle sichtbar; abspielbar im Fokus und auf der Seite „Musik“, in Endlosschleife (Migration 007). Dazu Lofi, Regen und Rauschen ohne Internet, live im Browser erzeugt
+- Dark/Light Mode, ruhige Designsprache „Summit“ (StudySpace 4.0) mit gerendertem Berg-Panorama und neuem Logo, Bedienelemente von [Glisse](https://glisse.kelvinzhang.com) (Tab-Leiste mit Ziehen, Schalter, Regler, Segmente), installierbar als App (PWA)
 
 > **Wichtiger Hinweis zur Sicherheit:** StudySpace hat bewusst **keine Anmeldung**. Jede Person mit dem Link kann alle Inhalte sehen und bearbeiten. Die Auswahl „Wer lernt heute?“ ist **keine Identitätsprüfung** – Einträge wie „von Person 2 geändert“ sind nicht verifiziert. Ohne echte Authentifizierung gibt es **keinen verlässlichen Schutz gegen absichtliche Änderungen durch Dritte**, die den Link kennen. StudySpace ist deshalb **nicht für vertrauliche, personenbezogene oder sensible Dokumente** gedacht. Schutzmaßnahmen: Soft Delete (Papierkorb) statt Löschen, keine Löschrechte in der Datenbank, Rate Limits, Eingabeprüfungen, regelmäßige Exporte.
 
@@ -35,6 +37,7 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 11. [Produktive Webseite öffnen](#11-produktive-webseite-öffnen)
 12. [Push-Benachrichtigungen einrichten](#12-push-benachrichtigungen-einrichten)
 13. [Hausaufgaben einrichten (StudySpace 3.1)](#13-hausaufgaben-einrichten-studyspace-31)
+14. [Musik-Bibliothek einrichten (StudySpace 4.0)](#14-musik-bibliothek-einrichten-studyspace-40)
 - [Als App installieren](#als-app-installieren-pwa) · [Tests](#tests) · [Projektstruktur](#projektstruktur) · [Häufige Probleme](#häufige-probleme)
 
 Technische Details: [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md)
@@ -90,6 +93,7 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 4 | [`supabase/migrations/004_push_focus.sql`](supabase/migrations/004_push_focus.sql) | Fokuszeiten und Push-Benachrichtigungen (siehe Schritt 12) |
 | 5 | [`supabase/migrations/005_homework.sql`](supabase/migrations/005_homework.sql) | Hausaufgaben (siehe Schritt 13) |
 | 6 | [`supabase/migrations/006_server_read_access.sql`](supabase/migrations/006_server_read_access.sql) | Leserechte für die Push-Funktionen (siehe Schritt 12.1) |
+| 7 | [`supabase/migrations/007_music.sql`](supabase/migrations/007_music.sql) | Gemeinsame Musik-Bibliothek (siehe Schritt 14) |
 
 Falls Supabase warnt, dass die Abfrage „destruktive Operationen“ enthält: Das betrifft nur `drop trigger/policy if exists` (Neuanlage). Mit **Run this query** bestätigen. Alle Skripte können gefahrlos mehrfach ausgeführt werden.
 
@@ -272,6 +276,28 @@ So plant StudySpace: Der Bearbeitungszeitraum reicht von heute (bzw. dem frühes
 
 ---
 
+## 14. Musik-Bibliothek einrichten (StudySpace 4.0)
+
+Auch hier ist **nur eine Datei** nötig:
+
+1. Supabase-Dashboard → **SQL Editor** → **New query**
+2. Inhalt von [`supabase/migrations/007_music.sql`](supabase/migrations/007_music.sql) einfügen → **Run** (Warnung zu `drop … if exists` mit **Run this query** bestätigen)
+3. StudySpace neu laden → **Musik** (Seitenleiste, auf dem Handy unter „Mehr“, oder Einstellungen → Musik-Bibliothek)
+
+Was die Migration macht:
+
+- Neue Tabelle `music_tracks` (Kategorie, Name, YouTube-Video-ID, Startzeit, Reihenfolge) mit denselben Regeln wie der Rest: Row Level Security, **keine Löschrechte** (Entfernen = Papierkorb-Prinzip), Versionierung, Änderungsverlauf, Rate Limit, Realtime.
+- Gespeichert wird **nur die 11-stellige Video-ID** und die Startzeit – kein beliebiger Link. StudySpace akzeptiert nur Links von youtube.com, youtu.be und music.youtube.com.
+- Bestehende Daten bleiben unverändert; das Skript kann gefahrlos mehrfach ausgeführt werden.
+
+Solange die Datei nicht ausgeführt ist, zeigt die Bibliothek einen Hinweis; die erzeugten Klänge (Lofi, Regen, Rauschen) funktionieren trotzdem. Ein neues Deployment ist nicht nötig.
+
+So funktioniert's: Unter **Musik** eine Kategorie wählen → freien Platz (z. B. „Lofi 3“) antippen → YouTube-Link einfügen → Name anpassen → **Speichern**. Der Titel erscheint sofort bei allen. Abgespielt wird in einem kleinen, sichtbaren Player (YouTube verlangt einen sichtbaren Player), der beim Seitenwechsel weiterläuft, sich verkleinern lässt und am Ende automatisch von vorn beginnt (∞).
+
+> **Hinweis für eine spätere App-Store-Veröffentlichung:** Eingebettete YouTube-Videos als Hintergrundmusik sind für private Lerngruppen in Ordnung, in einer veröffentlichten App aber rechtlich und nach den YouTube-Nutzungsbedingungen heikel (z. B. kein Abspielen bei gesperrtem Bildschirm). Für eine Store-Version eigene, lizenzierte Audiodateien verwenden – die Bibliothek ist so gebaut, dass später eine weitere Quelle ergänzt werden kann.
+
+---
+
 ## Als App installieren (PWA)
 
 - **iPhone/iPad (Safari):** Teilen-Symbol → **Zum Home-Bildschirm**
@@ -287,9 +313,10 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
 | zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder Finger auf der Leiste halten und ziehen: die Glaslinse folgt, beim Loslassen wird gewechselt. Weitere Seiten unter „Mehr“ |
 | haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
-| das Glas klarer oder milchiger machen | Einstellungen → Erscheinungsbild → „Durchsichtigkeit“ (Regler mit Live-Vorschau; wirkt sofort auf alle Glasflächen, gespeichert pro Gerät) |
+| Leisten ohne Unschärfe (ältere Geräte) | Einstellungen → Erscheinungsbild → „Transparenz: Einfach“ (der frühere Regler „Durchsichtigkeit“ entfällt mit dem flachen 4.0-Design) |
 | Klänge ein-/ausschalten | Einstellungen → Erscheinungsbild → „Klänge“ (leise Töne beim Antippen, Auswählen, Abhaken; auf dem iPhone gilt der Stummschalter) |
-| Musik beim Lernen | Im Fokus auf das Kopfhörer-Symbol tippen: Lofi, Regen oder Rauschen – live im Browser erzeugt, ohne Musikdateien. Art und Lautstärke unter Einstellungen → Steuerung → Musik |
+| Musik beim Lernen | Im Fokus auf das Kopfhörer-Symbol tippen: Bibliothek öffnet sich, Titel antippen. „Ohne Internet“: Lofi, Regen oder Rauschen, live im Browser erzeugt. Lautstärke auf der Seite „Musik“ |
+| eigene Musik hinzufügen | „Musik“ → Kategorie → freien Platz antippen (oder „Neu“) → YouTube-Link einfügen → Speichern. Für alle sichtbar; über ⋯ umbenennen oder entfernen (Schritt 14) |
 | Benachrichtigungen einrichten | Nach der ersten Personenwahl erscheint eine Einführung; sonst Einstellungen → Benachrichtigungen. iPhone: vorher „Zum Home-Bildschirm“ |
 | konzentriert mit Timer lernen | „Fokus“ in der Navigation oder die Fokus-Karte im Dashboard öffnet direkt die Vollbildansicht. Start drücken (Standard: kein Autostart). Unten: Ton, Phase neu starten, Start/Pause, Pause überspringen bzw. Session beenden, Einstellungen. Rhythmus: Kurz 15/5, Klassisch 25/5, Intensiv 50/10 oder Individuell; lange Pause nach N Runden (Standard 4); eigene Vorlagen speichern. Unter „Anzeige“/„Bild“/„Steuerung“: Schrift, Größe, Stärke, Sekunden, Farbe, Leuchten, Position, Animation, Ring, Prozent, Fortschrittslinie, Hintergrund (Berge, Polarlicht, Verlauf, Farbe, eigenes Bild, Weichzeichnen, Abdunkeln, Bewegung), Steuerleiste oben/unten, automatisches Ausblenden, Lautstärke, Mitteilung beim Phasenwechsel, automatischer Phasenwechsel und Autostart. Nur echte Fokuszeit (ohne Pausen) wird gespeichert und in der Analyse gezählt |
 | eine Hausaufgabe eintragen | „Hausaufgaben“ → „Neue Hausaufgabe“ (oder „+ Hausaufgabe“ im Dashboard). Pflicht: Titel, Modul, Abgabe. Optional unter „Weitere Angaben“: Beschreibung, Unteraufgaben, Aufwand, frühester Beginn, Priorität, Anhänge (nach dem ersten Speichern). „Arbeitseinheiten einplanen“ zeigt Vorschläge mit Kalender – Daten lassen sich vor dem Speichern ändern |
@@ -330,7 +357,7 @@ Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/A
 ├── public/                        Icons, Startbildschirme, Favicon, einrichtung/vapid.html
 ├── scripts/                       Icon-Generator, Datenbank- und Browsertests
 ├── supabase/
-│   ├── migrations/                001 Schema · 002 Sicherheit · 003 Storage · 004 Push + Fokus · 005 Hausaufgaben · 006 Leserechte Push
+│   ├── migrations/                001 Schema · 002 Sicherheit · 003 Storage · 004 Push + Fokus · 005 Hausaufgaben · 006 Leserechte Push · 007 Musik
 │   ├── functions/                 Edge Functions push-api, push-scheduler (+ _shared: Web Push, Erinnerungslogik)
 │   ├── cron.sql                   Zeitsteuerung (Supabase Cron, alle 5 Minuten)
 │   ├── seed.sql                   Startdaten (Personen, Module, Prüfungen)
@@ -361,6 +388,8 @@ Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/A
 | „Push ist auf dem Server noch nicht eingerichtet“ | Secrets `VAPID_*` in Supabase fehlen oder sind falsch (12.3) |
 | „Unbekanntes Lernprofil“ / „Der Server darf die Lernprofile nicht lesen“ (Benachrichtigungen) | `006_server_read_access.sql` ausführen (12.1), dann erneut aktivieren |
 | „Hausaufgaben sind noch nicht eingerichtet“ | `005_homework.sql` ausführen (Schritt 13) |
+| Musik: „Bibliothek ist noch nicht eingerichtet“ | `007_music.sql` ausführen (Schritt 14) |
+| Musik: Player bleibt schwarz | Internet/YouTube nicht erreichbar oder Video erlaubt keine Einbettung – anderen Link wählen; „Ohne Internet“-Klänge gehen immer |
 | iPhone bietet keine Benachrichtigungen an | StudySpace muss vom Home-Bildschirm gestartet werden, iOS ≥ 16.4 (12.7) |
 | Test angenommen, aber keine Nachricht | Mitteilungen für StudySpace in den iPhone-Einstellungen prüfen, Fokus/Nicht stören aus; Gerät kurz sperren |
 | Keine automatischen Erinnerungen | `cron.sql` ausgeführt? `cron.job_run_details` prüfen; Projekt pausiert? |

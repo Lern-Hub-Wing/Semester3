@@ -77,6 +77,22 @@ if (db.homework) {
   db.homework_completions.push(base({ target_id: '88888888-8888-4888-8888-000000000011', homework_id: '77777777-7777-4777-8777-000000000001', member_id: db.members[0].id, is_completed: true, completed_at: `${berlinToday}T09:00:00.000Z` }));
   db.homework_completions.push(base({ target_id: '77777777-7777-4777-8777-000000000004', homework_id: '77777777-7777-4777-8777-000000000004', member_id: db.members[1].id, is_completed: true, completed_at: `${berlinToday}T09:00:00.000Z` }));
 }
+// Fokuszeiten dieser Woche (für die Fokus-Statistik)
+{
+  const minutes = [50, 75, 40, 100, 70, 110, 165];
+  minutes.forEach((m, i) => {
+    const day = addDays(berlinToday, i - 6);
+    const start = new Date(`${day}T08:00:00Z`);
+    const end = new Date(start.getTime() + m * 60000);
+    db.focus_sessions.push({ id: `99999999-9999-4999-8999-00000000000${i}`, member_id: db.members[0].id, module_id: null, started_at: start.toISOString(), ended_at: end.toISOString(), duration_seconds: m * 60, created_at: end.toISOString() });
+  });
+}
+// Musik-Bibliothek (Beispiel-IDs; Vorschaubilder werden in Screenshots nicht geladen)
+if (db.music_tracks) {
+  [['lofi', 'Lofi Study', 'jfKfPfyJRdk'], ['lofi', 'Lofi 2', '5qap5aO4i9A'], ['regen', 'Leichter Regen', 'mPZkdNFkNps'], ['gewitter', 'Regen & Donner', 'nDq6TstdEi8'], ['kamin', 'Kaminfeuer', 'L_LUpnjgPso']].forEach(([category, title, youtube_id], i) =>
+    db.music_tracks.push(base({ id: `aaaaaaaa-1111-4111-8111-00000000000${i}`, category, title, youtube_id, start_seconds: null, sort_order: i, deleted_at: null })),
+  );
+}
 db.members[0].name = 'Luk';
 db.members[1].name = 'Diana';
 db.members[2].name = 'Jonas';
@@ -104,6 +120,7 @@ const pages = [
   ['team', '#/team'],
   ['pruefungen', '#/pruefungen'],
   ['hausaufgaben', '#/hausaufgaben'],
+  ['musik', '#/musik'],
   ['hausaufgabe-neu', '#/hausaufgaben', 'Neue Hausaufgabe'],
   ['fokus', '#/fokus'],
   ['fokus-einstellungen', '#/fokus', 'Fokus-Einstellungen'],
@@ -119,6 +136,7 @@ try {
       await ctx.route(`${API}/rest/v1/**`, handle);
       await ctx.route(`${API}/realtime/**`, (r) => r.abort());
       await ctx.route(`${API}/functions/**`, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+      await ctx.route(/https:\/\/(www\.youtube\.com|i\.ytimg\.com)\//, (r) => r.abort());
       await ctx.addInitScript(() => {
         localStorage.setItem('studyspace.push.onboarding', 'dismissed');
         // Laufende Fokus-Session (seit 6 Minuten), damit der Countdown sichtbar läuft

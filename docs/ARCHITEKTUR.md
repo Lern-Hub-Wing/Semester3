@@ -93,7 +93,31 @@ Supabase liefert maximal 1000 Zeilen pro Anfrage; `fetchTable` lädt seitenweise
 - Zustände: bevorstehend → „Prüfung läuft“ (Restdauer) → automatisch nächste Prüfung → Abschlussansicht.
 - „Heute“ und „überfällig“ beziehen sich auf das Kalenderdatum in Berlin.
 
+## Designsprache „Summit“ (StudySpace 4.0)
+
+Ruhig, flach, professionell – ohne Glasränder, Glanzlichter oder wandernde Farbfelder. Umgesetzt als eigene Ebene am **Ende** von `src/styles/index.css` (ungeschichtetes CSS gewinnt gegen `@layer components`); die älteren „Aurora Glass“-Regeln darüber bleiben als Grundlage, werden aber von dieser Ebene überschrieben.
+
+- **Tokens:** `--ss-bg`, `--ss-surface`, `--ss-surface-2`, `--ss-edge`, `--ss-edge-strong`, `--ss-accent`, `--ss-accent-soft`, `--ss-btn`/`--ss-btn-text`, `--ss-brand` – je eine Fassung für Hell (`#f5f4fb`, Akzent `#6a61e4`) und Dunkel (`#121129`, Karten `#1b1a39`, Akzent `#ada7ff`).
+- **Liquid Glass bleibt:** Tab-Leiste (Ziehen mit Glaslinse), Regler, Schalter und Segmente kommen unverändert aus Glisse mit ihrem Glas-Look; die Summit-Ebene überschreibt die `--lg-*`-Werte bewusst nicht. An/Aus-Einstellungen sind Apple-Schalter (`ui/Switch.tsx`), keine Aus/An-Segmente.
+- **Flächen:** Karten deckend mit 1-px-Kante; Unschärfe nur noch bei schwebenden Elementen (`.mat-float`: Tab-Leiste, Menüs, Mini-Player). „Transparenz: Einfach“ (`.reduce-glass`) nimmt auch diese weg. Der Regler „Durchsichtigkeit“ wurde entfernt, weil er im flachen Design keine Wirkung mehr hätte.
+- **Seitenleiste:** flach mit rechter Trennlinie, 92 px (Tablet, Kurzbeschriftungen) bzw. 248 px (Desktop, Wortmarke); aktive Seite als ruhige Fläche (`.side-lens`).
+- **Logo:** `components/Logo.tsx` – zwei gestaffelte Gipfel mit Schneekappen, Wortmarke „Study**Space**“. Dieselbe Geometrie erzeugt `scripts/generate-icons.mjs` für App-Icons, Startbildschirme, Maskable-Icon, Badge und Favicon.
+- **Berg-Panorama:** `scripts/render-mountains.mjs` rendert die Landschaft einmalig als Bild (Höhenfeld aus Ridged-Multifractal-Rauschen plus Gauß-Massive, Raymarching mit weichen Schatten, Alpenglühen nur an hohen Graten, Nebel, Sternenhimmel; fester Seed). Ausgabe: `public/scenery/mountains{,-1200}.{webp,jpg}` (WebP ≈ 25–55 KB). `components/landscape/Landscape.tsx` bindet sie als `<picture>` mit `srcset` ein. Eingesetzt im Prüfungs-Hero (`.photo-stage` mit Abdunklungsverlauf für lesbaren weißen Text), in der Fokus-Bühne und der Personenauswahl. **Herausragender Gipfel:** Der Renderer schreibt zusätzlich `mountains-peak{,-1200}.webp` (gleiches Bild, Himmel durchsichtig, weiche Kante) und die Gipfellage nach `components/landscape/peak.ts`. `PeakStage` legt Panorama (im beschnittenen Fenster) und freigestellte Spitze (nur oberhalb des Fensterrands, `.peak-pop`) pixelgenau übereinander; die Bildlage wird per `ResizeObserver` aus der Fenstergröße berechnet, sodass auf jedem Gerät genau die Spitze `pop` px (Handy 34, sonst 52) herausragt. Neu rendern: `node scripts/render-mountains.mjs` (braucht das vorinstallierte Chromium zum Kodieren).
+- **Dashboard:** `components/dashboard/SummitCards.tsx` – `ExamHero` (Countdown zur nächsten Prüfung, „Fokus starten/fortsetzen“, „Session planen“), `FocusStatsCard` (Fokuszeit heute + Balken der letzten 7 Tage aus `focus_sessions`; ohne Daten 0, nichts geschätzt), `FocusButton`. Handy: kompakter Hero, Fokus-Knopf in voller Breite, Kacheln Hausaufgaben/Heute. Scrollbare Kartenlisten blenden unten weich aus (`.scroll-fade`).
+- **Navigation Handy:** Dashboard, Fokus, Aufgaben (Hausaufgaben), Kalender (Lernplan), Mehr.
+
+## Musik (StudySpace 4.0)
+
+- **Datenbank:** `007_music.sql` → `music_tracks` (Kategorie per `check`, Titel 1–120 Zeichen, `youtube_id` per Regex auf genau 11 Zeichen `[A-Za-z0-9_-]`, `start_seconds`, `sort_order`, Soft Delete). Gleiche Schutzmechanismen wie der Lernplan (RLS, keine `delete`-Policy, Versionierung, Verlauf, Rate Limit 60/min, Realtime). Test: `supabase/tests/50_music_test.sql`.
+- **Links:** `lib/youtube.ts` → `parseYouTube()` akzeptiert nur YouTube-Hosts (watch, youtu.be, shorts, embed, live, `t=`/`start=`) und liefert nur `{ id, start }`. Kategorien und Platzanzahl (`MUSIC_CATEGORIES`: Lofi 10, Konzentration 5, Regen/Gewitter/Wind/Natur/Lagerfeuer/Kamin je 3, Eigene frei).
+- **Store:** `store/music.ts` (laden, Realtime über `sync.ts`, hinzufügen/umbenennen/entfernen mit Rückgängig). Fehlt die Tabelle (`42P01`/`PGRST205`), ist die Bibliothek ausgeblendet und zeigt einen Hinweis.
+- **Player:** `store/player.ts` – ein Player für die ganze App (YouTube-Titel *oder* erzeugter Klang aus `lib/ambience.ts`), Lautstärke pro Gerät. `components/music/MiniPlayer.tsx` lädt die YouTube-IFrame-API erst beim ersten Abspielen, hängt in `App.tsx` und bleibt daher über Seitenwechsel bestehen. YouTube verlangt einen **sichtbaren** Player – deshalb ein kleines, verkleinerbares Fenster statt reinem Hintergrundton. Endlosschleife über das `ENDED`-Ereignis (`seekTo(start)` + `playVideo`). iOS lässt Ton nur direkt nach einer Berührung zu: `player.playTrack()` wird synchron im Klick-Handler aufgerufen.
+- **UI:** `components/music/MusicLibrary.tsx` (Kategorien, freie Plätze „Lofi 3“ usw., Dialog mit Vorschau und Prüfung) auf der Seite `/musik` und als Panel im Fokus (Kopfhörer-Symbol); Einstieg auch unter Einstellungen.
+- **App Store:** YouTube-Einbettung als Hintergrundmusik ist für eine veröffentlichte App rechtlich heikel; für eine Store-Fassung eigene lizenzierte Audiodateien als zusätzliche Quelle vorsehen.
+
 ## Design und Animation („Aurora Glass“, StudySpace 3.0)
+
+> Hinweis: Dieser Abschnitt beschreibt die Grundlage aus 3.0/3.1. Seit 4.0 überschreibt die Ebene „Summit“ (oben) Glasflächen, Aurora-Hintergrund und Berglandschaft; die gerenderte Landschaft ersetzt die Vektor-Bergketten.
 
 Ein Designsystem, zentral in `src/styles/index.css` (CSS-Variablen) und `src/lib/motion.ts` (Federn/Kurven für Motion).
 
@@ -101,7 +125,7 @@ Ein Designsystem, zentral in `src/styles/index.css` (CSS-Variablen) und `src/lib
 
 **Aurora-Hintergrund** (`components/layout/Ambient.tsx`): fünf sehr langsam wandernde Farbfelder plus feine Körnung. Die fünfte Fläche trägt die Farbe des aktiven Lernprofils und blendet beim Personenwechsel weich über. Ohne farbigen Untergrund wirkt Glas nur wie eine getönte Karte – deshalb ist der Hintergrund Teil des Materials.
 
-**Berglandschaft (Hero):** `components/landscape/` – gestaffelte Bergketten als Vektorgrafik (Pfade aus `scripts/generate-landscape.mjs`, fester Seed), Nebelbänder, mondbeschienene Grate, Sterne/Mond nur im Dunkelmodus. Alle Farben als CSS-Variablen `--ls-*` (eigene Fassung für Hell: Lavendel-Dunst, Dunkel: violette Nacht). Eingesetzt im Desktop-/Tablet-Dashboard-Hero (Glaskarten „Heute“, „Fortschritt“, „Nächste Prüfung“ schweben darüber), als auslaufender Hintergrund oben im Smartphone-Dashboard und in der Personenauswahl, in der Fokus-Bühne, im Fokus-Vollbild und in der Sperrbildschirm-Vorschau. Ohne Bilddatei, gestochen scharf, Nebel driftet nur per `transform`.
+**Berglandschaft (Hero):** bis 3.1 Vektor-Bergketten; seit 4.0 ein gerendertes Panorama – siehe „Designsprache Summit“ oben.
 
 **Glasmaterialien** – ein Aufbau, fünf Stärken (`.glass` + Modifikator):
 

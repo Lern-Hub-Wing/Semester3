@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CalendarClock, NotebookPen, Plus } from 'lucide-react';
+import { BookOpen, CalendarClock, NotebookPen, Plus } from 'lucide-react';
 import type { Member } from '../../lib/types';
 import { dueLabel, hwKey } from '../../lib/homework';
 import { Link } from '../../lib/router';
@@ -7,9 +7,8 @@ import { useHomework, setHomeworkDone } from '../../store/homework';
 import { openHomeworkEditor } from '../../store/ui';
 import { useData } from '../../store/data';
 import { useToday } from '../../hooks/useToday';
-import { Card, CardHeader } from '../ui/Card';
+import { Card } from '../ui/Card';
 import { TaskCheckbox } from '../ui/TaskCheckbox';
-import { IconButton } from '../ui/Button';
 
 /** Dashboard: nächste offene Hausaufgaben und heutige Arbeitseinheiten. Ohne Migration 005 unsichtbar. */
 export function HomeworkDashCard({ me, className = '' }: { me: Member; className?: string }) {
@@ -27,26 +26,20 @@ export function HomeworkDashCard({ me, className = '' }: { me: Member; className
       .sort((a, b) => a.due_date.localeCompare(b.due_date) || b.priority - a.priority);
     const openIds = new Set(open.map((h) => h.id));
     const units = Object.values(parts).filter((p) => p.kind === 'unit' && !p.deleted_at && p.planned_date === today && openIds.has(p.homework_id) && !done(p.id));
-    return { next: open.slice(0, 4), todayUnits: units, openCount: open.length };
+    return { next: open.slice(0, Math.max(1, 3 - Math.min(units.length, 2))), todayUnits: units.slice(0, 2), openCount: open.length };
   }, [homework, parts, completions, me.id, today]);
 
   if (!available) return null;
 
   return (
-    <Card className={`flex h-full flex-col p-5 md:p-6 ${className}`} data-testid="homework-card">
-      <CardHeader
-        title={
-          <Link to="/hausaufgaben" className="hover:underline">
-            Hausaufgaben
-          </Link>
-        }
-        icon={<NotebookPen />}
-        action={
-          <IconButton label="Neue Hausaufgabe" size="sm" variant="glass" onClick={() => openHomeworkEditor()}>
-            <Plus className="size-4" />
-          </IconButton>
-        }
-      />
+    <Card className={`flex h-full flex-col rounded-[20px] p-5 ${className}`} data-testid="homework-card">
+      <div className="flex items-center gap-2.5">
+        <BookOpen className="size-[18px] text-ink" aria-hidden />
+        <Link to="/hausaufgaben" className="title flex-1 text-[16px] hover:text-accent">
+          Hausaufgaben
+        </Link>
+        {openCount > 0 && <span className="rounded-full bg-[var(--ss-accent-soft)] px-2.5 py-1 text-[12px] font-semibold text-accent">{openCount} offen</span>}
+      </div>
       {next.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
           <NotebookPen className="size-7 text-faint" aria-hidden />
@@ -87,11 +80,16 @@ export function HomeworkDashCard({ me, className = '' }: { me: Member; className
           })}
         </ul>
       )}
-      {openCount > next.length && (
-        <Link to="/hausaufgaben" className="mt-2 text-sm font-medium text-accent">
-          Alle {openCount} anzeigen
-        </Link>
-      )}
+      <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+        <button type="button" onClick={() => openHomeworkEditor()} className="inline-flex items-center gap-2 text-[14px] font-medium text-accent hover:underline">
+          <Plus className="size-4" aria-hidden /> Hausaufgabe hinzufügen
+        </button>
+        {openCount > next.length && (
+          <Link to="/hausaufgaben" className="text-[13px] text-muted hover:text-ink">
+            Alle {openCount}
+          </Link>
+        )}
+      </div>
     </Card>
   );
 }

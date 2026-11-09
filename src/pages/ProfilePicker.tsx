@@ -96,7 +96,7 @@ export function ProfilePicker() {
           transition={intro ? { type: 'spring', stiffness: 120, damping: 20, delay: 0.72 } : { duration: d(0.5), ease: EASE_OUT }}
           className="mb-6 flex items-center gap-3"
         >
-          <LogoMark size={46} animate={intro} colors={members.length >= 4 ? members.map((m) => m.color) : undefined} />
+          <LogoMark size={46} animate={intro} />
           <motion.span
             className="title text-[21px]"
             initial={intro ? { opacity: 0, x: -8, filter: 'blur(6px)' } : false}

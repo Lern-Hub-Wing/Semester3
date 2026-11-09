@@ -1,108 +1,74 @@
 import { useId } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { DEFAULT_MEMBER_COLORS } from '../lib/colors';
 import { EASE_EMPH } from '../lib/motion';
+
+/**
+ * StudySpace-Zeichen: zwei Gipfel mit Schneekappen – „gemeinsam nach oben“.
+ * Flach und ruhig gezeichnet (keine Glanz- oder Glüheffekte), damit es auch
+ * als App-Symbol klein gut lesbar bleibt. Gleiche Geometrie wie in
+ * scripts/generate-icons.mjs.
+ */
+export const MARK = {
+  back: 'M20 36 L31.5 15 L44 36 Z',
+  front: 'M4 36 L18.5 10 L33 36 Z',
+  snowFront: 'M18.5 10 L23.7 19.4 L21.2 17.9 L18.7 20.6 L16.3 17.6 L13.3 19.4 Z',
+  snowBack: 'M31.5 15 L35.4 22.2 L33.5 21 L31.7 22.8 L29.8 20.8 L27.7 21.9 Z',
+} as const;
 
 interface MarkProps {
   size?: number;
-  colors?: string[];
-  /**
-   * Startanimation: Die vier Bögen (die Gruppe) fliegen aus verschiedenen
-   * Richtungen heran, rasten zu einem Kreis ein, der Kern erscheint und ein
-   * Lichtreflex läuft einmal über das Zeichen.
-   */
+  /** Startanimation: die Gipfel wachsen von unten herauf */
   animate?: boolean;
-  /** Verzögerung der Startanimation in Sekunden */
   delay?: number;
 }
 
-/** StudySpace-Zeichen: vier Bögen (die Gruppe) bilden gemeinsam einen vollen Kreis. */
-export function LogoMark({ size = 40, colors = DEFAULT_MEMBER_COLORS, animate = false, delay = 0 }: MarkProps) {
+export function LogoMark({ size = 40, animate = false, delay = 0 }: MarkProps) {
   const reduce = useReducedMotion();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const c = colors.length >= 4 ? colors.slice(0, 4) : DEFAULT_MEMBER_COLORS;
-  const r = 15;
-  const len = 2 * Math.PI * r;
-  const seg = len / 4;
   const play = animate && !reduce;
-  // Herkunftsrichtungen der Bögen (oben links, oben rechts, unten rechts, unten links)
-  const from = [
-    { x: -14, y: -12, rotate: -70 },
-    { x: 14, y: -14, rotate: 60 },
-    { x: 14, y: 14, rotate: -50 },
-    { x: -14, y: 12, rotate: 80 },
-  ];
-
+  const rise = (i: number) =>
+    play
+      ? { initial: { y: 14, opacity: 0 }, animate: { y: 0, opacity: 1 }, transition: { duration: 0.7, delay: delay + i * 0.12, ease: EASE_EMPH } }
+      : {};
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden style={{ overflow: 'visible' }}>
+    <svg width={size} height={size} viewBox="2 4 44 36" aria-hidden className="shrink-0">
       <defs>
-        <radialGradient id={`${uid}-core`} cx="35%" cy="30%" r="80%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
-          <stop offset="100%" stopColor="#dfe6f7" stopOpacity="0.7" />
-        </radialGradient>
-        <linearGradient id={`${uid}-sweep`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-          <stop offset="50%" stopColor="#fff" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        <linearGradient id={`${uid}-front`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#C7C1FF" />
+          <stop offset="1" stopColor="#8A82F2" />
         </linearGradient>
-        <clipPath id={`${uid}-clip`}>
-          <circle cx="20" cy="20" r="18.5" />
-        </clipPath>
+        <linearGradient id={`${uid}-back`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#8F87F0" />
+          <stop offset="1" stopColor="#5D55C9" />
+        </linearGradient>
       </defs>
-      <g transform="rotate(-90 20 20)">
-        {c.map((color, i) => (
-          <motion.circle
-            key={i}
-            cx="20"
-            cy="20"
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="5.5"
-            strokeLinecap="round"
-            strokeDasharray={`${seg - 8.4} ${len - seg + 8.4}`}
-            strokeDashoffset={-i * seg - 4.2}
-            style={{ transformOrigin: '20px 20px' }}
-            initial={play ? { opacity: 0, x: from[i].x, y: from[i].y, rotate: from[i].rotate, scale: 0.4 } : false}
-            animate={{ opacity: 1, x: 0, y: 0, rotate: 0, scale: 1 }}
-            transition={play ? { type: 'spring', stiffness: 170, damping: 15, mass: 0.8, delay: delay + i * 0.07 } : undefined}
-          />
-        ))}
-      </g>
-      <motion.circle
-        cx="20"
-        cy="20"
-        r="5.2"
-        fill={`url(#${uid}-core)`}
-        style={{ transformOrigin: '20px 20px' }}
-        initial={play ? { scale: 0, opacity: 0 } : false}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={play ? { type: 'spring', stiffness: 380, damping: 14, delay: delay + 0.42 } : undefined}
-      />
-      {play && (
-        <g clipPath={`url(#${uid}-clip)`} style={{ mixBlendMode: 'soft-light' }}>
-          <motion.rect
-            x="-20"
-            y="-6"
-            width="16"
-            height="52"
-            fill={`url(#${uid}-sweep)`}
-            transform="rotate(20 20 20)"
-            initial={{ x: -20 }}
-            animate={{ x: 70 }}
-            transition={{ duration: 0.75, ease: EASE_EMPH, delay: delay + 0.62 }}
-          />
-        </g>
-      )}
+      <motion.g {...rise(0)}>
+        <path d={MARK.back} fill={`url(#${uid}-back)`} stroke={`url(#${uid}-back)`} strokeWidth="1.2" strokeLinejoin="round" />
+        <path d={MARK.snowBack} fill="#EEECFF" opacity="0.92" />
+      </motion.g>
+      <motion.g {...rise(1)}>
+        <path d={MARK.front} fill={`url(#${uid}-front)`} stroke={`url(#${uid}-front)`} strokeWidth="1.2" strokeLinejoin="round" />
+        <path d={MARK.snowFront} fill="#FBFAFF" />
+      </motion.g>
     </svg>
   );
 }
 
-export function Logo({ name = 'StudySpace' }: { name?: string }) {
+/** Wortmarke: Zeichen + „Study“ (Textfarbe) „Space“ (Lavendel) */
+export function Logo({ name = 'StudySpace', size = 32, className = '' }: { name?: string; size?: number; className?: string }) {
+  const split = name === 'StudySpace';
   return (
-    <span className="flex items-center gap-2.5">
-      <LogoMark size={32} />
-      <span className="title text-[17px]">{name}</span>
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
+      <LogoMark size={size} />
+      <span className="brand-word" style={{ fontSize: Math.round(size * 0.58) }}>
+        {split ? (
+          <>
+            Study<span className="text-[var(--ss-brand)]">Space</span>
+          </>
+        ) : (
+          name
+        )}
+      </span>
     </span>
   );
 }

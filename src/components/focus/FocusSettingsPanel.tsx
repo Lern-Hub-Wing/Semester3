@@ -368,21 +368,6 @@ function ControlsTab() {
           />
         </Row>
       </Section>
-      <Section title="Musik">
-        <Segmented
-          size="sm"
-          label="Hintergrundklang"
-          className="w-full"
-          value={settings.music}
-          onChange={(music) => setSettings({ music })}
-          options={[
-            { value: 'lofi', label: 'Lofi' },
-            { value: 'rain', label: 'Regen' },
-            { value: 'noise', label: 'Rauschen' },
-          ]}
-        />
-        <GlassSlider label="Lautstärke Musik" value={settings.musicVolume} min={0} max={100} step={5} onChange={(musicVolume) => setSettings({ musicVolume })} display={`${settings.musicVolume} %`} />
-      </Section>
       <Section title="Steuerleiste">
         <Segmented size="sm" label="Position der Steuerleiste" className="w-full" value={look.barPosition} onChange={(barPosition) => setLook({ barPosition })} options={[{ value: 'bottom', label: 'Unten' }, { value: 'top', label: 'Oben' }]} />
         <Row label="Automatisch ausblenden">
