@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import {
-  DEFAULT_PREFS, PushApiError, currentSubscription, loadLocalDevice, platformLabel, pushApi, pushEnvironment, saveLocalDevice, subscribeFromGesture, unsubscribe,
+  DEFAULT_PREFS, PushApiError, currentSubscription, keyMismatch, loadLocalDevice, platformLabel, pushApi, pushEnvironment, saveLocalDevice, subscribeFromGesture, unsubscribe,
   type PushPrefs, type ServerStatus,
 } from '../lib/push';
 
@@ -56,7 +56,7 @@ function applyServer(s: ServerStatus) {
     prefs: s.prefs ?? DEFAULT_PREFS,
     memberId: s.memberId ?? null,
     lastSuccessAt: s.lastSuccessAt ?? null,
-    error: s.lastError ? `Letzter Versand fehlgeschlagen: ${s.lastError}` : null,
+    error: keyMismatch(s.serverKey) ?? (s.lastError ? `Letzter Versand fehlgeschlagen: ${s.lastError}` : null),
   });
 }
 
@@ -140,7 +140,8 @@ export async function enablePush(memberId: string, prefs?: Partial<PushPrefs>): 
     });
     saveLocalDevice({ endpoint: res.subscription.endpoint, memberId });
     applyServer(status);
-    setState({ phase: 'on', error: null });
+    const mismatch = keyMismatch(status.serverKey);
+    setState({ phase: 'on', error: mismatch });
     return { ok: true };
   } catch (err) {
     setState({ phase: 'off', error: messageOf(err) });

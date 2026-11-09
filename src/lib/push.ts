@@ -135,6 +135,16 @@ export interface ServerStatus {
   prefs?: PushPrefs;
   lastSuccessAt?: string | null;
   lastError?: string | null;
+  /** Öffentlicher VAPID-Schlüssel des Servers (zum Abgleich mit VITE_VAPID_PUBLIC_KEY) */
+  serverKey?: string;
+}
+
+/** Prüft, ob der Schlüssel der Webseite zum Schlüssel des Servers passt (Fehlertext oder null). */
+export function keyMismatch(serverKey: string | undefined, appKey: string = vapidPublicKey): string | null {
+  if (!serverKey || !appKey) return null;
+  const norm = (k: string) => k.trim().replace(/=+$/, '');
+  if (norm(serverKey) === norm(appKey)) return null;
+  return 'Die Schlüssel passen nicht zusammen: VITE_VAPID_PUBLIC_KEY in GitHub ist ein anderer als VAPID_PUBLIC_KEY in Supabase. Beide müssen aus demselben Schlüsselpaar stammen (README 12.3 und 12.6). Danach neu veröffentlichen und Benachrichtigungen aus- und wieder einschalten.';
 }
 
 /** Aufruf der Edge Function „push-api“ mit dem öffentlichen Publishable Key. */
@@ -161,7 +171,9 @@ export async function pushApi<T = ServerStatus>(action: string, payload: Record<
   if (!res.ok) {
     const notDeployed = res.status === 404 && !('registered' in body);
     throw new PushApiError(
-      notDeployed ? 'Die Benachrichtigungsfunktion ist auf dem Server noch nicht bereitgestellt.' : String(body.error ?? `Fehler ${res.status}`),
+      notDeployed
+        ? 'Die Benachrichtigungsfunktion ist auf dem Server noch nicht bereitgestellt.'
+        : `${String(body.error ?? `Fehler ${res.status}`)}${typeof body.detail === 'string' && body.detail ? ` ${body.detail}` : ''}`,
       res.status,
       notDeployed ? 'not_deployed' : (body.code as string | undefined),
       typeof body.retryAfter === 'number' ? body.retryAfter : undefined,
