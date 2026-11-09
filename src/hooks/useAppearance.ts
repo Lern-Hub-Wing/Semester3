@@ -4,7 +4,7 @@ import { useMediaQuery } from './useMediaQuery';
 import { glassFactor } from '../lib/glass';
 
 /** Farbe der Statusleiste = Farbe des oberen Seitenrands (siehe .status-blend in index.css) */
-const TOP_LIGHT = '#D8D4F6';
+const TOP_LIGHT = '#E9E9F6';
 const TOP_DARK = '#17162F';
 
 /** Wendet Theme, Bewegung und Glaseffekte als Klassen auf <html> an. */

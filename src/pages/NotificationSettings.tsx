@@ -75,13 +75,13 @@ function StatusHero({ me, phase }: { me: Member; phase: PushPhase }) {
   return (
     <Card material="hero" className="p-5 md:p-7" style={{ '--m-extra': `radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, ${s.tint} 22%, transparent), transparent 65%)` } as React.CSSProperties}>
       <div className="flex items-start gap-4">
-        <motion.div key={phase} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring.moment}>
+        <motion.div key={phase} className="hidden sm:block" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring.moment}>
           <IconTile tint={s.tint} size={52}>
             {s.icon}
           </IconTile>
         </motion.div>
         <div className="min-w-0 flex-1" role="status" aria-live="polite">
-          <h2 className="title text-[20px] [hyphens:auto] [overflow-wrap:anywhere] md:text-[22px]">{s.title}</h2>
+          <h2 className="title text-[19px] leading-snug md:text-[22px]">{s.title}</h2>
           <p className="mt-1 text-[14.5px] text-muted">{s.text(name)}</p>
         </div>
         {(phase === 'on' || phase === 'off') && (

@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="relative z-10 md:pl-[100px] lg:pl-[264px]">
-        <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] md:px-6 md:pt-4 lg:px-8">
+        <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(calc(env(safe-area-inset-top)+6px),16px)] md:px-6 md:pt-4 lg:px-8">
           {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
           <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
           {/* Smartphone: bewusst ohne Logo und ohne Sync-Symbol – nur Suche, Glocke, Profil */}

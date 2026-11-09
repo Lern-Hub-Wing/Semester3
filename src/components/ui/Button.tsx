@@ -34,7 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       disabled={disabled || loading}
-      className={`inline-flex shrink-0 select-none items-center justify-center font-medium transition-[transform,opacity,background-color,filter,box-shadow] duration-[260ms] ease-[var(--ease-spring)] active:scale-[0.95] disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={`inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap font-medium transition-[transform,opacity,background-color,filter,box-shadow] duration-[260ms] ease-[var(--ease-spring)] active:scale-[0.95] disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...rest}
     >
       {loading ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : icon}
