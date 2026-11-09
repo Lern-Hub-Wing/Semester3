@@ -37,5 +37,6 @@ jobs:
           version: latest
       - name: Bereitstellen
         run: |
-          supabase functions deploy push-api --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
-          supabase functions deploy push-scheduler --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy push-api --remote="$SUPABASE_PROJECT_REF" --no-verify-jwt --yes
+          supabase functions deploy push-scheduler --remote="$SUPABASE_PROJECT_REF" --no-verify-jwt --yes
+
