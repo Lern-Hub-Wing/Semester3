@@ -22,6 +22,7 @@ import { initPush, usePush } from '../store/push';
 import { useMusic } from '../store/music';
 import { Button, IconButton } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
+import { Switch } from '../components/ui/Switch';
 import { Avatar } from '../components/ui/Avatar';
 import { Modal } from '../components/ui/Modal';
 import { ColorPicker } from '../components/ui/ColorPicker';
@@ -174,39 +175,15 @@ function Appearance() {
         />
       </Row>
       <Row label="Kompakte Darstellung" hint="Kleinere Abstände und Schrift.">
-        <Segmented
-          label="Kompakte Darstellung"
-          value={prefs.compact ? 'an' : 'aus'}
-          onChange={(v) => prefs.set({ compact: v === 'an' })}
-          options={[
-            { value: 'aus', label: 'Aus' },
-            { value: 'an', label: 'An' },
-          ]}
-        />
+        <Switch label="Kompakte Darstellung" checked={prefs.compact} onChange={(compact) => prefs.set({ compact })} />
       </Row>
       <Row label="Klänge" hint="Leise Töne beim Antippen, Auswählen und Abhaken. Auf dem iPhone gilt der Stummschalter.">
-        <Segmented
-          label="Klänge"
-          value={prefs.sounds ? 'an' : 'aus'}
-          onChange={(v) => prefs.set({ sounds: v === 'an' })}
-          options={[
-            { value: 'aus', label: 'Aus' },
-            { value: 'an', label: 'An' },
-          ]}
-        />
+        <Switch label="Klänge" checked={prefs.sounds} onChange={(sounds) => prefs.set({ sounds })} />
       </Row>
       {/* Nur anzeigen, wo das Gerät wirklich vibrieren kann (z. B. Android). iOS Safari unterstützt die Vibration API nicht. */}
       {isHapticsSupported() && (
         <Row label="Haptisches Feedback" hint="Kurze, dezente Vibration bei wichtigen Aktionen.">
-          <Segmented
-            label="Haptisches Feedback"
-            value={prefs.haptics ? 'an' : 'aus'}
-            onChange={(v) => prefs.set({ haptics: v === 'an' })}
-            options={[
-              { value: 'aus', label: 'Aus' },
-              { value: 'an', label: 'An' },
-            ]}
-          />
+          <Switch label="Haptisches Feedback" checked={prefs.haptics} onChange={(haptics) => prefs.set({ haptics })} />
         </Row>
       )}
     </Section>

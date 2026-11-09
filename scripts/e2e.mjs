@@ -191,9 +191,12 @@ async function mobileDesignChecks(p, name) {
   const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
   check(touchAction === 'pan-y', `Tab-Leiste (${name}): senkrechtes Scrollen bleibt frei (touch-action=${touchAction})`);
 
-  // Designsprache 4.0: Tab-Leiste deckend (lesbar über jedem Inhalt)
-  const tabBg = await glass.evaluate((el) => getComputedStyle(el).backgroundColor);
-  check(!/rgba\([^)]*,\s*0(\.0+)?\)/.test(tabBg) && tabBg !== 'transparent', `Tab-Leiste (${name}): deckende Fläche (${tabBg})`);
+  // Liquid Glass bleibt: Tab-Leiste mit Glas-Effekt (Unschärfe bzw. Lichtbrechung)
+  const tabBf = await glass.evaluate((el) => {
+    const all = [el, ...el.querySelectorAll('*')];
+    return all.map((n) => getComputedStyle(n).backdropFilter || getComputedStyle(n).webkitBackdropFilter || '').find((v) => v && v !== 'none') ?? '';
+  });
+  check(/blur\(|url\(/.test(tabBf), `Liquid Glass (${name}): Tab-Leiste mit Glas-Effekt (${tabBf.slice(0, 60)})`);
 
   // Profilbutton: Avatar exakt mittig, Knopf exakt rund
   const pb = p.getByTestId('profile-button');
@@ -515,7 +518,7 @@ try {
       check(vib.length >= 1 && total <= 80, `Haptik: kurzer Impuls beim Abhaken (${JSON.stringify(last)})`);
       await p.goto(`${BASE}#/einstellungen`);
       await p.getByRole('heading', { name: 'Einstellungen' }).waitFor();
-      check((await p.getByRole('radiogroup', { name: 'Haptisches Feedback' }).count()) === 1, 'Haptik: Einstellung „Haptisches Feedback“ vorhanden, wo unterstützt');
+      check((await p.getByRole('switch', { name: 'Haptisches Feedback' }).count()) === 1, 'Haptik: Einstellung „Haptisches Feedback“ vorhanden, wo unterstützt');
       // iOS zoomt bei Eingabefeldern unter 16 px automatisch hinein – das darf nicht passieren
       const small = await p.evaluate(() =>
         [...document.querySelectorAll('input, select, textarea')]
@@ -607,6 +610,16 @@ try {
     // Dashboard: Fokus-Karte öffnet direkt die immersive Ansicht; keine Erinnerungsvorschau mehr
     const hero = p.getByTestId('dashboard-hero');
     check((await hero.locator('.landscape img').count()) === 1, 'Dashboard: Hero mit Berg-Panorama');
+    // Bergspitze ragt aus dem Fenster heraus (freigestellte Ebene oberhalb der Oberkante)
+    const peakGeo = await p.evaluate(() => {
+      const stage = document.querySelector('[data-testid="dashboard-hero"]');
+      const pop = document.querySelector('.peak-pop');
+      const img = pop?.querySelector('img');
+      if (!stage || !pop || !img) return null;
+      const s = stage.getBoundingClientRect(), q = pop.getBoundingClientRect();
+      return { above: Math.round(s.top - q.top), loaded: img.complete && img.naturalWidth > 0, src: img.currentSrc };
+    });
+    check(!!peakGeo && peakGeo.above >= 24 && peakGeo.loaded && /mountains-peak/.test(peakGeo.src), `Dashboard: Bergspitze ragt über das Fenster hinaus (${JSON.stringify(peakGeo)})`);
     check((await hero.getByText('Nächste Prüfung').count()) === 1 && (await hero.getAttribute('aria-label')) === 'Prüfungscountdown', 'Dashboard: Countdown zur nächsten Prüfung im Hero');
     check((await p.getByTestId('focus-stats').count()) === 1, 'Dashboard: Fokus-Statistik');
     const today = Number(await p.getByTestId('focus-today').getAttribute('data-seconds'));
@@ -727,6 +740,13 @@ try {
     await p.locator('aside').getByRole('link', { name: 'Einstellungen' }).click();
     const musicEntry = p.getByTestId('settings-music');
     await musicEntry.waitFor();
+    // An/Aus-Einstellungen sind Apple-Schalter (Glisse), keine Segmente
+    check((await p.getByRole('switch', { name: 'Klänge' }).count()) === 1 && (await p.getByRole('switch', { name: 'Kompakte Darstellung' }).count()) === 1, 'Einstellungen: Klänge und Kompakte Darstellung als Schalter');
+    const soundSwitch = p.getByRole('switch', { name: 'Klänge' });
+    const before = await soundSwitch.getAttribute('aria-checked');
+    await soundSwitch.click();
+    check((await soundSwitch.getAttribute('aria-checked')) !== before, 'Einstellungen: Schalter „Klänge“ lässt sich umschalten');
+    await soundSwitch.click();
     const musicCount = db.music_tracks.filter((t) => !t.deleted_at).length;
     check((await musicEntry.innerText()).includes(`${musicCount} Titel`), `Einstellungen: Musik-Bibliothek zeigt ${musicCount} Titel`);
     await musicEntry.click();

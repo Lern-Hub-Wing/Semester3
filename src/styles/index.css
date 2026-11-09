@@ -1654,51 +1654,7 @@ body {
   text-shadow: 0 1px 18px rgba(10, 8, 30, 0.45);
 }
 
-/* Glisse-Bedienelemente in der neuen Sprache: deckend, ruhig */
-:root {
-  --lg-glass: var(--ss-surface);
-  --lg-glass-active: var(--ss-surface-2);
-  --lg-selection: var(--ss-accent-soft);
-  --lg-edge: var(--ss-edge-strong);
-  --lg-fill: var(--ss-accent);
-  --lg-on: var(--ss-accent);
-}
-:root.dark,
-[data-theme='dark'] {
-  --lg-glass: #1b1a39;
-  --lg-glass-active: #262451;
-  --lg-selection: rgba(173, 167, 255, 0.2);
-  --lg-edge: rgba(255, 255, 255, 0.1);
-  --lg-fill: #ada7ff;
-  --lg-on: #8f88f5;
-}
-.ss-tabbar.lg-tab-bar {
-  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.55);
-}
-.ss-tabbar .lg-tab {
-  color: var(--ss-text-2);
-}
-.ss-tabbar .lg-tab[data-selected] {
-  color: var(--ss-accent);
-}
-.ss-seg > .lg-segmented {
-  --lg-segment-track: var(--ss-surface-2);
-  --lg-segment-thumb: var(--ss-surface);
-}
-.dark .ss-seg > .lg-segmented,
-[data-theme='dark'] .ss-seg > .lg-segmented {
-  --lg-segment-track: rgba(255, 255, 255, 0.05);
-  --lg-segment-thumb: rgba(255, 255, 255, 0.12);
-}
-.ss-seg-accent > .lg-segmented,
-.dark .ss-seg-accent > .lg-segmented,
-[data-theme='dark'] .ss-seg-accent > .lg-segmented {
-  --lg-segment-thumb: var(--ss-btn);
-}
-.ss-seg-accent .lg-tab[data-selected],
-.dark .ss-seg-accent .lg-tab[data-selected] {
-  color: var(--ss-btn-text);
-}
+/* Liquid Glass (Glisse) bleibt unverändert: Tab-Leiste, Regler, Schalter, Segmente */
 
 /* Statistik-Balken (Fokus-Statistik) */
 .stat-bar {
@@ -1838,4 +1794,21 @@ body {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--ss-surface);
+}
+
+/* Fenster mit herausragender Bergspitze (Dashboard) */
+.peak-stage > .photo-stage::after {
+  border-radius: inherit;
+  /* feine Kante innen statt Rahmen – so liegen Fenster und Gipfel pixelgenau übereinander */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.peak-pop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  /* leichter Schatten hebt den Gipfel vom hellen Seitengrund ab */
+  filter: drop-shadow(0 -1px 6px rgba(24, 18, 60, 0.18));
 }

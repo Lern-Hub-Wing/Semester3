@@ -143,6 +143,8 @@ function shadow(px, py, pz) {
 
 console.time('render');
 const img = new Uint8Array(W * H * 3);
+/** 1 = Strahl trifft Gelände (für die freigestellte Bergspitze) */
+const hitMask = new Uint8Array(W * H);
 const aspect = W / H;
 for (let py = 0; py < H; py++) {
   for (let px = 0; px < W; px++) {
@@ -202,6 +204,7 @@ for (let py = 0; py < H; py++) {
       col = mix(col, [0.45, 0.36, 0.62], valley * 0.55);
     }
     // sanfter Kontrast + Gamma
+    if (hit) hitMask[py * W + px] = 1;
     const o = (py * W + px) * 3;
     for (let i = 0; i < 3; i++) {
       const c = col[i] / (1 + col[i] * 0.18);
@@ -217,7 +220,7 @@ console.timeEnd('render');
 for (let s = 0; s < Math.round((W * H) / 14000); s++) {
   const x = Math.floor(rnd() * W), y = Math.floor(rnd() * H * 0.3);
   const o = (y * W + x) * 3;
-  if (img[o] > 120) continue;
+  if (img[o] > 120 || hitMask[y * W + x]) continue;
   const b = 90 + rnd() * 110 * (1 - y / (H * 0.3));
   for (let i = 0; i < 3; i++) img[o + i] = Math.max(img[o + i], Math.round(b));
 }
@@ -225,11 +228,11 @@ for (let s = 0; s < Math.round((W * H) / 14000); s++) {
 // ---------------------------------------------------------------------
 // PNG schreiben, dann im Browser zu WebP/JPEG kodieren
 // ---------------------------------------------------------------------
-function png(w, h, rgb) {
-  const raw = Buffer.alloc((w * 3 + 1) * h);
+function png(w, h, rgb, ch = 3) {
+  const raw = Buffer.alloc((w * ch + 1) * h);
   for (let y = 0; y < h; y++) {
-    raw[y * (w * 3 + 1)] = 0;
-    Buffer.from(rgb.buffer, y * w * 3, w * 3).copy(raw, y * (w * 3 + 1) + 1);
+    raw[y * (w * ch + 1)] = 0;
+    Buffer.from(rgb.buffer, y * w * ch, w * ch).copy(raw, y * (w * ch + 1) + 1);
   }
   const crcTable = Array.from({ length: 256 }, (_, n) => {
     let c = n;
@@ -253,7 +256,7 @@ function png(w, h, rgb) {
   ihdr.writeUInt32BE(w, 0);
   ihdr.writeUInt32BE(h, 4);
   ihdr[8] = 8;
-  ihdr[9] = 2;
+  ihdr[9] = ch === 4 ? 6 : 2;
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
@@ -262,14 +265,54 @@ mkdirSync(outDir, { recursive: true });
 const pngBuf = png(W, H, img);
 if (process.env.KEEP_PNG) writeFileSync(join(outDir, 'mountains.png'), pngBuf);
 
+// ---------------------------------------------------------------------
+// Freigestellte Bergspitze: gleiches Bild, Himmel durchsichtig. Liegt im
+// Dashboard deckungsgleich über dem Panorama und ragt über den Rahmen hinaus.
+// ---------------------------------------------------------------------
+let tipY = H, tipX = W / 2;
+for (let y = 0; y < H && tipY === H; y++) {
+  let sum = 0, n = 0;
+  for (let x = 0; x < W; x++) if (hitMask[y * W + x]) { sum += x; n++; }
+  if (n) { tipY = y; tipX = sum / n; }
+}
+const keepRows = Math.min(H, tipY + Math.round(H * 0.3)); // darunter wird nie etwas gezeigt
+const peak = new Uint8Array(W * H * 4);
+for (let y = 0; y < keepRows; y++) {
+  for (let x = 0; x < W; x++) {
+    // weiche Kante: Anteil getroffener Nachbarn (3×3)
+    let a = 0, src = -1;
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const yy = y + dy, xx = x + dx;
+        if (yy < 0 || yy >= H || xx < 0 || xx >= W || !hitMask[yy * W + xx]) continue;
+        a++;
+        if (src < 0 || (dx === 0 && dy === 0)) src = yy * W + xx;
+      }
+    if (!a) continue;
+    const o = (y * W + x) * 4;
+    // Randpixel bekommen die Bergfarbe des Nachbarn (kein Himmelssaum)
+    for (let i = 0; i < 3; i++) peak[o + i] = img[src * 3 + i];
+    peak[o + 3] = hitMask[y * W + x] ? Math.round(255 * (0.55 + 0.45 * (a / 9))) : Math.round(255 * (a / 9) * 0.5);
+  }
+}
+const peakPng = png(W, H, peak, 4);
+writeFileSync(
+  join(ROOT, 'src/components/landscape/peak.ts'),
+  `// Erzeugt von scripts/render-mountains.mjs – nicht von Hand ändern.\n` +
+    `/** Lage der höchsten Bergspitze im Panorama (Anteile von Breite/Höhe) */\n` +
+    `export const PEAK = { width: ${W}, height: ${H}, x: ${(tipX / W).toFixed(4)}, y: ${(tipY / H).toFixed(4)} } as const;\n`,
+);
+console.log(`Gipfel bei x=${(tipX / W).toFixed(3)}, y=${(tipY / H).toFixed(3)}`);
+
 const { chromium } = createRequire(import.meta.url)('playwright');
 const browser = await chromium.launch();
 const page = await browser.newPage();
-const enc = await page.evaluate(async (b64) => {
-  const img = new Image();
-  img.src = `data:image/png;base64,${b64}`;
-  await img.decode();
+const enc = await page.evaluate(async ([b64, peakB64]) => {
   const out = {};
+  for (const [prefix, data] of [['', b64], ['peak', peakB64]]) {
+  const img = new Image();
+  img.src = `data:image/png;base64,${data}`;
+  await img.decode();
   for (const [name, w] of [['', img.width], ['-1200', 1200]]) {
     const c = document.createElement('canvas');
     c.width = w;
@@ -277,15 +320,20 @@ const enc = await page.evaluate(async (b64) => {
     const ctx = c.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, c.width, c.height);
-    out[`webp${name}`] = c.toDataURL('image/webp', 0.86);
-    out[`jpg${name}`] = c.toDataURL('image/jpeg', 0.86);
+    if (prefix) {
+      out[`${prefix}webp${name}`] = c.toDataURL('image/webp', 0.9);
+    } else {
+      out[`webp${name}`] = c.toDataURL('image/webp', 0.86);
+      out[`jpg${name}`] = c.toDataURL('image/jpeg', 0.86);
+    }
+  }
   }
   return out;
-}, pngBuf.toString('base64'));
+}, [pngBuf.toString('base64'), peakPng.toString('base64')]);
 await browser.close();
 for (const [key, data] of Object.entries(enc)) {
-  const m = /^(webp|jpg)(-1200)?$/.exec(key);
-  const file = `mountains${m[2] ?? ''}.${m[1]}`;
+  const m = /^(peak)?(webp|jpg|png)(-1200)?$/.exec(key);
+  const file = `mountains${m[1] ? '-peak' : ''}${m[3] ?? ''}.${m[2]}`;
   const buf = Buffer.from(data.split(',')[1], 'base64');
   writeFileSync(join(outDir, file), buf);
   console.log(`${file}: ${Math.round(buf.length / 1024)} KB`);

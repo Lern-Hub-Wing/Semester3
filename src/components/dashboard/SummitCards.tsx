@@ -11,7 +11,7 @@ import { useToday } from '../../hooks/useToday';
 import { useData } from '../../store/data';
 import { useUI } from '../../store/ui';
 import { loadFocusSessions, useFocus } from '../../store/focus';
-import { Landscape } from '../landscape/Landscape';
+import { PeakStage } from '../landscape/Landscape';
 import { useFocusLive } from '../FocusPanel';
 import type { Member } from '../../lib/types';
 
@@ -56,12 +56,12 @@ export function ExamHero({ compact = false }: { compact?: boolean }) {
     : [];
 
   return (
-    <section
+    <PeakStage
+      pop={compact ? 34 : 52}
       aria-label="Prüfungscountdown"
-      className={`photo-stage rounded-[22px] border border-[var(--ss-edge)] ${compact ? 'px-4 pb-5 pt-12' : 'px-6 pb-8 pt-24 md:pt-28'}`}
+      className={`rounded-[22px] ${compact ? 'px-4 pb-5 pt-12' : 'px-6 pb-8 pt-24 md:pt-28'}`}
       data-testid="dashboard-hero"
     >
-      <Landscape position={compact ? '50% 30%' : '50% 35%'} />
       <div className="on-photo flex flex-col items-center text-center">
         <p className={`flex items-center gap-2 font-semibold ${compact ? 'text-[15px]' : 'text-[19px]'}`}>
           <GraduationCap className={compact ? 'size-[18px]' : 'size-5'} aria-hidden />
@@ -107,7 +107,7 @@ export function ExamHero({ compact = false }: { compact?: boolean }) {
           </div>
         )}
       </div>
-    </section>
+    </PeakStage>
   );
 }
 
