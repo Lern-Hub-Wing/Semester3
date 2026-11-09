@@ -12,6 +12,7 @@ import { useData } from '../../store/data';
 import { useUI } from '../../store/ui';
 import { loadFocusSessions, useFocus } from '../../store/focus';
 import { PeakStage } from '../landscape/Landscape';
+import { useFlight } from '../../store/flight';
 import { useFocusLive } from '../FocusPanel';
 import type { Member } from '../../lib/types';
 
@@ -42,6 +43,10 @@ export function ExamHero({ compact = false }: { compact?: boolean }) {
   const modules = useData((s) => s.modules);
   const openEditor = useUI((s) => s.openEntryEditor);
   const today = useToday();
+  // Übergang von der Profilwahl: Fenster erst zeigen, wenn der Berg angekommen ist
+  const flying = useFlight((s) => s.start !== null);
+  const arrivedAt = useFlight((s) => s.arrivedAt);
+  const arriving = arrivedAt > 0 && now - arrivedAt < 1500;
   const exams = useMemo(() => Object.values(examsMap), [examsMap]);
   const live = getCountdownState(exams, now);
   const exam = live.kind === 'upcoming' || live.kind === 'running' ? live.exam : null;
@@ -58,6 +63,8 @@ export function ExamHero({ compact = false }: { compact?: boolean }) {
   return (
     <PeakStage
       pop={compact ? 34 : 52}
+      hidden={flying}
+      arriving={arriving}
       aria-label="Prüfungscountdown"
       className={`rounded-[22px] ${compact ? 'px-4 pb-5 pt-12' : 'px-6 pb-8 pt-24 md:pt-28'}`}
       data-testid="dashboard-hero"

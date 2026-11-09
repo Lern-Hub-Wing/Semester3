@@ -276,8 +276,16 @@ try {
   const cards = page.getByRole('button', { name: /^Als .* lernen$/ });
   await page.waitForTimeout(900);
   check((await cards.count()) === 4, 'A: vier Profilkarten werden angezeigt');
+  check((await page.getByText(/bewusst keine Anmeldung|wessen Haken gesetzt werden/).count()) === 0, 'A: Profilwahl ohne Hinweistexte');
   await shot(page, '01-profilauswahl-desktop-dark');
   await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+  // Übergang: der Berg bleibt stehen und gleitet ins Countdown-Fenster
+  const flight = page.getByTestId('mountain-flight');
+  const flew = await flight.waitFor({ state: 'attached', timeout: 2500 }).then(() => true, () => false);
+  const heroHiddenDuringFlight = flew && (await page.getByTestId('dashboard-hero').count()) > 0 ? await page.locator('.peak-stage').first().evaluate((el) => getComputedStyle(el).visibility) : 'hidden';
+  await flight.waitFor({ state: 'detached', timeout: 4000 });
+  const heroVisible = await page.locator('.peak-stage').first().evaluate((el) => getComputedStyle(el).visibility);
+  check(flew && heroHiddenDuringFlight === 'hidden' && heroVisible === 'visible', `A: Berg gleitet ins Countdown-Fenster, danach ist das Fenster sichtbar (${flew}, ${heroHiddenDuringFlight} → ${heroVisible})`);
   await page.getByRole('heading', { name: /Person 1/ }).waitFor();
   check(true, 'A: Dashboard von Person 1 geöffnet');
   // Leuchtschein der Fortschrittskreise darf nicht eckig abgeschnitten werden
@@ -403,7 +411,7 @@ try {
   check(JSON.stringify(removed) === JSON.stringify(['Zusammenfassung wiederholen']), `Nur die entfernte Aufgabe liegt im Papierkorb (${JSON.stringify(removed)})`);
 
   // Seiten durchklicken (keine Laufzeitfehler)
-  for (const [path, name] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan-monat'], ['#/faecher', 'faecher'], [`#/faecher/${db.modules[4].id}`, 'modul-controlling'], ['#/pruefungen', 'pruefungen'], ['#/materialien', 'materialien'], ['#/einstellungen', 'einstellungen'], ['#/verlauf', 'verlauf']]) {
+  for (const [path, name] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan-monat'], ['#/faecher', 'faecher'], [`#/faecher/${db.modules[4].id}`, 'modul-controlling'], ['#/materialien', 'materialien'], ['#/einstellungen', 'einstellungen'], ['#/verlauf', 'verlauf']]) {
     await page.goto(`${BASE}${path}`);
     await page.waitForTimeout(500);
     check(!(await hasHorizontalOverflow(page)), `L: kein horizontaler Überlauf (${name}, 1440 px)`);
@@ -628,9 +636,24 @@ try {
     check((await p.getByTestId('lockscreen-preview').count()) === 0, 'Dashboard: Karte „Nächste Erinnerung“ entfernt');
     check((await p.getByText('Konzentriert lernen mit Pausen').count()) === 0, 'Dashboard: überflüssiger Hilfstext entfernt');
     await shot(p, '30-dashboard-desktop-light');
-    await p.getByTestId('focus-start').click();
+    // Zeit vom Antippen bis die Fokusansicht im Bild ist – im Browser gemessen
+    const focusDelay = await p.evaluate(
+      () =>
+        new Promise((res) => {
+          const t = performance.now();
+          document.querySelector('[data-testid="focus-start"]').click();
+          const tick = () => (document.querySelector('[data-testid="focus-immersive"]') ? res(Math.round(performance.now() - t)) : requestAnimationFrame(tick));
+          tick();
+        }),
+    );
     const imm = p.getByTestId('focus-immersive');
     await imm.waitFor();
+    // Fokus legt sich sofort über die App: das Dashboard bleibt darunter stehen (nicht bedienbar)
+    const under = await p.evaluate(() => {
+      const hero = document.querySelector('[data-testid="dashboard-hero"]');
+      return { hero: !!hero, inert: !!hero?.closest('[inert]') };
+    });
+    check(focusDelay < 250 && under.hero && under.inert, `Fokus: öffnet sofort im Vollbild, Dashboard bleibt darunter (${focusDelay} ms, ${JSON.stringify(under)})`);
     check(new URL(p.url()).hash === '#/fokus', 'Fokus: „Fokus starten“ öffnet die Fokusansicht');
     const phase = () => p.getByTestId('focus-phase').textContent();
     check((await phase())?.includes('Kurze Pause') && (await imm.getAttribute('data-phase')) === 'short', `Fokus: nach Runde 1 folgt automatisch die kurze Pause (${await phase()})`);
@@ -735,6 +758,32 @@ try {
     const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
     await p.goto(BASE);
     await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    // Prüfungen gehören zu den Fächern: kein eigener Tab, alte Links führen dorthin
+    check((await p.locator('aside').getByRole('link', { name: 'Prüfungen' }).count()) === 0, 'Fächer: kein eigener Tab „Prüfungen“ mehr');
+    await p.goto(`${BASE}#/pruefungen`);
+    await p.waitForURL(/#\/faecher$/);
+    await p.getByTestId('subject-card').first().waitFor();
+    await p.waitForTimeout(400);
+    const activeModules = db.modules.filter((m) => !m.archived_at).length;
+    check((await p.getByTestId('subject-card').count()) === activeModules, `Fächer: alle Fächer als Karten (${activeModules})`);
+    check((await p.getByTestId('subject-exam').count()) >= 1, 'Fächer: Prüfungstermin direkt am Fach');
+    await p.getByTestId('subject-card').filter({ hasText: 'Controlling' }).getByRole('link').click();
+    const examBox = p.getByTestId('module-exams');
+    await examBox.waitFor();
+    check((await examBox.getByTestId('exam-card').count()) >= 1, 'Fach: Prüfung in der Detailseite (bearbeitbar)');
+    await examBox.getByRole('button', { name: 'Termin' }).click();
+    const examDlg = p.getByRole('dialog', { name: 'Neue Prüfung' });
+    await examDlg.waitFor();
+    check((await examDlg.getByLabel('Prüfungsmodul').inputValue()) === db.modules[4].id, 'Fach: neue Prüfung mit vorausgewähltem Fach');
+    await p.keyboard.press('Escape');
+    // Auswahlfelder: ein Doppelpfeil, kein gekacheltes Muster
+    await p.goto(`${BASE}#/lernplan`);
+    const sel = p.getByLabel('Nach Modul filtern');
+    await sel.waitFor();
+    const selBg = await sel.evaluate((el) => ({ repeat: getComputedStyle(el).backgroundRepeat, img: getComputedStyle(el).backgroundImage, app: getComputedStyle(el).appearance }));
+    check(selBg.repeat === 'no-repeat' && selBg.img.startsWith('url(') && selBg.app === 'none', `Auswahlfelder: Doppelpfeil ohne Wiederholung (${selBg.repeat})`);
+    await p.goto(`${BASE}#/`);
     await p.getByTestId('dashboard-hero').waitFor();
     // Einstieg auch über die Einstellungen
     await p.locator('aside').getByRole('link', { name: 'Einstellungen' }).click();
@@ -906,6 +955,18 @@ try {
     await item.getByRole('checkbox', { name: 'Übungsblatt 6 erledigt' }).click();
     await p.waitForTimeout(400);
     check(db.homework_completions.some((x) => x.target_id === hw.id && x.member_id.endsWith('01') && x.is_completed), 'Hausaufgaben: als erledigt markiert');
+    // Lernplan: Zeitraum als farbige Leiste, am Abgabetag „Abgabe“
+    await p.goto(`${BASE}#/lernplan?ansicht=monat&datum=${newDue}`);
+    const bar = p.getByTestId('hw-bar').filter({ has: p.getByText('Übungsblatt 6', { exact: true }) });
+    await bar.first().waitFor();
+    const dueBar = bar.and(p.locator('[data-due]'));
+    check((await dueBar.count()) === 1 && (await dueBar.innerText()).includes('Abgabe') && /erledigt/.test((await dueBar.getAttribute('aria-label')) ?? ''), `Lernplan: Hausaufgabe als Zeitraum-Leiste mit Abgabe (${await dueBar.count()})`);
+    await bar.first().click();
+    check((await p.getByRole('dialog', { name: 'Hausaufgabe bearbeiten' }).count()) === 1, 'Lernplan: Leiste öffnet die Hausaufgabe');
+    await p.keyboard.press('Escape');
+    await p.goto(`${BASE}#/lernplan?ansicht=woche&datum=${newDue}`);
+    await bar.first().waitFor();
+    check((await bar.count()) >= 1, 'Lernplan: Leiste auch in der Wochenansicht');
     // Dashboard-Karte und Schnellaktion
     await p.goto(`${BASE}#/`);
     await p.getByTestId('dashboard-hero').waitFor();

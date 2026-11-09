@@ -1581,8 +1581,30 @@ body {
   }
 }
 .field {
-  background: var(--ss-surface-2);
+  background-color: var(--ss-surface-2);
   border-color: var(--ss-edge);
+}
+
+/* Auswahlfelder wie iOS: ruhige Fläche, Doppelpfeil (⌃⌄) rechts in Akzentfarbe */
+select.field,
+select.focus-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%236a61e4' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.2 8 3.2l3 3M5 9.8l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+  padding-right: 38px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.dark select.field,
+[data-theme='dark'] select.field,
+select.focus-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23b8b1ff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.2 8 3.2l3 3M5 9.8l3 3 3-3'/%3E%3C/svg%3E");
+}
+select.field:hover {
+  border-color: var(--ss-edge-strong);
 }
 
 /* Seitenleiste: flach, Trennlinie statt Glasfläche */
@@ -1643,7 +1665,7 @@ body {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(14, 12, 38, 0.05) 0%, rgba(14, 12, 38, 0.15) 40%, rgba(14, 12, 38, 0.62) 100%),
+    linear-gradient(180deg, rgba(14, 12, 38, 0) 0%, rgba(14, 12, 38, 0.15) 40%, rgba(14, 12, 38, 0.62) 100%),
     radial-gradient(70% 60% at 50% 55%, rgba(14, 12, 38, 0.22), transparent 70%);
 }
 .photo-stage > :not(.landscape) {
@@ -1809,6 +1831,111 @@ body {
   z-index: 2;
   overflow: hidden;
   pointer-events: none;
-  /* leichter Schatten hebt den Gipfel vom hellen Seitengrund ab */
-  filter: drop-shadow(0 -1px 6px rgba(24, 18, 60, 0.18));
+}
+/* Schatten am Bild selbst: wird mit beschnitten, die gerade Schnittkante
+   am Fensterrand wirft so keine Linie */
+.peak-pop img {
+  filter: drop-shadow(0 -1px 5px rgba(24, 18, 60, 0.16));
+}
+
+/* Semester-Timeline: Namensspalte in Kartenfarbe (kein dunklerer Streifen),
+   Balken laufen weich darunter aus */
+.timeline-scroll {
+  --timeline-bg: var(--ss-surface);
+}
+.timeline-sticky {
+  background: linear-gradient(90deg, var(--timeline-bg) 0%, var(--timeline-bg) 86%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Hausaufgaben-Zeitraum im Kalender */
+.hw-bar {
+  color: var(--ss-text);
+  background: color-mix(in srgb, var(--hw) 30%, var(--ss-surface));
+  border-style: solid;
+  border-color: var(--hw);
+  border-top-width: 0;
+  border-right-width: 0;
+  border-bottom-width: 0;
+  transition: filter 150ms var(--ease-out);
+}
+.dark .hw-bar,
+[data-theme='dark'] .hw-bar {
+  background: color-mix(in srgb, var(--hw) 38%, var(--ss-surface));
+}
+.hw-bar:hover {
+  filter: brightness(1.06);
+}
+.hw-bar--done {
+  opacity: 0.5;
+}
+.hw-bar--done > span:not(.hw-bar-due) {
+  text-decoration: line-through;
+}
+.hw-bar-due {
+  color: color-mix(in srgb, var(--hw) 55%, var(--ss-text));
+  font-weight: 700;
+}
+
+/* Fächer: ruhige Karte, Fachfarbe nur als zarter Hauch oben und im Prüfungstermin */
+.subject-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--subject) 10%, transparent), transparent 46%),
+    var(--ss-surface);
+}
+.subject-exam {
+  background: var(--ss-surface-2);
+  transition: background 150ms var(--ease-out);
+}
+.subject-exam:hover {
+  background: color-mix(in srgb, var(--subject) 12%, var(--ss-surface-2));
+}
+.subject-exam-date {
+  background: color-mix(in srgb, var(--subject) 28%, var(--ss-surface));
+}
+.subject-exam-soon {
+  color: var(--ss-btn-text);
+  background: var(--ss-btn);
+}
+.subject-hero {
+  background:
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--subject) 16%, transparent), transparent 60%),
+    var(--ss-surface);
+}
+
+/* Berg-Flug von der Profilwahl ins Countdown-Fenster */
+.mountain-flight {
+  --fade: 40%;
+  -webkit-mask-image: linear-gradient(180deg, #000 var(--fade), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 var(--fade), transparent 100%);
+  will-change: transform, width, height;
+}
+.photo-shade {
+  background:
+    linear-gradient(180deg, rgba(14, 12, 38, 0) 0%, rgba(14, 12, 38, 0.15) 40%, rgba(14, 12, 38, 0.62) 100%),
+    radial-gradient(70% 60% at 50% 55%, rgba(14, 12, 38, 0.22), transparent 70%);
+}
+/* Ankunft: Countdown-Text blendet ein, der Gipfel steigt aus dem Fenster */
+.peak-stage--arrive .on-photo {
+  animation: ss-arrive-text 520ms var(--ease-out) both;
+}
+.peak-stage--arrive .peak-pop img {
+  animation: ss-arrive-peak 620ms var(--ease-out) both;
+}
+@keyframes ss-arrive-text {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ss-arrive-peak {
+  from { translate: 0 var(--rise, 40px); }
+  to { translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .peak-stage--arrive .on-photo,
+  .peak-stage--arrive .peak-pop img {
+    animation: none;
+  }
 }

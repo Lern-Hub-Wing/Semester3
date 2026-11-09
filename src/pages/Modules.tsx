@@ -3,9 +3,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   Archive, ArrowDown, ArrowLeft, ArrowUp, BookOpen, CalendarPlus, ChevronDown, GraduationCap, Layers, Palette, Pencil, Plus,
 } from 'lucide-react';
-import type { Member, Module, Topic } from '../lib/types';
+import type { Exam, Member, Module, Topic } from '../lib/types';
 import { groupBy, groupRatio, isDone, memberRatio, type TaskView } from '../lib/progress';
-import { daysUntil, upcomingExams } from '../lib/countdown';
+import { activeExams, daysUntil, upcomingExams } from '../lib/countdown';
 import { formatInstant, formatTime } from '../lib/time';
 import { suggestColor } from '../lib/colors';
 import { LIMITS } from '../lib/config';
@@ -28,8 +28,9 @@ import { Reveal } from '../components/ui/Reveal';
 import { EntryCard } from '../components/EntryCard';
 import { AttachmentList, FileDrop } from '../components/Attachments';
 import { MemberProgress } from '../components/MemberProgress';
+import { ExamCard, ExamEditor } from '../components/exams/ExamParts';
 
-/** Übersicht aller Prüfungsmodule als farbige Karten. */
+/** Fächer mit ihren Prüfungen: ein Tab für beides. */
 export function Modules({ me }: { me: Member }) {
   const modules = useModules();
   const views = useTaskViews();
@@ -38,77 +39,115 @@ export function Modules({ me }: { me: Member }) {
   const exams = useData((s) => s.exams);
   const now = useNow(60_000);
   const [editing, setEditing] = useState<Module | 'new' | null>(null);
+  const [examEditing, setExamEditing] = useState<{ value: Exam | 'new'; moduleId?: string } | null>(null);
   const byModule = useMemo(() => groupBy(views, (v) => v.module.id), [views]);
+  const active = useMemo(() => activeExams(Object.values(exams)), [exams]);
   const upcoming = useMemo(() => upcomingExams(Object.values(exams), now), [exams, now]);
+  const planned = upcoming.filter((e) => modules.some((m) => m.id === e.module_id)).length;
 
   return (
     <div>
       <PageHeader
         title="Fächer"
-        subtitle={`${modules.length} Prüfungsmodule`}
+        subtitle={`${modules.length} ${modules.length === 1 ? 'Fach' : 'Fächer'} · ${planned === 0 ? 'keine Prüfung geplant' : planned === 1 ? '1 Prüfung geplant' : `${planned} Prüfungen geplant`}`}
         actions={
-          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
-            Modul
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button icon={<GraduationCap className="size-4" />} onClick={() => setExamEditing({ value: 'new' })} disabled={modules.length === 0}>
+              Prüfung
+            </Button>
+            <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
+              Fach
+            </Button>
+          </div>
         }
       />
       {modules.length === 0 ? (
         <Card>
-          <EmptyState icon={<BookOpen className="size-6" />} title="Noch keine Module" text="Lege dein erstes Prüfungsmodul an." />
+          <EmptyState icon={<BookOpen className="size-6" />} title="Noch keine Fächer" text="Lege dein erstes Fach an – den Prüfungstermin trägst du direkt dazu ein." />
         </Card>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-[var(--gap-grid)] md:grid-cols-2 xl:grid-cols-3">
           {modules.map((m, i) => {
             const list = byModule.get(m.id) ?? [];
             const g = groupRatio(list, members.map((x) => x.id), completions);
             const mine = memberRatio(list, me.id, completions);
             const open = list.filter((v) => !isDone(completions, v.task.id, me.id)).length;
-            const exam = upcoming.find((e) => e.module_id === m.id);
+            const exam = upcoming.find((e) => e.module_id === m.id) ?? null;
+            const past = exam ? null : [...active].reverse().find((e) => e.module_id === m.id) ?? null;
             return (
               <Reveal as="li" key={m.id} delay={Math.min(i * 0.04, 0.2)}>
-                <Link
-                  to={`/faecher/${m.id}`}
-                  className="card lift relative block h-full overflow-hidden rounded-[24px] p-5"
-                  style={{ background: `linear-gradient(150deg, color-mix(in srgb, ${m.color} 30%, var(--ss-card)) 0%, var(--ss-card) 62%)` }}
-                >
-                  <span aria-hidden className="absolute -right-10 -top-10 size-40 rounded-full opacity-60" style={{ background: `radial-gradient(circle, ${m.color}, transparent 70%)` }} />
-                  <div className="relative flex items-start gap-3">
+                <article className="subject-card card lift relative flex h-full flex-col rounded-[22px] p-5" style={{ '--subject': m.color } as React.CSSProperties} data-testid="subject-card">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: m.color }} aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-[17px] font-semibold leading-snug tracking-tight">{m.name}</h2>
-                      <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted">
-                        <GraduationCap className="size-3.5" aria-hidden />
-                        {exam
-                          ? `${formatInstant(exam.starts_at, { day: 'numeric', month: 'short', year: 'numeric' }, exam.timezone)} · ${formatTime(exam.starts_at, exam.timezone)} Uhr`
-                          : 'Kein Prüfungstermin'}
-                      </p>
+                      {/* Ganze Karte öffnet das Fach (gestreckter Link); Knöpfe liegen darüber */}
+                      <Link to={`/faecher/${m.id}`} className="block text-[17px] font-semibold leading-snug tracking-tight after:absolute after:inset-0 after:rounded-[22px] after:content-['']">
+                        {m.name}
+                      </Link>
+                      <p className="mt-0.5 text-[13px] text-muted">{list.length === 0 ? 'Noch keine Aufgaben' : `${open} offen · ${list.length} Aufgaben`}</p>
                     </div>
-                    <ProgressRing ratio={mine} color={me.color} size={58} stroke={6} sublabel="Dein Fortschritt" />
+                    <ProgressRing ratio={mine} color={me.color} size={52} stroke={5} sublabel="Dein Fortschritt" />
                   </div>
-                  <div className="relative mt-5">
+
+                  <ExamLine exam={exam} past={past} now={now} onAdd={() => setExamEditing({ value: 'new', moduleId: m.id })} onEdit={(e) => setExamEditing({ value: e })} />
+
+                  <div className="mt-auto pt-4">
                     <div className="mb-1.5 flex justify-between text-xs text-muted">
                       <span>Gruppe</span>
-                      <span className="num font-semibold text-ink">{g.pct === null ? '–' : `${g.pct}%`}</span>
+                      <span className="num font-semibold text-ink">{g.pct === null ? '–' : `${g.pct} %`}</span>
                     </div>
                     <ProgressBar ratio={g} color={m.color} label={`Gruppenfortschritt ${m.name}`} />
                   </div>
-                  <div className="relative mt-4 flex flex-wrap gap-2 text-xs">
-                    {exam && (
-                      <span className="num rounded-full lens px-2.5 py-1 font-semibold">
-                        {daysUntil(exam.starts_at, now) === 0 ? 'Heute' : `noch ${daysUntil(exam.starts_at, now)} Tage`}
-                      </span>
-                    )}
-                    <span className="num rounded-full lens px-2.5 py-1 font-medium text-muted">
-                      {list.length === 0 ? 'Keine Aufgaben' : `${open} offen · ${list.length} Aufgaben`}
-                    </span>
-                  </div>
-                </Link>
+                </article>
               </Reveal>
             );
           })}
         </ul>
       )}
       <ModuleEditor value={editing} onClose={() => setEditing(null)} />
+      <ExamEditor value={examEditing?.value ?? null} moduleId={examEditing?.moduleId} onClose={() => setExamEditing(null)} />
     </div>
+  );
+}
+
+/** Prüfungstermin eines Fachs: Datumskachel, Uhrzeit, Countdown – oder „Prüfung eintragen“. */
+function ExamLine({ exam, past, now, onAdd, onEdit }: { exam: Exam | null; past: Exam | null; now: number; onAdd: () => void; onEdit: (e: Exam) => void }) {
+  const shown = exam ?? past;
+  if (!shown) {
+    return (
+      <button type="button" onClick={onAdd} className="relative z-[1] mt-4 flex w-full items-center gap-3 rounded-2xl border border-dashed border-[var(--ss-edge-strong)] px-3 py-2.5 text-left text-[13px] font-medium text-muted transition-colors hover:text-ink" data-testid="exam-add">
+        <span className="grid size-10 place-items-center rounded-xl bg-[var(--ss-surface-2)]">
+          <GraduationCap className="size-4" aria-hidden />
+        </span>
+        Prüfungstermin eintragen
+      </button>
+    );
+  }
+  const start = Date.parse(shown.starts_at);
+  const end = Date.parse(shown.ends_at);
+  const running = start <= now && now < end;
+  const days = daysUntil(shown.starts_at, now);
+  const badge = exam ? (running ? 'läuft' : days === 0 ? 'heute' : days === 1 ? 'morgen' : `in ${days} Tagen`) : 'vorbei';
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit(shown)}
+      className={`subject-exam relative z-[1] mt-4 flex w-full items-center gap-3 rounded-2xl p-2.5 pr-3 text-left ${exam ? '' : 'opacity-60'}`}
+      aria-label={`Prüfung ${formatInstant(shown.starts_at, { weekday: 'long', day: 'numeric', month: 'long' }, shown.timezone)} bearbeiten`}
+      data-testid="subject-exam"
+    >
+      <span className="subject-exam-date grid w-11 shrink-0 place-items-center rounded-xl py-1.5 text-center">
+        <span className="text-[10px] font-semibold uppercase leading-none">{formatInstant(shown.starts_at, { month: 'short' }, shown.timezone).replace('.', '')}</span>
+        <span className="num mt-0.5 text-[19px] font-semibold leading-none">{formatInstant(shown.starts_at, { day: 'numeric' }, shown.timezone)}</span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-semibold">Prüfung · {formatInstant(shown.starts_at, { weekday: 'long' }, shown.timezone)}</span>
+        <span className="block truncate text-[12px] text-muted">
+          {formatTime(shown.starts_at, shown.timezone)}–{formatTime(shown.ends_at, shown.timezone)} Uhr{shown.location ? ` · ${shown.location}` : ''}
+        </span>
+      </span>
+      <span className={`num shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ${exam && days <= 14 ? 'subject-exam-soon' : 'bg-[var(--ss-surface)] text-muted'}`}>{badge}</span>
+    </button>
   );
 }
 
@@ -188,6 +227,7 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
   const openEditor = useUI((s) => s.openEntryEditor);
   const now = useNow(60_000);
   const [editing, setEditing] = useState(false);
+  const [examEditing, setExamEditing] = useState<Exam | 'new' | null>(null);
   const [newTopic, setNewTopic] = useState('');
 
   const topics = useMemo(
@@ -223,13 +263,13 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
       <button type="button" onClick={() => navigate('/faecher')} className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> Fächer
       </button>
-      <div
-        className="glass relative mb-5 overflow-hidden rounded-[28px] p-5 md:p-7"
-        style={{ background: `linear-gradient(140deg, color-mix(in srgb, ${mod.color} 34%, var(--ss-glass)) 0%, var(--ss-glass) 70%)` }}
-      >
+      <div className="subject-hero card relative mb-5 overflow-hidden rounded-[24px] p-5 md:p-7" style={{ '--subject': mod.color } as React.CSSProperties}>
         <div className="relative flex flex-wrap items-start gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">Prüfungsmodul</p>
+            <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
+              <span className="size-2 rounded-full" style={{ background: mod.color }} aria-hidden />
+              Fach
+            </p>
             <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-tight md:text-[32px]">{mod.name}</h1>
             {mod.description && <p className="mt-2 max-w-2xl text-sm text-muted">{mod.description}</p>}
             <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
@@ -239,9 +279,9 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
                   ? `${formatInstant(nextExam.starts_at, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }, nextExam.timezone)} · ${formatTime(nextExam.starts_at, nextExam.timezone)}–${formatTime(nextExam.ends_at, nextExam.timezone)} Uhr`
                   : 'Kein Prüfungstermin'}
               </span>
-              <Link to="/pruefungen" className="font-medium text-accent">
-                Prüfungen verwalten
-              </Link>
+              <button type="button" onClick={() => setExamEditing(nextExam ?? 'new')} className="font-medium text-accent">
+                {nextExam ? 'Prüfung bearbeiten' : 'Prüfung eintragen'}
+              </button>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -265,7 +305,7 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-12">
+      <div className="grid gap-5 lg:grid-cols-12 [&>*]:min-w-0">
         <div className="flex flex-col gap-4 lg:col-span-8">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Themenbereiche</h2>
@@ -304,6 +344,28 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-4">
+          <Card className="p-5" data-testid="module-exams">
+            <CardHeader
+              title={exams.length > 1 ? 'Prüfungen' : 'Prüfung'}
+              icon={<GraduationCap />}
+              action={
+                <Button size="sm" icon={<Plus className="size-4" />} onClick={() => setExamEditing('new')}>
+                  Termin
+                </Button>
+              }
+            />
+            {exams.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">Noch kein Prüfungstermin. Mit „Termin“ eintragen – er erscheint dann im Countdown und im Lernplan.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2.5">
+                {exams.map((e) => (
+                  <li key={e.id} className={Date.parse(e.ends_at) <= now ? 'opacity-60' : ''}>
+                    <ExamCard exam={e} now={now} onEdit={() => setExamEditing(e)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
           <Card className="p-5">
             <CardHeader title="Fortschritt aller Personen" subtitle={group.pct === null ? 'Noch keine Aufgaben' : `Gruppe: ${group.pct}%`} icon={<Layers />} />
             <div className="mt-3 flex flex-col gap-1">
@@ -322,6 +384,7 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
         </div>
       </div>
       <ModuleEditor value={editing ? mod : null} onClose={() => setEditing(false)} />
+      <ExamEditor value={examEditing} moduleId={mod.id} onClose={() => setExamEditing(null)} />
     </div>
   );
 }

@@ -25,7 +25,7 @@ import { Ambient } from './Ambient';
 export { Ambient };
 
 /** Rahmen der App: Glas-Seitenleiste (Tablet/Desktop), schwebende Tab-Leiste (Smartphone). */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, inert = false }: { children: ReactNode; inert?: boolean }) {
   const { path } = useLocation();
   const appName = useAppName();
   const me = useCurrentMember();
@@ -48,7 +48,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const toolNav = NAV.filter((n) => n.group === 'tools');
 
   return (
-    <div className="relative min-h-dvh">
+    // „inert“: unter dem Fokus-Vollbild nicht bedienbar und für Screenreader ausgeblendet
+    <div className="relative min-h-dvh" inert={inert}>
       <Ambient color={me?.color} />
       <div aria-hidden className="top-fade" />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2">
@@ -197,7 +198,7 @@ function MoreSheet() {
     navigate(to);
   };
   const items = [
-    ...NAV.filter((n) => ['/pruefungen', '/faecher', '/team', '/materialien', '/analyse', '/musik', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
+    ...NAV.filter((n) => ['/faecher', '/team', '/materialien', '/analyse', '/musik', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
     { label: 'Suche', icon: Search, run: () => (close(), setUI({ searchOpen: true })) },
     { label: 'Lernmodus', icon: Clock3, run: () => (close(), startStudyMode()) },
     { label: 'Papierkorb', icon: Trash2, run: () => go('/papierkorb') },

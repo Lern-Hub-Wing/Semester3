@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChartLine, Ellipsis, FileText, GraduationCap, House, Music2, NotebookPen, Settings, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarDays, ChartLine, Ellipsis, FileText, House, Music2, NotebookPen, Settings, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -15,7 +15,6 @@ export const NAV: NavItem[] = [
   { to: '/fokus', label: 'Fokus', icon: Timer, group: 'main' },
   { to: '/lernplan', label: 'Lernplan', short: 'Plan', icon: CalendarDays, group: 'main' },
   { to: '/hausaufgaben', label: 'Hausaufgaben', short: 'Hausaufg.', icon: NotebookPen, group: 'main' },
-  { to: '/pruefungen', label: 'Prüfungen', icon: GraduationCap, group: 'main' },
   { to: '/faecher', label: 'Fächer', icon: BookOpen, group: 'main' },
   { to: '/team', label: 'Team', icon: Users, group: 'main' },
   { to: '/materialien', label: 'Materialien', short: 'Material', icon: FileText, group: 'main' },
