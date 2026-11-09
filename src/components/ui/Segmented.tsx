@@ -1,7 +1,6 @@
-import { useId, type ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { SegmentedControl } from 'glisse';
 import { haptic } from '../../lib/haptics';
-import { spring } from '../../lib/motion';
 
 interface Option<T extends string> {
   value: T;
@@ -22,41 +21,59 @@ interface Props<T extends string> {
   className?: string;
 }
 
-/** iOS-artiger Segmented Control mit gleitender Markierung. */
+/**
+ * Segmented Control auf Basis von Glisse: der Daumen gleitet federnd,
+ * lässt sich ziehen und hebt sich beim Halten als Linse an.
+ * Die Breite wird gemessen, damit alle Segmente den Platz gleichmäßig füllen.
+ */
 export function Segmented<T extends string>({ value, onChange, options, label, size = 'md', dense, accent, className = '' }: Props<T>) {
-  const id = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState<number | null>(null);
+  const full = /\bw-full\b/.test(className);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      if (full) {
+        setTab(Math.max(40, el.clientWidth / options.length));
+        return;
+      }
+      // Natürliche Breite: breitestes Label + Innenabstand
+      const labels = [...el.querySelectorAll<HTMLElement>('.lg-tab-labels:not(.lg-tab-lensed) .lg-tab .ss-seg-label')];
+      const widest = labels.reduce((m, l) => Math.max(m, l.scrollWidth), 0);
+      const pad = size === 'sm' ? (dense ? 18 : 24) : 30;
+      const max = el.parentElement ? el.parentElement.clientWidth / options.length : Infinity;
+      setTab(Math.min(max, Math.max(size === 'sm' ? 48 : 60, widest + pad)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (el.parentElement) ro.observe(el.parentElement);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [options.length, full, size, dense]);
+
+  const items = options.map((o) => ({
+    value: o.value,
+    label: (
+      <span className="ss-seg-label inline-flex items-center gap-1.5 whitespace-nowrap">
+        {o.icon}
+        {o.label}
+      </span>
+    ),
+  }));
+
   return (
-    <div role="radiogroup" aria-label={label} className={`inline-flex rounded-full bg-[var(--ss-track)] p-1 shadow-[inset_0_1px_2px_rgba(16,22,46,0.06)] ${className}`}>
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => {
-              if (o.value !== value) haptic('select');
-              onChange(o.value);
-            }}
-            className={`relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-colors ${
-              size === 'sm' ? `h-8 ${dense ? 'px-2' : 'px-3'} text-[13px]` : 'h-9 px-3.5 text-sm'
-            } ${active ? (accent ? 'text-white dark:text-[#14152e]' : 'text-ink') : 'text-muted hover:text-ink'}`}
-          >
-            {active && (
-              <motion.span
-                layoutId={`seg-${id}`}
-                className={`absolute inset-0 rounded-full ${accent ? 'btn-primary' : 'lens'}`}
-                transition={spring.tab}
-              />
-            )}
-            <span className="relative flex items-center gap-1.5">
-              {o.icon}
-              {o.label}
-            </span>
-          </button>
-        );
-      })}
+    <div ref={ref} className={`ss-seg ${accent ? 'ss-seg-accent' : ''} ${size === 'sm' ? 'ss-seg-sm' : ''} ${full ? 'flex' : 'inline-flex'} ${className}`} style={tab ? ({ '--ss-seg-w': `${tab}px` } as React.CSSProperties) : undefined}>
+      <SegmentedControl
+        aria-label={label}
+        items={items}
+        value={value}
+        onValueChange={(v) => {
+          if (v !== value) haptic('select');
+          onChange(v as T);
+        }}
+      />
     </div>
   );
 }

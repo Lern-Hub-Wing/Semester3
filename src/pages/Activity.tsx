@@ -22,6 +22,8 @@ const ENTITY: Record<string, string> = {
   task_completions: 'Erledigung',
   attachments: 'Datei',
   app_settings: 'Einstellung',
+  homework: 'Hausaufgabe',
+  homework_parts: 'Teil einer Hausaufgabe',
 };
 
 const ACTION: Record<string, string> = {
@@ -62,7 +64,6 @@ export function Activity() {
     <div>
       <PageHeader
         title="Änderungsverlauf"
-        subtitle="Relevante Änderungen mit Zeitstempel."
         actions={
           <Button size="sm" icon={<RotateCcw className="size-4" />} onClick={() => void load()}>
             Aktualisieren

@@ -147,7 +147,6 @@ export function Plan({ me }: { me: Member }) {
     <div>
       <PageHeader
         title="Lernplan"
-        subtitle="Gemeinsamer Kalender – Änderungen gelten für alle."
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openEditor({ date: view === 'tag' ? date : date < today ? today : date })}>
             Neuer Lerntag
@@ -171,7 +170,6 @@ export function Plan({ me }: { me: Member }) {
             </Button>
           </div>
         )}
-        {view === 'timeline' && <p className="px-2 text-[13px] text-muted md:flex-1">Alle Module auf einen Blick: Lernphasen, Fortschritt und Prüfungen.</p>}
         <div className={`grid grid-cols-2 gap-1.5 md:w-full xl:ml-auto xl:flex xl:w-auto xl:items-center ${view === 'timeline' ? 'hidden' : ''}`}>
           <select
             aria-label="Nach Modul filtern"

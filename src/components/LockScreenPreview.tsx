@@ -1,13 +1,7 @@
-import { useMemo } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { BarChart3, BellRing } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import { useNow } from '../hooks/useNow';
 import { formatInstant } from '../lib/time';
-import { nextReminder } from '../lib/nextReminder';
-import { DEFAULT_PREFS } from '../lib/push';
-import { Link } from '../lib/router';
-import { useData } from '../store/data';
-import { usePush } from '../store/push';
 import { Landscape } from './landscape/Landscape';
 import { LogoMark } from './Logo';
 
@@ -70,49 +64,5 @@ export function LockScreenPreview({
         </span>
       </motion.div>
     </div>
-  );
-}
-
-/** Dashboard-Widget: die nächste echte Erinnerung für dieses Profil */
-export function NextReminderCard({ memberId }: { memberId: string }) {
-  const now = useNow(60_000);
-  const members = useData((s) => s.members);
-  const modules = useData((s) => s.modules);
-  const exams = useData((s) => s.exams);
-  const entries = useData((s) => s.study_entries);
-  const tasks = useData((s) => s.tasks);
-  const completions = useData((s) => s.task_completions);
-  const phase = usePush((s) => s.phase);
-  const prefs = usePush((s) => s.prefs);
-  const next = useMemo(
-    () => nextReminder({ members, modules, exams, entries, tasks, completions, memberId, prefs: phase === 'on' ? prefs : DEFAULT_PREFS, now }),
-    [members, modules, exams, entries, tasks, completions, memberId, prefs, phase, now],
-  );
-  const when = next
-    ? new Date(next.at).toDateString() === new Date(now).toDateString()
-      ? `heute ${formatInstant(next.at, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`
-      : formatInstant(next.at, { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-    : 'Jetzt';
-  return (
-    <section className="card flex h-full flex-col gap-3 rounded-[var(--radius-card)] p-4 md:p-5" aria-label="Nächste Erinnerung">
-      <div className="flex items-center gap-2">
-        <BellRing className="size-4 text-accent" aria-hidden />
-        <h3 className="title flex-1 text-[15px]">Nächste Erinnerung</h3>
-        <Link to="/einstellungen/benachrichtigungen" className="text-[13px] font-medium text-accent">
-          {phase === 'on' ? 'Einstellungen' : 'Aktivieren'}
-        </Link>
-      </div>
-      <LockScreenPreview
-        compact
-        title={next?.title ?? 'Lernzeit'}
-        body={next?.body ?? 'Es ist Zeit für deine nächste Einheit.'}
-        when={when}
-        className="flex-1"
-      />
-      <p className="text-[11.5px] text-faint">
-        {next ? 'Berechnet aus eurem Lernplan – so würde StudySpace dich erinnern.' : 'In den nächsten 48 Stunden steht keine Erinnerung an.'}
-        {phase !== 'on' && ' Benachrichtigungen sind auf diesem Gerät noch aus.'}
-      </p>
-    </section>
   );
 }

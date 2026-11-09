@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, CalendarDays, Ellipsis, FileText, GraduationCap, LayoutDashboard, Settings, Timer, Users, type LucideIcon } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, Ellipsis, FileText, GraduationCap, LayoutDashboard, NotebookPen, Settings, Timer, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -13,6 +13,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', short: 'Home', icon: LayoutDashboard, group: 'main' },
   { to: '/lernplan', label: 'Lernplan', icon: CalendarDays, group: 'main' },
+  { to: '/hausaufgaben', label: 'Hausaufgaben', short: 'Hausaufg.', icon: NotebookPen, group: 'main' },
   { to: '/faecher', label: 'Fächer', icon: BookOpen, group: 'main' },
   { to: '/team', label: 'Team', icon: Users, group: 'main' },
   { to: '/pruefungen', label: 'Prüfungen', icon: GraduationCap, group: 'main' },
@@ -25,7 +26,7 @@ export const NAV: NavItem[] = [
 export const MOBILE_NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: LayoutDashboard },
   { to: '/lernplan', label: 'Lernplan', icon: CalendarDays },
-  { to: '/faecher', label: 'Fächer', icon: BookOpen },
+  { to: '/hausaufgaben', label: 'Aufgaben', icon: NotebookPen },
   { to: '/team', label: 'Team', icon: Users },
   { to: '#mehr', label: 'Mehr', icon: Ellipsis },
 ];

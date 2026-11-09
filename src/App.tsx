@@ -14,6 +14,7 @@ import { ProfilePicker } from './pages/ProfilePicker';
 import { Dashboard } from './pages/Dashboard';
 import { Setup } from './pages/Setup';
 import { EntryEditor } from './components/EntryEditor';
+import { HomeworkEditor } from './components/homework/HomeworkEditor';
 import { MoveTaskDialog } from './components/MoveTaskDialog';
 import { SearchPalette } from './components/SearchPalette';
 import { AttachmentPreview } from './components/Attachments';
@@ -21,6 +22,7 @@ import { CelebrationWatcher } from './components/Celebration';
 import type { Member } from './lib/types';
 import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
+import { rememberReturnPath } from './lib/focusReturn';
 import { PushMemberSwitch, PushOnboarding } from './components/PushOnboarding';
 import { BadgeSync } from './components/BadgeSync';
 import { initPush } from './store/push';
@@ -39,7 +41,7 @@ const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
-const FocusImmersive = lazy(() => import('./pages/FocusImmersive').then((m) => ({ default: m.FocusImmersive })));
+const Homework = lazy(() => import('./pages/Homework').then((m) => ({ default: m.Homework })));
 const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
 function Routes({ me }: { me: Member }) {
@@ -55,7 +57,7 @@ function Routes({ me }: { me: Member }) {
   if (path === '/materialien') return <Materials />;
   if (path === '/einstellungen') return <Settings />;
   if (path === '/einstellungen/benachrichtigungen') return <Settings section="benachrichtigungen" />;
-  if (path === '/fokus') return <Focus me={me} />;
+  if (path === '/hausaufgaben') return <Homework me={me} />;
   if (path === '/analyse') return <Analytics me={me} />;
   if (path === '/papierkorb') return <Trash />;
   if (path === '/verlauf') return <Activity />;
@@ -69,6 +71,9 @@ function Main() {
   const select = useSession((s) => s.select);
   const activeId = useSession((s) => s.activeMemberId);
   const members = useActiveMembers();
+
+  // Letzte Seite merken: „Fokus schließen“ führt dorthin zurück
+  useEffect(() => rememberReturnPath(path), [path]);
 
   useEffect(() => {
     startSync();
@@ -87,9 +92,10 @@ function Main() {
       <AnimatePresence mode="wait">
         {!me || !me.is_active ? (
           <ProfilePicker key="picker" />
-        ) : path === '/fokus/vollbild' ? (
-          <Suspense key="focus-full" fallback={<div className="fixed inset-0 bg-[#0b0c1c]" />}>
-            <FocusImmersive />
+        ) : path === '/fokus' || path === '/fokus/vollbild' ? (
+          // Fokus: immer immersiv im Vollbild, ohne App-Rahmen
+          <Suspense key="focus" fallback={<div className="fixed inset-0 bg-[#0b0c1c]" />}>
+            <Focus />
           </Suspense>
         ) : path === '/lernmodus' ? (
           // Lernmodus: Vollbild ohne App-Rahmen
@@ -110,6 +116,7 @@ function Main() {
       {me && me.is_active && <PushMemberSwitch me={me} members={members} />}
       {me && <BadgeSync me={me} />}
       <EntryEditor />
+      {me && <HomeworkEditor />}
       <MoveTaskDialog />
       <SearchPalette />
       <AttachmentPreview />

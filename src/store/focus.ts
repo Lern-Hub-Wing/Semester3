@@ -4,8 +4,10 @@ import { config } from '../lib/config';
 import { uuid } from '../lib/uuid';
 import { describeError } from '../lib/errors';
 import {
-  FOCUS_PRESETS, MIN_SESSION_SEC, elapsedSec, initialFocusState, isFinished, nextPhase, pause as pauseState, reset as resetState, start as startState, type FocusState,
+  FOCUS_PRESETS, MIN_SESSION_SEC, elapsedSec, initialFocusState, isFinished, markFinished, nextPhase, pause as pauseState, phaseDuration, reset as resetState,
+  restartSession, sanitizeRhythm, start as startState, type FocusState, type PresetId, type Rhythm,
 } from '../lib/focus';
+import { DEFAULT_FOCUS_LOOK, loadFocusLook, saveFocusLook, sanitizeFocusLook, type FocusLook } from '../lib/focusLook';
 import { toast } from './toast';
 
 /**
@@ -14,8 +16,8 @@ import { toast } from './toast';
  * – Der Timerzustand liegt im localStorage – er läuft nach Neuladen oder
  *   Sperren des Handys korrekt weiter (Endzeitpunkt statt Herunterzählen).
  * – Abgeschlossene Fokusphasen werden in der Tabelle `focus_sessions`
- *   gespeichert (Migration 004). Fehlt die Tabelle, funktioniert der Timer
- *   trotzdem; nur die Statistik bleibt leer und die App weist darauf hin.
+ *   gespeichert (Migration 004). Pausen zählen nie als Lernzeit. Fehlt die
+ *   Tabelle, funktioniert der Timer trotzdem; nur die Statistik bleibt leer.
  */
 
 const KEY = 'studyspace.focus.v1';
@@ -30,39 +32,116 @@ export interface FocusSession {
   created_at: string;
 }
 
-interface Settings {
-  presetIndex: number;
-  /** Nach der Pause automatisch die nächste Fokusphase starten? */
-  sound: boolean;
+export interface SavedPreset {
+  id: string;
+  name: string;
+  rhythm: Rhythm;
 }
+
+export interface FocusSettings {
+  /** Gewählter Rhythmus: Vorgabe, „custom“ oder gespeicherte Vorlage („saved:<id>“) */
+  preset: PresetId | `saved:${string}`;
+  /** Werte für „Individuell“ */
+  custom: Rhythm;
+  saved: SavedPreset[];
+  sound: boolean;
+  /** Lautstärke 0–100 */
+  volume: number;
+  /** Lokale Mitteilung beim Phasenwechsel (wenn erlaubt) */
+  notify: boolean;
+  /** Nach Ablauf automatisch in die nächste Phase wechseln */
+  autoAdvance: boolean;
+  /** Nächste Phase sofort automatisch starten */
+  autoStart: boolean;
+  /** Timer beim Öffnen der Fokusansicht automatisch starten */
+  autoStartOnOpen: boolean;
+}
+
+export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
+  preset: 'klassisch',
+  custom: { focus: 30, short: 5, long: 20, rounds: 4 },
+  saved: [],
+  sound: true,
+  volume: 60,
+  notify: false,
+  autoAdvance: true,
+  autoStart: false,
+  autoStartOnOpen: false,
+};
 
 interface FocusStore {
   timer: FocusState;
-  settings: Settings;
+  settings: FocusSettings;
+  look: FocusLook;
   sessions: FocusSession[];
   /** null = noch nicht geladen; false = Tabelle fehlt (Migration 004 nicht ausgeführt) */
   available: boolean | null;
   loading: boolean;
   setTimer: (t: FocusState) => void;
-  setSettings: (p: Partial<Settings>) => void;
+  setSettings: (p: Partial<FocusSettings>) => void;
+  setLook: (p: Partial<FocusLook>) => void;
+  resetLook: () => void;
 }
 
-function loadLocal(): { timer: FocusState; settings: Settings } {
-  const fallback = { timer: initialFocusState(25), settings: { presetIndex: 0, sound: true } };
+export function sanitizeSettings(input: unknown): FocusSettings {
+  const d = DEFAULT_FOCUS_SETTINGS;
+  const o = (input && typeof input === 'object' ? input : {}) as Partial<Record<keyof FocusSettings, unknown>> & { presetIndex?: unknown };
+  const saved = Array.isArray(o.saved)
+    ? (o.saved as unknown[])
+        .filter((x): x is SavedPreset => !!x && typeof x === 'object' && typeof (x as SavedPreset).id === 'string' && typeof (x as SavedPreset).name === 'string')
+        .slice(0, 12)
+        .map((x) => ({ id: x.id.slice(0, 40), name: x.name.slice(0, 40), rhythm: sanitizeRhythm(x.rhythm) }))
+    : [];
+  let preset: FocusSettings['preset'] = d.preset;
+  if (typeof o.preset === 'string') {
+    if (['kurz', 'klassisch', 'intensiv', 'custom'].includes(o.preset)) preset = o.preset as PresetId;
+    else if (o.preset.startsWith('saved:') && saved.some((p) => `saved:${p.id}` === o.preset)) preset = o.preset as `saved:${string}`;
+  } else if (typeof o.presetIndex === 'number') {
+    // Alte Version: 25/5, 50/10, 90/15
+    preset = o.presetIndex === 1 ? 'intensiv' : 'klassisch';
+  }
+  const bool = (v: unknown, f: boolean) => (typeof v === 'boolean' ? v : f);
+  return {
+    preset,
+    custom: sanitizeRhythm(o.custom, d.custom),
+    saved,
+    sound: bool(o.sound, d.sound),
+    volume: typeof o.volume === 'number' && Number.isFinite(o.volume) ? Math.min(100, Math.max(0, Math.round(o.volume))) : d.volume,
+    notify: bool(o.notify, d.notify),
+    autoAdvance: bool(o.autoAdvance, d.autoAdvance),
+    autoStart: bool(o.autoStart, d.autoStart),
+    autoStartOnOpen: bool(o.autoStartOnOpen, d.autoStartOnOpen),
+  };
+}
+
+/** Aktueller Rhythmus aus den Einstellungen */
+export function rhythmOf(s: FocusSettings): Rhythm {
+  if (s.preset === 'custom') return s.custom;
+  if (s.preset.startsWith('saved:')) return s.saved.find((p) => `saved:${p.id}` === s.preset)?.rhythm ?? FOCUS_PRESETS[1]!.rhythm;
+  return FOCUS_PRESETS.find((p) => p.id === s.preset)?.rhythm ?? FOCUS_PRESETS[1]!.rhythm;
+}
+
+function loadLocal(): { timer: FocusState; settings: FocusSettings } {
+  const settings = DEFAULT_FOCUS_SETTINGS;
+  const fallback = { timer: initialFocusState(rhythmOf(settings).focus), settings };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fallback;
-    const p = JSON.parse(raw) as { timer?: Partial<FocusState>; settings?: Partial<Settings> };
-    const t = { ...fallback.timer, ...p.timer } as FocusState;
-    if (typeof t.durationSec !== 'number' || t.durationSec <= 0 || t.durationSec > 4 * 3600) return fallback;
-    const presetIndex = Number.isInteger(p.settings?.presetIndex) && p.settings!.presetIndex! >= 0 && p.settings!.presetIndex! < FOCUS_PRESETS.length ? p.settings!.presetIndex! : 0;
-    return { timer: t, settings: { presetIndex, sound: p.settings?.sound !== false } };
+    const p = JSON.parse(raw) as { timer?: Partial<FocusState>; settings?: unknown };
+    const st = sanitizeSettings(p.settings);
+    const t = { ...initialFocusState(rhythmOf(st).focus), ...p.timer } as FocusState;
+    const valid =
+      typeof t.durationSec === 'number' && t.durationSec > 0 && t.durationSec <= 4 * 3600 && (t.phase === 'focus' || t.phase === 'break') && Number.isInteger(t.round) && t.round >= 1;
+    return { timer: valid ? { ...t, long: !!t.long, finished: !!t.finished } : initialFocusState(rhythmOf(st).focus), settings: st };
   } catch {
     return fallback;
   }
 }
 
-const initial = typeof window === 'undefined' ? { timer: initialFocusState(25), settings: { presetIndex: 0, sound: true } } : loadLocal();
+const initial =
+  typeof window === 'undefined'
+    ? { timer: initialFocusState(25), settings: DEFAULT_FOCUS_SETTINGS, look: DEFAULT_FOCUS_LOOK }
+    : { ...loadLocal(), look: loadFocusLook() };
 
 export const useFocus = create<FocusStore>((set, get) => ({
   ...initial,
@@ -74,13 +153,22 @@ export const useFocus = create<FocusStore>((set, get) => ({
     persist(timer, get().settings);
   },
   setSettings: (p) => {
-    const settings = { ...get().settings, ...p };
+    const settings = sanitizeSettings({ ...get().settings, ...p });
     set({ settings });
     persist(get().timer, settings);
   },
+  setLook: (p) => {
+    const look = sanitizeFocusLook({ ...get().look, ...p });
+    set({ look });
+    saveFocusLook(look);
+  },
+  resetLook: () => {
+    set({ look: DEFAULT_FOCUS_LOOK });
+    saveFocusLook(DEFAULT_FOCUS_LOOK);
+  },
 }));
 
-function persist(timer: FocusState, settings: Settings) {
+function persist(timer: FocusState, settings: FocusSettings) {
   try {
     localStorage.setItem(KEY, JSON.stringify({ timer, settings }));
   } catch {
@@ -88,55 +176,101 @@ function persist(timer: FocusState, settings: Settings) {
   }
 }
 
-export function currentPreset() {
-  return FOCUS_PRESETS[useFocus.getState().settings.presetIndex] ?? FOCUS_PRESETS[0];
+export function currentRhythm(): Rhythm {
+  return rhythmOf(useFocus.getState().settings);
+}
+
+/** Passt eine noch nicht gestartete Phase an einen geänderten Rhythmus an. */
+function applyRhythmToIdle() {
+  const { timer, setTimer } = useFocus.getState();
+  if (timer.endsAt !== null || timer.pausedRemainingSec !== null) return;
+  const r = currentRhythm();
+  setTimer({ ...resetState(timer, phaseDuration(timer.phase, timer.long, r)), round: Math.min(timer.round, r.rounds) });
 }
 
 export const focusActions = {
   start() {
     const { timer, setTimer } = useFocus.getState();
+    if (timer.finished) return focusActions.advance(true);
     setTimer(startState(timer, Date.now()));
   },
   pause() {
     const { timer, setTimer } = useFocus.getState();
     setTimer(pauseState(timer, Date.now()));
   },
+  /** Aktuelle Phase neu beginnen (Runde bleibt) */
   reset() {
     const { timer, setTimer } = useFocus.getState();
-    const p = currentPreset();
-    setTimer({ ...resetState(timer, (timer.phase === 'focus' ? p.focus : p.rest) * 60) });
+    setTimer(resetState(timer, phaseDuration(timer.phase, timer.long, currentRhythm())));
   },
-  choosePreset(index: number) {
-    const { setSettings, setTimer, timer } = useFocus.getState();
-    setSettings({ presetIndex: index });
-    const p = FOCUS_PRESETS[index] ?? FOCUS_PRESETS[0];
-    setTimer({ ...resetState(timer, p.focus * 60), phase: 'focus' });
+  /** Nach einer beendeten Phase (ohne Auto-Wechsel) bzw. zum Überspringen: nächste Phase */
+  advance(startNow = useFocus.getState().settings.autoStart) {
+    const { timer, setTimer } = useFocus.getState();
+    const next = nextPhase(timer, currentRhythm());
+    setTimer(startNow ? startState(next, Date.now()) : next);
+  },
+  /** Pause überspringen → nächste Fokusrunde startet sofort */
+  skipBreak() {
+    const { timer } = useFocus.getState();
+    if (timer.phase !== 'break') return;
+    focusActions.advance(true);
+  },
+  choosePreset(preset: FocusSettings['preset']) {
+    useFocus.getState().setSettings({ preset });
+    const { timer, setTimer } = useFocus.getState();
+    if (timer.endsAt === null && timer.pausedRemainingSec === null) setTimer(restartSession(timer, currentRhythm()));
+  },
+  setCustom(p: Partial<Rhythm>) {
+    const { settings, setSettings } = useFocus.getState();
+    setSettings({ custom: sanitizeRhythm({ ...settings.custom, ...p }), preset: 'custom' });
+    applyRhythmToIdle();
+  },
+  savePreset(name: string) {
+    const { settings, setSettings } = useFocus.getState();
+    const id = uuid().slice(0, 8);
+    const clean = name.trim().slice(0, 40) || `Vorlage ${settings.saved.length + 1}`;
+    setSettings({ saved: [...settings.saved, { id, name: clean, rhythm: rhythmOf(settings) }].slice(-12), preset: `saved:${id}` });
+  },
+  deletePreset(id: string) {
+    const { settings, setSettings } = useFocus.getState();
+    const preset = settings.preset === `saved:${id}` ? 'custom' : settings.preset;
+    const custom = settings.preset === `saved:${id}` ? rhythmOf(settings) : settings.custom;
+    setSettings({ saved: settings.saved.filter((p) => p.id !== id), preset, custom });
   },
   setModule(moduleId: string | null) {
     const { setTimer, timer } = useFocus.getState();
     setTimer({ ...timer, moduleId });
   },
-  /** Fokusphase vorzeitig beenden und die bisher gelernte Zeit speichern */
-  async finishEarly(memberId: string) {
+  /** Session beenden: bisher gelernte Fokuszeit speichern, zurück auf Runde 1 */
+  async endSession(memberId: string | null) {
     const { timer, setTimer } = useFocus.getState();
     const now = Date.now();
-    if (timer.phase === 'focus') await recordSession(memberId, timer, now, elapsedSec(timer, now));
-    const p = currentPreset();
-    setTimer({ ...resetState(timer, p.focus * 60), phase: 'focus' });
+    if (timer.phase === 'focus' && !timer.finished && memberId) await recordSession(memberId, timer, now, elapsedSec(timer, now));
+    setTimer(restartSession(timer, currentRhythm()));
   },
 };
 
 /**
  * Prüft, ob die laufende Phase abgelaufen ist; speichert eine beendete
- * Fokusphase und wechselt in die nächste Phase. Gibt die beendete Phase zurück.
+ * Fokusphase und wechselt (je nach Einstellung) in die nächste Phase.
+ * Gibt die beendete Phase zurück.
  */
-export async function tickFocus(memberId: string | null, now = Date.now()): Promise<'focus' | 'break' | null> {
-  const { timer, setTimer } = useFocus.getState();
+export async function tickFocus(memberId: string | null, now = Date.now()): Promise<{ phase: 'focus' | 'break'; long: boolean } | null> {
+  const { timer, setTimer, settings } = useFocus.getState();
   if (!isFinished(timer, now)) return null;
-  const done = timer.phase;
-  const p = currentPreset();
-  setTimer(nextPhase(timer, p.focus, p.rest));
-  if (done === 'focus' && memberId) await recordSession(memberId, timer, timer.endsAt ?? now, timer.durationSec);
+  const done = { phase: timer.phase, long: timer.long };
+  if (settings.autoAdvance) {
+    const next = nextPhase(timer, rhythmOf(settings));
+    // Bei Autostart beginnt die nächste Phase genau am Ende der vorherigen –
+    // aber nur, wenn sie nicht schon längst vorbei wäre (App lange geschlossen):
+    // so entsteht nie Lernzeit, die niemand gesehen hat.
+    const at = timer.endsAt ?? now;
+    const stale = now - at > next.durationSec * 1000;
+    setTimer(settings.autoStart && !stale ? startState(next, at) : next);
+  } else {
+    setTimer(markFinished(timer));
+  }
+  if (done.phase === 'focus' && memberId) await recordSession(memberId, timer, timer.endsAt ?? now, timer.durationSec);
   return done;
 }
 

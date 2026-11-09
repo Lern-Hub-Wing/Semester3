@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import { Archive, BookOpen, CalendarDays, FileText, GraduationCap, Layers, ListChecks, RotateCcw, Trash2 } from 'lucide-react';
+import { Archive, BookOpen, CalendarDays, FileText, GraduationCap, Layers, ListChecks, NotebookPen, RotateCcw, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatISODate, formatInstant } from '../lib/time';
 import { useData } from '../store/data';
 import { restoreAttachment, restoreEntry, restoreExam, restoreModule, restoreTask, restoreTopic } from '../store/actions';
+import { useHomework, updateHomework } from '../store/homework';
 import { PageHeader } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -22,8 +23,17 @@ interface Item {
 /** Papierkorb: Nichts wird sofort endgültig gelöscht. Wiederherstellen behält alle Haken. */
 export function Trash() {
   const d = useData();
+  const homework = useHomework((s) => s.homework);
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
+    for (const h of Object.values(homework)) {
+      if (!h.deleted_at) continue;
+      out.push({
+        id: h.id, kind: 'Hausaufgabe', icon: <NotebookPen />, title: h.title,
+        meta: `${d.modules[h.module_id]?.name ?? ''} · Abgabe ${formatISODate(h.due_date, { day: 'numeric', month: 'short' })}`,
+        at: h.deleted_at, restore: () => updateHomework(h.id, { deleted_at: null }),
+      });
+    }
     for (const t of Object.values(d.tasks)) {
       if (!t.deleted_at) continue;
       const e = d.study_entries[t.study_entry_id];
@@ -63,11 +73,11 @@ export function Trash() {
       out.push({ id: m.id, kind: 'Modul', icon: <BookOpen />, title: m.name, meta: 'Archiviertes Modul', at: m.archived_at, restore: () => restoreModule(m.id) });
     }
     return out.sort((a, b) => b.at.localeCompare(a.at));
-  }, [d]);
+  }, [d, homework]);
 
   return (
     <div>
-      <PageHeader title="Papierkorb" subtitle="Gelöschte und archivierte Inhalte. Beim Wiederherstellen bleiben alle Haken erhalten." />
+      <PageHeader title="Papierkorb" />
       {items.length === 0 ? (
         <Card>
           <EmptyState icon={<Trash2 className="size-6" />} title="Der Papierkorb ist leer" />

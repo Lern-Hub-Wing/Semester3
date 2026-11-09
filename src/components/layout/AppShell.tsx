@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Seitenleiste aus echtem Liquid Glass: kompakt auf Tablets, ausführlich auf dem Desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[100px] flex-col p-2.5 md:flex lg:w-[264px] lg:p-4">
-        <div className="glass mat-nav glass-tint flex h-full flex-col rounded-[30px] p-2 lg:p-3">
+        <div className="glass mat-nav ss-sidebar flex h-full flex-col rounded-[30px] p-2 lg:p-3">
           <Link to="/" className="mb-5 mt-1 flex items-center justify-center gap-3 rounded-2xl px-2 py-2.5 lg:justify-start lg:px-3" aria-label={`${appName} – Dashboard`}>
             <LogoMark size={36} />
             <span className="title hidden truncate text-[18px] lg:block">{appName}</span>
@@ -141,8 +141,12 @@ function SideLink({ item, active }: { item: (typeof NAV)[number]; active: boolea
         active ? 'text-ink' : 'text-muted hover:text-ink'
       }`}
     >
-      {active && <motion.span layoutId="nav-active" className="lens absolute inset-0 rounded-[18px]" transition={spring.tab} />}
-      <item.icon className="nav-item-icon relative size-[21px] lg:size-[19px]" strokeWidth={active ? 2.1 : 1.75} aria-hidden />
+      {active && (
+        <motion.span layoutId="nav-active" className="lens side-lens absolute inset-0 rounded-[18px]" transition={spring.tab}>
+          <span aria-hidden className="side-lens-glow" />
+        </motion.span>
+      )}
+      <item.icon className={`nav-item-icon relative size-[21px] lg:size-[19px] ${active ? 'text-accent' : ''}`} strokeWidth={active ? 2.1 : 1.75} aria-hidden />
       <span className="relative max-w-full truncate lg:hidden">{item.short ?? item.label}</span>
       <span className="relative hidden lg:inline">{item.label}</span>
       {badge !== null && (
@@ -178,7 +182,7 @@ function MoreSheet() {
     navigate(to);
   };
   const items = [
-    ...NAV.filter((n) => ['/pruefungen', '/materialien', '/fokus', '/analyse', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
+    ...NAV.filter((n) => ['/faecher', '/pruefungen', '/materialien', '/fokus', '/analyse', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
     { label: 'Suche', icon: Search, run: () => (close(), setUI({ searchOpen: true })) },
     { label: 'Lernmodus', icon: Clock3, run: () => (close(), startStudyMode()) },
     { label: 'Papierkorb', icon: Trash2, run: () => go('/papierkorb') },

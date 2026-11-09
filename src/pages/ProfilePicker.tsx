@@ -175,7 +175,7 @@ export function ProfilePicker() {
                       type="button"
                       onClick={(e) => pick(m.id, m.color, e.currentTarget)}
                       whileTap={reduce ? undefined : { scale: 0.96 }}
-                      className="glass lift group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-[30px] px-3 pb-6 pt-7 text-center"
+                      className="glass picker-card group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-[30px] px-3 pb-6 pt-7 text-center"
                       aria-label={`Als ${m.name} lernen`}
                     >
                       <span

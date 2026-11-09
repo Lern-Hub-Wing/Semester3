@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { AlarmClock, CalendarDays, CalendarRange, ChevronRight, Clock3, FileText, GraduationCap, Play, Plus, RotateCw, Timer, Users } from 'lucide-react';
+import { AlarmClock, CalendarDays, CalendarRange, ChevronRight, Clock3, FileText, GraduationCap, NotebookPen, Play, Plus, Timer, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { groupBy, isDone, memberRatio, overdueFor, type TaskView } from '../lib/progress';
 import { addDaysISO, formatISODate, formatInstant, greetingFor, relativeDayLabel } from '../lib/time';
@@ -18,8 +18,10 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { TaskRow } from '../components/TaskRow';
 import { TeamProgressGrid } from '../components/MemberProgress';
 import { SemesterTimeline } from '../components/SemesterTimeline';
-import { FocusPanel } from '../components/FocusPanel';
-import { NextReminderCard } from '../components/LockScreenPreview';
+import { FocusLauncher } from '../components/FocusPanel';
+import { HomeworkDashCard } from '../components/homework/HomeworkDashCard';
+import { useHomework } from '../store/homework';
+import { openHomeworkEditor } from '../store/ui';
 import { NextExamCard, ProgressCard, TodayCard, useDashboardRatios } from '../components/dashboard/HeroCards';
 import { Landscape } from '../components/landscape/Landscape';
 import { Card, CardHeader, ModuleChip } from '../components/ui/Card';
@@ -89,19 +91,16 @@ export function Dashboard({ me }: { me: Member }) {
             <NextExamCard memberId={me.id} />
             <ProgressCard me={me} mine={mine} group={group} ringSize={104} />
             <TodayCard views={todayViews} today={today} me={me} members={members} allEmpty={views.length === 0} />
-            <TeamCard me={me} members={members} views={views} />
+            <Card className="p-4" data-testid="focus-card">
+              <FocusLauncher />
+            </Card>
+            <HomeworkDashCard me={me} />
             {overdue.length > 0 && <OverdueCard overdue={overdue} me={me} members={members} today={today} />}
             <Card className="p-4">
-              <CardHeader title="Fokus" subtitle="Konzentriert lernen mit Pausen" icon={<Timer />} />
-              <div className="mt-4">
-                <FocusPanel compact />
-              </div>
-            </Card>
-            <NextReminderCard memberId={me.id} />
-            <Card className="p-4">
-              <CardHeader title="Semester-Timeline" subtitle="Lernphasen und Prüfungen" icon={<CalendarRange />} />
+              <CardHeader title="Semester-Timeline" icon={<CalendarRange />} action={<TimelineLink />} />
               <SemesterTimeline compact className="mt-4" />
             </Card>
+            <TeamCard me={me} members={members} views={views} />
             <UpcomingDays views={views} me={me} today={today} />
             <UpcomingExams />
             <StudyModeCard />
@@ -120,31 +119,14 @@ export function Dashboard({ me }: { me: Member }) {
           </section>
 
           <div className="stagger grid grid-flow-row-dense grid-cols-1 gap-[var(--gap-grid)] md:grid-cols-2 lg:grid-cols-12">
-            <Card className="p-5 md:col-span-2 md:p-6 lg:col-span-8" data-testid="focus-card">
-              <CardHeader title="Fokus" subtitle="Konzentriert lernen mit Pausen" icon={<Timer />} action={<Link to="/fokus" className="text-sm font-medium text-accent">Fokus-Bereich</Link>} />
-              <div className="mt-5">
-                <FocusPanel compact />
-              </div>
+            <Card className="flex items-center p-5 md:col-span-2 md:p-8 lg:col-span-7" data-testid="focus-card">
+              <FocusLauncher large />
             </Card>
-            <div className="md:col-span-1 lg:col-span-4">
-              <NextReminderCard memberId={me.id} />
-            </div>
-            <div className="md:col-span-1 lg:col-span-4">
-              <TeamCard me={me} members={members} views={views} />
-            </div>
-            <Reveal className="md:col-span-2 lg:col-span-8">
+            <HomeworkDashCard me={me} className="md:col-span-2 lg:col-span-5" />
+            <Reveal className="md:col-span-2 lg:col-span-12">
               <Card className="h-full p-5 md:p-6">
-                <CardHeader
-                  title="Semester-Timeline"
-                  subtitle="Lernphasen und Prüfungen"
-                  icon={<CalendarRange />}
-                  action={
-                    <Link to="/lernplan?ansicht=timeline" className="flex items-center gap-1 text-sm font-medium text-accent">
-                      Öffnen <ChevronRight className="size-4" aria-hidden />
-                    </Link>
-                  }
-                />
-                <SemesterTimeline compact className="mt-4" />
+                <CardHeader title="Semester-Timeline" icon={<CalendarRange />} action={<TimelineLink />} />
+                <SemesterTimeline className="mt-4" />
               </Card>
             </Reveal>
             {overdue.length > 0 && (
@@ -152,10 +134,13 @@ export function Dashboard({ me }: { me: Member }) {
                 <OverdueCard overdue={overdue} me={me} members={members} today={today} />
               </div>
             )}
-            <Reveal className="md:col-span-1 lg:col-span-6">
+            <div className="md:col-span-2 lg:col-span-4">
+              <TeamCard me={me} members={members} views={views} />
+            </div>
+            <Reveal className="md:col-span-1 lg:col-span-4">
               <UpcomingDays views={views} me={me} today={today} />
             </Reveal>
-            <Reveal className="md:col-span-1 lg:col-span-6">
+            <Reveal className="md:col-span-1 lg:col-span-4">
               <UpcomingExams />
             </Reveal>
             <Reveal className="md:col-span-2 lg:col-span-12">
@@ -165,6 +150,14 @@ export function Dashboard({ me }: { me: Member }) {
         </>
       )}
     </div>
+  );
+}
+
+function TimelineLink() {
+  return (
+    <Link to="/lernplan?ansicht=timeline" className="flex items-center gap-1 text-sm font-medium text-accent">
+      Öffnen <ChevronRight className="size-4" aria-hidden />
+    </Link>
   );
 }
 
@@ -201,8 +194,10 @@ function Greeting({ me, today, motivation }: { me: Member; today: string; motiva
 
 function QuickActions({ onContinue, onNewEntry, hasOpen }: { onContinue: () => void; onNewEntry: () => void; hasOpen: boolean }) {
   const reduce = useReducedMotion();
+  const homeworkReady = useHomework((s) => s.available === true);
   const items = [
     { label: 'Aufgabe+', icon: <Plus className="size-4" />, run: onNewEntry },
+    ...(homeworkReady ? [{ label: 'Hausaufgabe', icon: <NotebookPen className="size-4" />, run: () => openHomeworkEditor() }] : []),
     { label: 'Fokus', icon: <Timer className="size-4" />, run: () => navigate('/fokus') },
     { label: 'Material', icon: <FileText className="size-4" />, run: () => navigate('/materialien') },
   ];
@@ -215,7 +210,7 @@ function QuickActions({ onContinue, onNewEntry, hasOpen }: { onContinue: () => v
       </motion.div>
       {items.map((it, i) => (
         <motion.div key={it.label} initial={reduce ? false : { opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, delay: 0.32 + i * 0.05, ease: EASE_EMPH }}>
-          <Button variant="glass" icon={it.icon} onClick={it.run} aria-label={it.label === 'Aufgabe+' ? 'Neuen Lerntag mit Aufgaben anlegen' : undefined}>
+          <Button variant="glass" icon={it.icon} onClick={it.run} aria-label={it.label === 'Aufgabe+' ? 'Neuen Lerntag mit Aufgaben anlegen' : it.label === 'Hausaufgabe' ? 'Neue Hausaufgabe anlegen' : undefined}>
             {it.label}
           </Button>
         </motion.div>
@@ -257,10 +252,9 @@ function TeamCard({ me, members, views }: { me: Member; members: Member[]; views
   const mobile = useIsMobile();
 
   return (
-    <Card className="h-full p-5 md:p-6">
+    <Card className="p-5 md:p-6" data-testid="team-card">
       <CardHeader
         title="Team"
-        subtitle={`${members.length} aktive ${members.length === 1 ? 'Person' : 'Personen'}`}
         icon={<Users />}
         action={
           <Segmented
@@ -276,7 +270,7 @@ function TeamCard({ me, members, views }: { me: Member; members: Member[]; views
         }
       />
       {/* Immer alle aktiven Personen – auf dem Handy kompakter */}
-      <TeamProgressGrid members={members} views={views} meId={me.id} ringSize={mobile ? 66 : 76} className="mt-4" />
+      <TeamProgressGrid members={members} views={views} meId={me.id} ringSize={mobile ? 62 : 64} className="mt-4" />
     </Card>
   );
 }
@@ -385,12 +379,8 @@ function StudyModeCard() {
             <Clock3 className="size-3.5" aria-hidden /> Lernmodus
           </p>
           <h2 id="study-mode-title" className="title mt-1 text-xl">
-            Konzentriert lernen mit der Vollbild-Uhr
+            Vollbild-Uhr
           </h2>
-          <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted md:justify-start">
-            <RotateCw className="size-4 shrink-0" aria-hidden />
-            Handy quer hinlegen – die Uhrzeit läuft sekundengenau im Vollbild, alles andere blendet sich aus.
-          </p>
           {iphoneBrowser && (
             <p className="mt-1.5 text-xs text-faint" data-testid="iphone-install-hint">
               iPhone: Vollbild gibt es nur, wenn StudySpace über „Teilen → Zum Home-Bildschirm“ hinzugefügt und von dort geöffnet wird.

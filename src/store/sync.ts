@@ -4,6 +4,7 @@ import { TABLES, rowKey, type RowByTable, type TableName } from '../lib/types';
 import { describeError } from '../lib/errors';
 import { emptyTables, useData, useSyncStatus, type TableState } from './data';
 import { applyServerDelete, applyServerRows, confirmedRow, isPending, replaceTable } from './engine';
+import { applyHomeworkChange, loadHomework } from './homework';
 
 const CACHE_KEY = 'studyspace.cache.v1';
 const PAGE = 1000;
@@ -42,6 +43,8 @@ export function resync(): Promise<void> {
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
     try {
+      // Hausaufgaben unabhängig laden – ihr Fehlen (Migration 005) stört den Rest nicht
+      void loadHomework();
       const results = await Promise.all(TABLES.map((t) => fetchTable(t)));
       TABLES.forEach((t, i) => replaceTable(t, results[i] as RowByTable[typeof t][]));
       useData.setState({ phase: 'ready', fromCache: false, error: null, lastSyncAt: Date.now() });
@@ -126,7 +129,11 @@ let wasDisconnected = false;
 
 function handleChange(payload: RealtimePostgresChangesPayload<Record<string, unknown>>) {
   const table = payload.table as TableName;
-  if (!TABLES.includes(table)) return;
+  if (!TABLES.includes(table)) {
+    // Zusatztabellen (z. B. Hausaufgaben) haben eigene Stores
+    applyHomeworkChange(payload.table, payload.eventType, payload.new as Record<string, unknown>);
+    return;
+  }
   if (payload.eventType === 'DELETE') {
     const old = payload.old as unknown as RowByTable[typeof table];
     try {

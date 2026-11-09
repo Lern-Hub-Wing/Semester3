@@ -60,7 +60,7 @@ export function Materials() {
 
   return (
     <div>
-      <PageHeader title="Materialien" subtitle="Lernzettel, Bilder und PDFs – für alle verfügbar." />
+      <PageHeader title="Materialien" />
 
       <Card className="mb-6 p-4 md:p-5">
         <h2 className="mb-3 text-[15px] font-semibold">Datei hinzufügen</h2>

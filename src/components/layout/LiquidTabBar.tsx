@@ -1,112 +1,70 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { motion, useAnimate, useReducedMotion } from 'motion/react';
-import { spring } from '../../lib/motion';
-import { Link, useLocation } from '../../lib/router';
+import { forwardRef, useMemo, type AnchorHTMLAttributes, type MouseEvent } from 'react';
+import { TabBar } from 'glisse';
+import { useLocation } from '../../lib/router';
 import { haptic } from '../../lib/haptics';
 import { useUI } from '../../store/ui';
 import { MOBILE_NAV, isActive } from './nav';
 
-const PAD = 6; // Innenabstand der Leiste (px), passend zu p-1.5
+const MORE = '#mehr';
 
 /**
- * Schwebende Tab-Leiste im Liquid-Glass-Stil (Smartphone).
- * Bedienung ausschließlich über Antippen (und Tastatur); die gläserne Linse
- * gleitet weich zum gewählten Tab. Seiten aus „Mehr“ heben den Mehr-Tab hervor.
+ * Link für die Glisse-Tab-Leiste: normale Hash-Links für Seiten,
+ * „Mehr“ öffnet stattdessen das Blatt mit weiteren Bereichen.
+ * Glisse verhindert Klicks selbst, wenn gerade gezogen wurde.
+ */
+const TabLink = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(function TabLink({ href, onClick, ...rest }, ref) {
+  const more = href === MORE;
+  return (
+    <a
+      ref={ref}
+      href={more ? MORE : href}
+      role={more ? 'button' : undefined}
+      aria-haspopup={more ? 'dialog' : undefined}
+      {...rest}
+      onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+        onClick?.(e);
+        if (e.defaultPrevented) return;
+        haptic('tap');
+        if (more) {
+          e.preventDefault();
+          useUI.getState().set({ moreOpen: true });
+        } else {
+          useUI.getState().set({ moreOpen: false });
+        }
+      }}
+    />
+  );
+});
+
+/**
+ * Schwebende Tab-Leiste (Smartphone) auf Basis von Glisse.
+ * – Antippen wechselt die Seite.
+ * – Finger auf der Leiste halten und ziehen: die gläserne Linse folgt dem
+ *   Finger, rastet beim Loslassen federnd ein und erst dann wird navigiert.
+ * – Vertikales Scrollen bleibt frei (touch-action: pan-y); keine Wischgesten
+ *   über dem Seiteninhalt.
  */
 export function LiquidTabBar() {
   const { path } = useLocation();
-  const setUI = useUI((s) => s.set);
   const moreOpen = useUI((s) => s.moreOpen);
-  const reduce = useReducedMotion();
-  const barRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
 
-  const count = MOBILE_NAV.length;
-  const routeIndex = MOBILE_NAV.findIndex((item) => item.to !== '#mehr' && isActive(path, item.to));
-  const activeIndex = moreOpen || routeIndex === -1 ? count - 1 : routeIndex;
+  const routeIndex = MOBILE_NAV.findIndex((item) => item.to !== MORE && isActive(path, item.to));
+  const value = moreOpen || routeIndex === -1 ? MORE : MOBILE_NAV[routeIndex]!.to;
 
-  useLayoutEffect(() => {
-    const el = barRef.current;
-    if (!el) return;
-    const update = () => setWidth(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const tabWidth = width > 0 ? (width - PAD * 2) / count : 0;
-
-  // Elastic Tab Morph: Die Linse dehnt sich beim Gleiten und federt zurück
-  const [lensScope, animateLens] = useAnimate();
-  const prevIndex = useRef(activeIndex);
-  useEffect(() => {
-    if (prevIndex.current === activeIndex || reduce || !lensScope.current) {
-      prevIndex.current = activeIndex;
-      return;
-    }
-    const dist = Math.abs(activeIndex - prevIndex.current);
-    prevIndex.current = activeIndex;
-    void animateLens(lensScope.current, { scaleX: [1, 1 + Math.min(0.12 + dist * 0.08, 0.4), 1], scaleY: [1, 0.86, 1] }, { duration: 0.5, ease: [0.22, 1, 0.36, 1] });
-  }, [activeIndex, reduce, animateLens, lensScope]);
+  const items = useMemo(
+    () =>
+      MOBILE_NAV.map((item) => ({
+        value: item.to,
+        label: item.label,
+        icon: <item.icon strokeWidth={1.8} />,
+        href: item.to === MORE ? MORE : `#${item.to}`,
+      })),
+    [],
+  );
 
   return (
-    <nav aria-label="Hauptnavigation" className="tabbar fixed inset-x-0 bottom-0 z-40 px-3 md:hidden">
-      <div ref={barRef} className="glass mat-nav relative mx-auto flex max-w-md items-stretch rounded-[30px] p-1.5">
-        {tabWidth > 0 && (
-          <motion.span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-1.5 left-1.5"
-            style={{ width: tabWidth }}
-            initial={false}
-            animate={{ x: tabWidth * activeIndex }}
-            transition={reduce ? { duration: 0 } : spring.tab}
-          >
-            <span ref={lensScope} className="lens absolute inset-0 rounded-[22px]" />
-          </motion.span>
-        )}
-        {MOBILE_NAV.map((item, i) => {
-          const more = item.to === '#mehr';
-          const active = i === activeIndex;
-          const content = (
-            <span className="tab-press relative flex flex-col items-center gap-0.5">
-              <item.icon className={`size-[22px] transition-transform duration-300 ${active ? '-translate-y-px' : ''}`} strokeWidth={active ? 2.1 : 1.7} aria-hidden />
-              <span className={`text-[10.5px] ${active ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
-            </span>
-          );
-          const cls = `relative z-[1] flex min-h-[54px] flex-1 flex-col items-center justify-center rounded-[22px] transition-colors duration-200 ${
-            active ? 'text-ink' : 'text-muted'
-          }`;
-          return more ? (
-            <button
-              key={item.to}
-              type="button"
-              className={cls}
-              onClick={() => {
-                haptic('tap');
-                setUI({ moreOpen: true });
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={moreOpen}
-            >
-              {content}
-            </button>
-          ) : (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cls}
-              aria-current={i === routeIndex ? 'page' : undefined}
-              onClick={() => {
-                haptic('tap');
-                setUI({ moreOpen: false });
-              }}
-            >
-              {content}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <div className="tabbar fixed inset-x-0 bottom-0 z-40 px-3 md:hidden">
+      <TabBar aria-label="Hauptnavigation" className="ss-tabbar mx-auto" items={items} value={value} link={TabLink} />
+    </div>
   );
 }
