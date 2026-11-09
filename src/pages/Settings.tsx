@@ -168,6 +168,17 @@ function Appearance() {
           ]}
         />
       </Row>
+      <Row label="Klänge" hint="Leise Töne beim Antippen, Auswählen und Abhaken. Auf dem iPhone gilt der Stummschalter.">
+        <Segmented
+          label="Klänge"
+          value={prefs.sounds ? 'an' : 'aus'}
+          onChange={(v) => prefs.set({ sounds: v === 'an' })}
+          options={[
+            { value: 'aus', label: 'Aus' },
+            { value: 'an', label: 'An' },
+          ]}
+        />
+      </Row>
       {/* Nur anzeigen, wo das Gerät wirklich vibrieren kann (z. B. Android). iOS Safari unterstützt die Vibration API nicht. */}
       {isHapticsSupported() && (
         <Row label="Haptisches Feedback" hint="Kurze, dezente Vibration bei wichtigen Aktionen.">

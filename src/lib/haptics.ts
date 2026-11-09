@@ -9,6 +9,8 @@
  * – Abschaltbar in den Einstellungen („Haptisches Feedback“).
  */
 
+import { playUiSound } from './sound';
+
 export type HapticKind = 'tap' | 'select' | 'success' | 'toggle';
 
 const PATTERNS: Record<HapticKind, number | number[]> = {
@@ -34,6 +36,9 @@ export function setHapticsEnabled(value: boolean) {
 
 /** Löst einen kurzen Impuls aus, falls unterstützt und eingeschaltet. Gibt zurück, ob vibriert wurde. */
 export function haptic(kind: HapticKind = 'tap', now: number = Date.now(), nav: Navigator | undefined = typeof navigator === 'undefined' ? undefined : navigator): boolean {
+  // Passender, sehr leiser Klang zur Rückmeldung (eigene Einstellung „Klänge“)
+  // (synchron, damit iOS den Ton als Reaktion auf die Berührung zulässt)
+  if (typeof window !== 'undefined') playUiSound(kind);
   if (!enabled || !isHapticsSupported(nav)) return false;
   if (now - lastAt < MIN_INTERVAL_MS) return false;
   lastAt = now;

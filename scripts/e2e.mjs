@@ -743,6 +743,15 @@ try {
     await p.getByTestId('focus-toggle').tap();
     await p.waitForTimeout(300);
     check((await p.getByTestId('focus-toggle').getAttribute('aria-label')) === 'Pausieren', `Fokus (${label}format): Start per Antippen`);
+    // Musik: Lofi an und wieder aus (Klang wird im Browser erzeugt)
+    const music = p.getByRole('button', { name: 'Lofi abspielen' });
+    check((await music.count()) === 1, `Fokus (${label}format): Musik-Knopf vorhanden`);
+    await music.tap();
+    await p.waitForTimeout(700);
+    check((await p.getByRole('button', { name: 'Lofi aus' }).getAttribute('aria-pressed')) === 'true', `Fokus (${label}format): Lofi-Musik eingeschaltet`);
+    await p.getByRole('button', { name: 'Lofi aus' }).tap();
+    const bar = await p.getByRole('toolbar', { name: 'Fokus-Steuerung' }).boundingBox();
+    check(!!bar && bar.x >= 0 && bar.x + bar.width <= viewport.width + 0.5, `Fokus (${label}format): Steuerleiste passt in die Breite`);
     await shot(p, `34-fokus-iphone-${label}`);
     check(errs.length === 0, `keine JavaScript-Fehler (Fokus ${label})${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();

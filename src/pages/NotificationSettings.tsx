@@ -9,7 +9,7 @@ import { Link } from '../lib/router';
 import { spring } from '../lib/motion';
 import { formatInstant } from '../lib/time';
 import { useNow } from '../hooks/useNow';
-import { disablePush, enablePush, initPush, sendTestPush, setPushMember, updatePushPrefs, usePush, type PushPhase } from '../store/push';
+import { disablePush, enablePush, initPush, refreshPushStatus, sendTestPush, setPushMember, updatePushPrefs, usePush, type PushPhase } from '../store/push';
 import { useActiveMembers, useCurrentMember } from '../store/derived';
 import { toast } from '../store/toast';
 import { Card, CardHeader, IconTile } from '../components/ui/Card';
@@ -25,6 +25,9 @@ export function NotificationSettings() {
   useEffect(() => {
     void initPush();
   }, []);
+  useEffect(() => {
+    if (phase === 'on') void refreshPushStatus();
+  }, [phase]);
   if (!me) return null;
   return (
     <div>
@@ -62,6 +65,32 @@ const STATUS: Record<PushPhase, { icon: ReactNode; tint: string; title: string; 
   unsupported: { icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Nicht unterstützt', text: () => 'Dieser Browser unterstützt keine Web-Push-Benachrichtigungen. Aktuelle Versionen von Safari, Chrome, Edge und Firefox können es.' },
   'not-configured': { icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Server noch nicht eingerichtet', text: () => 'Für Push-Benachrichtigungen fehlen noch VAPID-Schlüssel und Edge Functions (README, Schritt 12). Die App funktioniert ansonsten normal.' },
 };
+
+/** Läuft die Zeitsteuerung (Cron)? Ohne sie gibt es nur Testnachrichten, keine geplanten Erinnerungen. */
+function SchedulerStatus() {
+  const at = usePush((s) => s.schedulerAt);
+  if (at === undefined) return null;
+  const ageMin = at ? (Date.now() - Date.parse(at)) / 60_000 : Infinity;
+  if (ageMin <= 15) {
+    return (
+      <p className="mt-4 flex items-center gap-2 text-[13px] text-muted" data-testid="scheduler-ok">
+        <span className="size-2 rounded-full bg-[var(--ss-success)]" aria-hidden />
+        Automatische Erinnerungen aktiv · zuletzt geprüft {new Date(at!).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+      </p>
+    );
+  }
+  return (
+    <p className="mt-4 flex items-start gap-2 rounded-[14px] bg-[color-mix(in_srgb,var(--ss-warn)_12%,transparent)] px-3 py-2 text-[13px]" data-testid="scheduler-missing">
+      <CircleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
+      <span>
+        {at
+          ? `Die Zeitsteuerung lief zuletzt vor ${Math.round(ageMin)} Minuten – geplante Erinnerungen kommen gerade nicht an.`
+          : 'Geplante Erinnerungen sind noch nicht eingerichtet – nur Testnachrichten funktionieren.'}{' '}
+        Dafür in Supabase <code>supabase/cron.sql</code> ausführen (README, Schritt 12.5).
+      </span>
+    </p>
+  );
+}
 
 function StatusHero({ me, phase }: { me: Member; phase: PushPhase }) {
   const members = useActiveMembers();
@@ -114,6 +143,7 @@ function StatusHero({ me, phase }: { me: Member; phase: PushPhase }) {
       {phase === 'not-configured' && (
         <p className="mt-4 text-[13px] text-faint">Hinweis für die Einrichtung: GitHub-Variable <code>VITE_VAPID_PUBLIC_KEY</code> setzen und neu veröffentlichen.</p>
       )}
+      {phase === 'on' && <SchedulerStatus />}
       {error && (phase === 'on' || phase === 'off') && (
         <p className="mt-4 flex items-start gap-2 rounded-[14px] bg-[color-mix(in_srgb,var(--ss-danger)_10%,transparent)] px-3 py-2 text-[13px] text-danger">
           <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />

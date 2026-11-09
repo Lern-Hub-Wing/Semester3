@@ -25,6 +25,7 @@ const vapid: VapidKeys = {
   subject: Deno.env.get('VAPID_SUBJECT') ?? '',
 };
 const SECRET = Deno.env.get('SCHEDULER_SECRET') ?? '';
+const HEARTBEAT_KEY = 'scheduler:heartbeat';
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -51,9 +52,15 @@ Deno.serve(async (req) => {
   if (vapidProblem) return json(req, { error: vapidProblem }, 503);
 
   const started = Date.now();
+  // Lebenszeichen: zeigt in der App, dass die Zeitsteuerung (Cron) wirklich läuft
+  const beat = (extra: Record<string, unknown>) =>
+    db.from('push_state').upsert({ key: HEARTBEAT_KEY, value: { at: new Date().toISOString(), ...extra }, updated_at: new Date().toISOString() });
   try {
     const devices = await all<any>('push_devices', 'id, member_id, endpoint, p256dh, auth, prefs, plan_cursor, failure_count', (q) => q.eq('enabled', true));
-    if (devices.length === 0) return json(req, { ok: true, devices: 0, sent: 0 });
+    if (devices.length === 0) {
+      await beat({ devices: 0, sent: 0 });
+      return json(req, { ok: true, devices: 0, sent: 0 });
+    }
 
     const minCursor = devices.reduce((m, d) => (d.plan_cursor === null ? m : Math.min(m, Number(d.plan_cursor))), Number.MAX_SAFE_INTEGER);
     const [members, modules, exams, entries, tasks, completions, stateRows, activity, logs] = await Promise.all([
@@ -156,6 +163,7 @@ Deno.serve(async (req) => {
     // Gelegentlich aufräumen (alte Protokolle, lange deaktivierte Geräte)
     if (new Date().getUTCMinutes() < 5) await db.rpc('ss_push_cleanup');
 
+    await beat({ devices: devices.length, sent, failed });
     return json(req, { ok: true, devices: devices.length, planned: plan.notifications.length, sent, failed, ms: Date.now() - started });
   } catch (err) {
     console.error('push-scheduler', err);

@@ -218,6 +218,10 @@ html {
   background: var(--ss-canvas);
   /* Kein Zoomen per Doppeltippen */
   touch-action: manipulation;
+  /* Seite ist seitlich fest: kein Verschieben, kein Nachfedern nach links/rechts */
+  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
 }
 
 /* iOS Safari zoomt beim Antippen eines Eingabefelds automatisch hinein, wenn
@@ -246,6 +250,8 @@ body {
      (Kopfzeile mit Logo) in iOS Safari nicht zuverlässig. */
   overflow-x: hidden;
   overflow-x: clip;
+  overscroll-behavior-x: none;
+  max-width: 100%;
   text-rendering: optimizeLegibility;
 }
 
@@ -608,7 +614,8 @@ select {
 
 /* Kopfzeile beim Scrollen: Unschärfe, die nach unten weich ausläuft */
 .header-fade {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ss-bg) 70%, transparent) 0%, color-mix(in srgb, var(--ss-bg) 30%, transparent) 70%, transparent 100%);
+  /* Seitengrund-Farbe = Farbe der iOS-Statusleiste: Inhalt läuft weich darunter aus */
+  background: linear-gradient(180deg, var(--ss-canvas) 0%, color-mix(in srgb, var(--ss-canvas) 75%, transparent) 45%, transparent 100%);
   -webkit-backdrop-filter: blur(18px) saturate(170%);
   backdrop-filter: blur(18px) saturate(170%);
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
@@ -1387,4 +1394,22 @@ html.compact {
   display: flex;
   align-items: center;
   text-box: normal;
+}
+
+/* Oberer Bildschirmrand (Handy): Inhalt verblasst beim Scrollen weich in die
+   Statusleiste, statt an einer harten Kante abgeschnitten zu werden.
+   (Seit iOS 26.1 zeichnen Home-Bildschirm-Apps nicht mehr hinter der
+   Statusleiste – sie ist einfarbig in --ss-canvas.) */
+.top-fade {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: calc(env(safe-area-inset-top) + 22px);
+  z-index: 15;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--ss-canvas) 0, var(--ss-canvas) env(safe-area-inset-top), transparent 100%);
+}
+@media (min-width: 768px) {
+  .top-fade {
+    display: none;
+  }
 }

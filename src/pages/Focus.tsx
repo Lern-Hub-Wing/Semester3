@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Coffee, Maximize, Minimize, Pause, Play, RotateCcw, SkipForward, SlidersHorizontal, Square, Timer, Volume2, VolumeX, X } from 'lucide-react';
+import { Coffee, Headphones, Maximize, Minimize, Pause, Play, RotateCcw, SkipForward, SlidersHorizontal, Square, Timer, Volume2, VolumeX, X } from 'lucide-react';
+import { AMBIENCE_LABEL, setAmbienceVolume, startAmbience, stopAmbience } from '../lib/ambience';
 import { phaseDuration, phaseTitle, formatClock } from '../lib/focus';
 import { digitDuration } from '../lib/focusLook';
 import { CLOCK_FONTS, loadClockFont } from '../lib/studyMode';
@@ -49,6 +50,15 @@ export function Focus() {
   const [controls, setControls] = useState(true);
   const [panel, setPanel] = useState(false);
   const [fs, setFs] = useState(false);
+  const [musicOn, setMusicOn] = useState(false);
+
+  // Musik: Art und Lautstärke folgen den Einstellungen; beim Verlassen aus
+  useEffect(() => {
+    if (musicOn) startAmbience(settings.music);
+    else stopAmbience();
+  }, [musicOn, settings.music]);
+  useEffect(() => setAmbienceVolume(settings.musicVolume / 100), [settings.musicVolume]);
+  useEffect(() => () => stopAmbience(), []);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelOpen = useRef(panel);
   panelOpen.current = panel;
@@ -164,11 +174,17 @@ export function Focus() {
       className={`absolute inset-x-0 z-20 flex justify-center px-4 ${look.barPosition === 'bottom' ? 'bottom-[max(env(safe-area-inset-bottom),18px)]' : 'top-[max(env(safe-area-inset-top),64px)]'}`}
       data-testid="focus-controls"
     >
-      <div className="focus-bar flex items-center gap-1.5 rounded-full p-1.5 sm:gap-2 sm:p-2" role="toolbar" aria-label="Fokus-Steuerung">
+      <div className="focus-bar flex items-center gap-1 rounded-full p-1.5 sm:gap-2 sm:p-2" role="toolbar" aria-label="Fokus-Steuerung">
         <BarButton label={settings.sound ? 'Ton aus' : 'Ton an'} onClick={() => setSettings({ sound: !settings.sound })} active={settings.sound}>
           {settings.sound ? <Volume2 className="size-[18px]" /> : <VolumeX className="size-[18px] opacity-70" />}
         </BarButton>
-        <BarButton label="Phase neu starten" disabled={!started} onClick={() => focusActions.reset()}>
+        <BarButton label={musicOn ? `${AMBIENCE_LABEL[settings.music]} aus` : `${AMBIENCE_LABEL[settings.music]} abspielen`} onClick={() => {
+            unlockAudio();
+            setMusicOn((v) => !v);
+          }} active={musicOn}>
+          <Headphones className="size-[18px]" />
+        </BarButton>
+        <BarButton label="Phase neu starten" disabled={!started} onClick={() => focusActions.reset()} className="max-[359px]:hidden">
           <RotateCcw className="size-[18px]" />
         </BarButton>
         <motion.button
@@ -292,7 +308,7 @@ export function Focus() {
   );
 }
 
-function BarButton({ label, onClick, disabled, active, children }: { label: string; onClick: () => void; disabled?: boolean; active?: boolean; children: ReactNode }) {
+function BarButton({ label, onClick, disabled, active, children, className = '' }: { label: string; onClick: () => void; disabled?: boolean; active?: boolean; children: ReactNode; className?: string }) {
   return (
     <button
       type="button"
@@ -304,7 +320,7 @@ function BarButton({ label, onClick, disabled, active, children }: { label: stri
         haptic('tap');
         onClick();
       }}
-      className={`focus-btn grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-35 ${active ? 'text-white' : 'text-white/80'}`}
+      className={`focus-btn grid size-10 shrink-0 place-items-center rounded-full disabled:opacity-35 sm:size-11 ${active ? 'text-white' : 'text-white/80'} ${className}`}
     >
       {children}
     </button>
