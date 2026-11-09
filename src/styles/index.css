@@ -94,6 +94,7 @@
 :root {
   color-scheme: light;
   --ss-bg: #eef1f8;
+  --ss-canvas: #dcd8f4;
   --ss-card: #ffffff;
   --ss-card-2: #f2f4fa;
   --ss-text: #1b2232;
@@ -153,6 +154,7 @@
 .dark {
   color-scheme: dark;
   --ss-bg: #0a0d16;
+  --ss-canvas: #14142c;
   --ss-card: #141a28;
   --ss-card-2: #1a2132;
   --ss-text: #f2f5fa;
@@ -210,7 +212,10 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  background: var(--ss-bg);
+  /* Seitengrund in der Farbe des Aurora-Hintergrunds: Wo iOS die
+     Hintergrundebene nicht bis an den Rand zeichnet (Statusleiste,
+     Home-Leiste, Safari-Leisten), erscheint kein heller Streifen. */
+  background: var(--ss-canvas);
   /* Kein Zoomen per Doppeltippen */
   touch-action: manipulation;
 }
@@ -229,7 +234,7 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--ss-bg);
+  background: transparent;
   color: var(--ss-text);
   font-family: var(--font-sans);
   font-feature-settings: 'cv11', 'ss01', 'ss03';
@@ -661,7 +666,9 @@ select {
 /* ------------------------------------------------------------------ */
 .ambient {
   position: fixed;
-  inset: 0;
+  /* Über die Bildschirmränder hinaus: deckt auch Statusleiste und
+     Home-Leiste ab, falls der Browser den Inhalt dort versetzt */
+  inset: -160px 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -1380,25 +1387,4 @@ html.compact {
   display: flex;
   align-items: center;
   text-box: normal;
-}
-
-/* Statusleiste (iPhone/Android als App): gleiche Farbe wie theme-color,
-   läuft unterhalb der Statusleiste weich in den Seitenhintergrund aus. */
-.status-blend {
-  display: none;
-}
-@media (display-mode: standalone) {
-  .status-blend {
-    --top-tint: #e9e9f6;
-    display: block;
-    position: fixed;
-    inset: 0 0 auto 0;
-    height: calc(env(safe-area-inset-top) + 56px);
-    z-index: 15;
-    pointer-events: none;
-    background: linear-gradient(180deg, var(--top-tint) 0, var(--top-tint) env(safe-area-inset-top), color-mix(in srgb, var(--top-tint) 0%, transparent) 100%);
-  }
-  .dark .status-blend {
-    --top-tint: #17162f;
-  }
 }
