@@ -8,25 +8,27 @@ import { toast } from '../store/toast';
 
 /**
  * Läuft unsichtbar im Hintergrund: beendet abgelaufene Phasen, speichert
- * Fokuszeiten, spielt einen Ton und zeigt – falls erlaubt und die App gerade
- * nicht sichtbar ist – eine lokale Systembenachrichtigung.
+ * Fokuszeiten, spielt einen Ton und zeigt – falls eingeschaltet, erlaubt und
+ * die App gerade nicht sichtbar ist – eine lokale Systemmitteilung.
+ * Tickt nur, solange ein Timer läuft (keine Dauer-Timer im Leerlauf).
  */
 export function FocusWatcher() {
   const me = useCurrentMember();
   const running = useFocus((s) => s.timer.endsAt !== null);
-  const sound = useFocus((s) => s.settings.sound);
   const now = useNow(running ? 1000 : 60_000);
   useEffect(() => {
     if (!running) return;
     void tickFocus(me?.id ?? null, now).then((done) => {
       if (!done) return;
+      const { sound, volume, notify } = useFocus.getState().settings;
       haptic('success');
-      if (sound) playChime();
-      const msg = done === 'focus' ? 'Fokuszeit geschafft – Zeit für eine Pause.' : 'Pause vorbei – bereit für die nächste Fokusrunde?';
-      toast.success(msg);
-      void showLocalNotification(done === 'focus' ? 'Fokuszeit geschafft' : 'Pause vorbei', msg);
+      if (sound) playChime(volume / 100, done.phase === 'break');
+      const title = done.phase === 'focus' ? 'Fokusrunde geschafft' : done.long ? 'Lange Pause vorbei' : 'Pause vorbei';
+      const msg = done.phase === 'focus' ? 'Zeit für eine Pause.' : 'Bereit für die nächste Fokusrunde?';
+      toast.success(`${title} – ${msg}`);
+      if (notify) void showLocalNotification(title, msg);
     });
-  }, [now, running, me?.id, sound]);
+  }, [now, running, me?.id]);
   return null;
 }
 

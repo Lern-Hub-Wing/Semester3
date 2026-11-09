@@ -30,6 +30,7 @@
           var p = JSON.parse(localStorage.getItem('studyspace.prefs.v1') || '{}');
           var dark = p.theme === 'dark' || (p.theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         } catch (e) {}
       })();
     </script>

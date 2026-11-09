@@ -1,7 +1,7 @@
 {
   "name": "studyspace",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.1.0",
   "type": "module",
   "description": "StudySpace – gemeinsame Lernplattform für die Prüfungsvorbereitung",
   "scripts": {
@@ -27,6 +27,7 @@
     "canvas-confetti": "^1.9.4",
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
+    "glisse": "^0.5.0",
     "lucide-react": "^1.69.0",
     "motion": "^14.9.1",
     "react": "^19.3.1",

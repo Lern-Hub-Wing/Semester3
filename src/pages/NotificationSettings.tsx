@@ -34,7 +34,6 @@ export function NotificationSettings() {
       <div className="mb-6 md:mb-8">
         <p className="eyebrow mb-1.5">Einstellungen</p>
         <h1 className="display text-[32px] md:text-[44px]">Benachrichtigungen</h1>
-        <p className="mt-2 max-w-2xl text-[15px] text-muted">Erinnerungen an Lernaufgaben und Prüfungen – direkt auf dem Sperrbildschirm, auch wenn StudySpace geschlossen ist.</p>
       </div>
       <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-12 [&>*]:min-w-0">
         <div className="flex flex-col gap-[var(--gap-grid)] lg:col-span-7">
@@ -202,7 +201,7 @@ function Categories() {
   ];
   return (
     <Card className="p-5 md:p-6">
-      <CardHeader title="Worüber informiert werden?" subtitle="Gilt für dieses Gerät" icon={<Bell />} />
+      <CardHeader title="Worüber informiert werden?" icon={<Bell />} />
       <div className="mt-3">
         {items.map((it) => (
           <Row key={it.key} icon={it.icon} tint={it.tint} title={it.title} hint={it.hint}>
@@ -340,7 +339,7 @@ function DeviceProfile({ me }: { me: Member }) {
 function Preview() {
   return (
     <Card className="p-5 md:p-6">
-      <CardHeader title="So sieht es aus" subtitle="Beispiele – das Aussehen bestimmt dein Gerät" icon={<BellRing />} />
+      <CardHeader title="So sieht es aus" icon={<BellRing />} />
       <div className="mt-4">
         <LockScreenPreview title="Dein Lernplan für heute" body="Heute stehen 4 Aufgaben in Thermodynamik an. Du schaffst das!" when="Jetzt" />
       </div>

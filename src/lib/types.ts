@@ -86,7 +86,7 @@ export interface Completion extends Versioned {
   created_at: Timestamp;
 }
 
-export type AttachmentTarget = 'module' | 'topic' | 'study_entry' | 'task';
+export type AttachmentTarget = 'module' | 'topic' | 'study_entry' | 'task' | 'homework';
 
 export interface Attachment extends Versioned {
   id: UUID;

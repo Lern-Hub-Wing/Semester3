@@ -16,7 +16,7 @@ import { useData } from '../store/data';
 import { useActiveMemberIds, useActiveMembers, useModules, useTaskViews } from '../store/derived';
 import { loadFocusSessions, useFocus } from '../store/focus';
 import { useToday } from '../hooks/useToday';
-import { MigrationHint } from './Focus';
+import { FocusTeamCard, MigrationHint } from '../components/FocusStats';
 
 type Period = 'woche' | 'monat' | 'semester';
 
@@ -111,7 +111,6 @@ export function Analytics({ me }: { me: Member }) {
       <PageHeader
         eyebrow="Werkzeuge"
         title="Analyse"
-        subtitle="Dein Lernverlauf aus echten Daten: erledigte Aufgaben und gespeicherte Fokuszeiten."
         actions={
           <Segmented
             accent
@@ -173,8 +172,10 @@ export function Analytics({ me }: { me: Member }) {
             </ul>
           </Card>
 
+          <FocusTeamCard className="lg:col-span-12" />
+
           <Card className="p-5 md:p-6 lg:col-span-12">
-            <CardHeader title="Fortschritt nach Modul" subtitle="Du im Vergleich zur Gruppe" icon={<Layers />} />
+            <CardHeader title="Fortschritt nach Modul" icon={<Layers />} />
             <ul className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
               {modules.map((m) => {
                 const mv = views.filter((v) => v.module.id === m.id);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Slider } from 'glisse';
 import {
   Archive, ArrowDown, Bell, BellRing, ChevronRight, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus,
 } from 'lucide-react';
@@ -33,7 +34,7 @@ export function Settings({ section }: { section?: 'benachrichtigungen' }) {
   if (section === 'benachrichtigungen') return <NotificationSettings />;
   return (
     <div>
-      <PageHeader title="Einstellungen" subtitle="Darstellung gilt für dieses Gerät, alles andere für die ganze Gruppe." />
+      <PageHeader title="Einstellungen" />
       <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-2">
         <NotificationsSummary />
         <Appearance />
@@ -547,21 +548,21 @@ function GlassClaritySetting({ value, onChange }: { value: number; onChange: (v:
             {clarityLabel(value)} · {value}
           </span>
         </div>
-        <p className="text-xs text-muted">Wie klar Seitenleiste, Navigation und Knöpfe sind. Wirkt sofort.</p>
         <div className="mt-2.5 flex items-center gap-3">
           <span className="text-[11px] text-faint">Milchig</span>
-          <input
-            id="ss-glass-clarity"
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={value}
-            onChange={(e) => onChange(Number(e.target.value))}
-            onDoubleClick={() => onChange(GLASS_CLARITY_DEFAULT)}
-            aria-valuetext={`${clarityLabel(value)}, ${value} von 100`}
-            className="ss-range flex-1"
-          />
+          <div className="min-w-0 flex-1">
+            <Slider
+              id="ss-glass-clarity"
+              min={0}
+              max={100}
+              step={1}
+              value={value}
+              onValueChange={onChange}
+              onDoubleClick={() => onChange(GLASS_CLARITY_DEFAULT)}
+              aria-valuetext={`${clarityLabel(value)}, ${value} von 100`}
+              className="ss-gslider"
+            />
+          </div>
           <span className="text-[11px] text-faint">Klar</span>
         </div>
         {value !== GLASS_CLARITY_DEFAULT && (

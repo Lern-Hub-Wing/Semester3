@@ -18,18 +18,19 @@ export function unlockAudio() {
   if (c && c.state === 'suspended') void c.resume().catch(() => undefined);
 }
 
-export function playChime() {
+/** volume: 0…1 · rising: aufsteigend (Pause vorbei) statt absteigend */
+export function playChime(volume = 0.6, rising = false) {
   const c = context();
-  if (!c || c.state !== 'running') return;
+  if (!c || c.state !== 'running' || volume <= 0) return;
   const now = c.currentTime;
-  [659.25, 987.77].forEach((freq, i) => {
+  (rising ? [659.25, 987.77] : [987.77, 659.25]).forEach((freq, i) => {
     const osc = c.createOscillator();
     const gain = c.createGain();
     osc.type = 'sine';
     osc.frequency.value = freq;
     const t = now + i * 0.18;
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.12, t + 0.02);
+    gain.gain.linearRampToValueAtTime(0.2 * Math.min(1, volume), t + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
     osc.connect(gain).connect(c.destination);
     osc.start(t);

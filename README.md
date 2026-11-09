@@ -10,9 +10,11 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 - Fächer mit Themenbereichen, Team-Seite mit gemeinsamem Lernziel, Prüfungsübersicht
 - Lernmaterialien (PDF, PNG, JPG, WebP) über Supabase Storage
 - Echtzeit-Synchronisierung zwischen allen Geräten, Papierkorb, Änderungsverlauf, JSON-Export/Import
-- Semester-Timeline (Lernphasen + Prüfungen je Modul), Fokus-Timer mit gespeicherten Lernzeiten, Analyse aus echten Daten
+- Semester-Timeline (Lernphasen + Prüfungen je Modul), Analyse aus echten Daten
+- **Fokus 2.0:** immersive Vollbildansicht mit Pomodoro-Runden (Kurz, Klassisch, Intensiv, Individuell, eigene Vorlagen), lange Pause nach N Runden, frei gestaltbarer Anzeige und Hintergrund; nur echte Fokuszeit zählt als Lernzeit
+- **Hausaufgaben** mit Abgabedatum, Unteraufgaben, Priorität, Anhängen, Erledigt-Status je Person und optionaler Verteilung von Arbeitseinheiten bis zum Vortag der Abgabe (Migration 005)
 - **Push-Benachrichtigungen** auf iPhone (als Home-Bildschirm-App), Android und Desktop – Morgenübersicht, offene und überfällige Aufgaben, Prüfungserinnerungen, Lernplan-Änderungen, gemeinsame Erfolge; mit Ruhezeiten und Testnachricht
-- Dark/Light Mode, Liquid-Glass-Design „Aurora Glass“ mit Animationen, installierbar als App (PWA)
+- Dark/Light Mode, Liquid-Glass-Design „Aurora Glass“ mit [Glisse](https://glisse.kelvinzhang.com)-Bedienelementen (Tab-Leiste mit Ziehen, Schalter, Regler, Segmente), installierbar als App (PWA)
 
 > **Wichtiger Hinweis zur Sicherheit:** StudySpace hat bewusst **keine Anmeldung**. Jede Person mit dem Link kann alle Inhalte sehen und bearbeiten. Die Auswahl „Wer lernt heute?“ ist **keine Identitätsprüfung** – Einträge wie „von Person 2 geändert“ sind nicht verifiziert. Ohne echte Authentifizierung gibt es **keinen verlässlichen Schutz gegen absichtliche Änderungen durch Dritte**, die den Link kennen. StudySpace ist deshalb **nicht für vertrauliche, personenbezogene oder sensible Dokumente** gedacht. Schutzmaßnahmen: Soft Delete (Papierkorb) statt Löschen, keine Löschrechte in der Datenbank, Rate Limits, Eingabeprüfungen, regelmäßige Exporte.
 
@@ -32,6 +34,7 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 10. [Deployment auslösen](#10-deployment-auslösen)
 11. [Produktive Webseite öffnen](#11-produktive-webseite-öffnen)
 12. [Push-Benachrichtigungen einrichten](#12-push-benachrichtigungen-einrichten)
+13. [Hausaufgaben einrichten (StudySpace 3.1)](#13-hausaufgaben-einrichten-studyspace-31)
 - [Als App installieren](#als-app-installieren-pwa) · [Tests](#tests) · [Projektstruktur](#projektstruktur) · [Häufige Probleme](#häufige-probleme)
 
 Technische Details: [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md)
@@ -85,6 +88,7 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 2 | [`supabase/migrations/002_security.sql`](supabase/migrations/002_security.sql) | Row Level Security, eingeschränkte Rechte, Realtime-Freigabe |
 | 3 | [`supabase/migrations/003_storage.sql`](supabase/migrations/003_storage.sql) | Storage-Bucket `materials` mit 10-MB-Limit und erlaubten Dateitypen |
 | 4 | [`supabase/migrations/004_push_focus.sql`](supabase/migrations/004_push_focus.sql) | Fokuszeiten und Push-Benachrichtigungen (siehe Schritt 12) |
+| 5 | [`supabase/migrations/005_homework.sql`](supabase/migrations/005_homework.sql) | Hausaufgaben (siehe Schritt 13) |
 
 Falls Supabase warnt, dass die Abfrage „destruktive Operationen“ enthält: Das betrifft nur `drop trigger/policy if exists` (Neuanlage). Mit **Run this query** bestätigen. Alle Skripte können gefahrlos mehrfach ausgeführt werden.
 
@@ -243,6 +247,27 @@ Ruhezeit standardmäßig 21:00–08:00 (Europe/Berlin, inkl. Zeitumstellung): Er
 
 ---
 
+## 13. Hausaufgaben einrichten (StudySpace 3.1)
+
+Für ein bestehendes Projekt ist **nur eine einzige Datei** nötig:
+
+1. Supabase-Dashboard → **SQL Editor** → **New query**
+2. Inhalt von [`supabase/migrations/005_homework.sql`](supabase/migrations/005_homework.sql) einfügen → **Run** (die Warnung zu `drop trigger/policy if exists` mit **Run this query** bestätigen)
+3. StudySpace neu laden – der Bereich **Hausaufgaben** ist sofort aktiv (Seitenleiste, Tab „Aufgaben“ auf dem Handy, „+ Hausaufgabe“ im Dashboard).
+
+Was die Migration macht:
+
+- Neue Tabellen `homework`, `homework_parts` (Unteraufgaben und Arbeitseinheiten) und `homework_completions` (Erledigt-Status je Person) mit denselben Regeln wie der übrige Lernplan: Row Level Security, keine Löschrechte (Papierkorb), Versionierung, Änderungsverlauf, Rate Limits, Realtime.
+- Die Prüfregel der Tabelle `attachments` wird um den Typ `homework` **erweitert**, damit Hausaufgaben Anhänge haben können. Vorhandene Zeilen werden dabei weder verändert noch gelöscht.
+- Bestehende Lernplandaten bleiben unverändert; das Skript kann gefahrlos mehrfach ausgeführt werden.
+- Wichtig: Werden die älteren Migrationen später erneut ausgeführt, danach auch `005_homework.sql` noch einmal ausführen (001 setzt die Anhang-Prüfung sonst auf den alten Stand zurück).
+
+Solange die Datei nicht ausgeführt ist, bleibt der Bereich ausgeblendet bzw. zeigt einen Hinweis – alles andere funktioniert unverändert. Ein neues Deployment ist nicht nötig.
+
+So plant StudySpace: Der Bearbeitungszeitraum reicht von heute (bzw. dem frühesten Beginn) bis zum **Tag vor der Abgabe** – der Abgabetag selbst ist kein Arbeitstag. Auf Wunsch verteilt StudySpace die gewünschte Zahl an Arbeitseinheiten auf möglichst freie Tage (berücksichtigt geplante Aufgaben, andere Hausaufgaben, Prüfungstage, Priorität und einen Puffer vor der Abgabe). Die Termine erscheinen vorher als bearbeitbare Vorschau; bestehende Aufgaben werden nie verschoben, und es werden keine fachlichen Unteraufgaben erfunden. Wird die Abgabe geändert, schlägt StudySpace neue Termine vor und übernimmt sie erst nach Bestätigung; Erledigungen bleiben erhalten.
+
+---
+
 ## Als App installieren (PWA)
 
 - **iPhone/iPad (Safari):** Teilen-Symbol → **Zum Home-Bildschirm**
@@ -256,11 +281,12 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | Ich möchte … | So geht's |
 |---|---|
 | die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
-| zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen; weitere Seiten unter „Mehr“ |
+| zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder Finger auf der Leiste halten und ziehen: die Glaslinse folgt, beim Loslassen wird gewechselt. Weitere Seiten unter „Mehr“ |
 | haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
 | das Glas klarer oder milchiger machen | Einstellungen → Erscheinungsbild → „Durchsichtigkeit“ (Regler mit Live-Vorschau; wirkt sofort auf alle Glasflächen, gespeichert pro Gerät) |
 | Benachrichtigungen einrichten | Nach der ersten Personenwahl erscheint eine Einführung; sonst Einstellungen → Benachrichtigungen. iPhone: vorher „Zum Home-Bildschirm“ |
-| konzentriert mit Timer lernen | Fokus (Seitenleiste bzw. „Mehr“, oder direkt im Dashboard): Start drücken – der Countdown läuft sichtbar herunter; ⤢ bzw. „Fokus im Vollbild“ öffnet die Vollbildansicht im Querformat. Rhythmus 25/5, 50/10 oder 90/15 Minuten über ⚙; beendete Fokusphasen werden gespeichert und in der Analyse gezählt |
+| konzentriert mit Timer lernen | „Fokus“ in der Navigation oder die Fokus-Karte im Dashboard öffnet direkt die Vollbildansicht. Start drücken (Standard: kein Autostart). Unten: Ton, Phase neu starten, Start/Pause, Pause überspringen bzw. Session beenden, Einstellungen. Rhythmus: Kurz 15/5, Klassisch 25/5, Intensiv 50/10 oder Individuell; lange Pause nach N Runden (Standard 4); eigene Vorlagen speichern. Unter „Anzeige“/„Bild“/„Steuerung“: Schrift, Größe, Stärke, Sekunden, Farbe, Leuchten, Position, Animation, Ring, Prozent, Fortschrittslinie, Hintergrund (Berge, Polarlicht, Verlauf, Farbe, eigenes Bild, Weichzeichnen, Abdunkeln, Bewegung), Steuerleiste oben/unten, automatisches Ausblenden, Lautstärke, Mitteilung beim Phasenwechsel, automatischer Phasenwechsel und Autostart. Nur echte Fokuszeit (ohne Pausen) wird gespeichert und in der Analyse gezählt |
+| eine Hausaufgabe eintragen | „Hausaufgaben“ → „Neue Hausaufgabe“ (oder „+ Hausaufgabe“ im Dashboard). Pflicht: Titel, Modul, Abgabe. Optional unter „Weitere Angaben“: Beschreibung, Unteraufgaben, Aufwand, frühester Beginn, Priorität, Anhänge (nach dem ersten Speichern). „Arbeitseinheiten einplanen“ zeigt Vorschläge mit Kalender – Daten lassen sich vor dem Speichern ändern |
 | die Semester-Übersicht sehen | Lernplan → Ansicht „Timeline“ (oder Dashboard → Semester-Timeline) |
 | den Lernmodus starten | Dashboard ganz unten → „Lernmodus starten“ (oder Seitenleiste bzw. „Mehr“ → „Lernmodus“). Handy quer halten: Die Uhr läuft sekundengenau im Vollbild, alle Bedienelemente blenden sich nach 3,5 s aus. Antippen blendet sie wieder ein. Unter ⚙ „Darstellung anpassen“: Ziffern (HH:MM oder HH:MM:SS), 24/12 Stunden, Schriftart, Stärke, Größe, Farbe, Leuchten, Hintergrund (Polarlicht, Farbverlauf, Farbe oder eigenes Bild), Datum und nächste Prüfung. **iPhone:** Safari erlaubt Webseiten kein Vollbild – dafür StudySpace über „Teilen → Zum Home-Bildschirm“ hinzufügen und von dort öffnen |
 | einen Lerntag planen | Kalender-Plus-Symbol oben oder „Neuer Lerntag“ im Lernplan |
@@ -281,11 +307,11 @@ Die erste veröffentlichte Version ist als Branch **`backup/v1.0.0`** gesichert.
 
 | Befehl | Prüft |
 |---|---|
-| `npm test` | Fortschrittsberechnung, Countdown/Zeitzonen, Synchronisations-Engine, Dateiprüfung, Import-Validierung, Fokus-Timer, Timeline, **Web-Push-Verschlüsselung (inkl. Testvektor aus RFC 8291) und VAPID-Signatur**, **Erinnerungslogik** (Uhrzeiten, Ruhezeiten, Zeitumstellung, Deduplizierung, Prüfungsverschiebung, Profilzuordnung) (Vitest) |
-| `npm run test:db` | SQL-Migrationen gegen ein echtes PostgreSQL: Rechte (kein DELETE), Trigger, Soft Delete, Storage-Regeln, gesperrte Push-Tabellen, Deduplizierung, Fokuszeiten. Nutzt `DATABASE_URL` oder startet einen temporären lokalen Cluster |
+| `npm test` | Hausaufgaben-Planung (Zeitraum bis zum Vortag, Verteilung, Neuplanung), Pomodoro-Ablauf, Fortschrittsberechnung, Countdown/Zeitzonen, Synchronisations-Engine, Dateiprüfung, Import-Validierung, Fokus-Timer, Timeline, **Web-Push-Verschlüsselung (inkl. Testvektor aus RFC 8291) und VAPID-Signatur**, **Erinnerungslogik** (Uhrzeiten, Ruhezeiten, Zeitumstellung, Deduplizierung, Prüfungsverschiebung, Profilzuordnung) (Vitest) |
+| `npm run test:db` | SQL-Migrationen gegen ein echtes PostgreSQL: Rechte (kein DELETE), Trigger, Soft Delete, Storage-Regeln, gesperrte Push-Tabellen, Deduplizierung, Fokuszeiten, Hausaufgaben (Prüfregeln, Erledigungen bleiben bei Terminänderung, Anhänge, bestehende Daten unverändert). Nutzt `DATABASE_URL` oder startet einen temporären lokalen Cluster |
 | `npm run build:e2e && npm run test:e2e` | Browsertests in Chromium gegen eine nachgebildete Supabase-API: Personenauswahl, Lerntag anlegen, Haken pro Person, Titel/Datum ändern, Papierkorb, neue Person, Fehlerfall, Glas-Regler, Lernmodus (Uhrzeit, Ausblenden, Darstellung, hochkant/quer), 320 px/iPhone/iPad/Desktop, Hell/Dunkel. Benötigt Playwright (`npm install --no-save playwright@1.64.1 && npx playwright install chromium`; dieselbe Version wie im CI) |
 
-Zusätzlich prüfen die Browsertests Fokus-Timer, Timeline, Analyse sowie den kompletten Push-Ablauf in der App (Einführung, iPhone-Installationshinweis, „Vielleicht später“, Aktivieren, Einstellungen, Testnachricht mit Sperrfrist, Profilwechsel, Abmelden) gegen eine nachgebildete `push-api`. `node scripts/screens.mjs <ordner>` erstellt Bildschirmfotos aller Seiten (Smartphone, iPad, Desktop; hell/dunkel).
+Zusätzlich prüfen die Browsertests die Glisse-Tab-Leiste (Antippen, Ziehen mit Navigation erst beim Loslassen, keine Wischnavigation über dem Inhalt), Fokus 2.0 (Runden, Pause überspringen, Ausblenden der Steuerung, Einstellungen, Hoch-/Querformat), Hausaufgaben (Anlegen mit Vorschau, kein Arbeitstag am Abgabetag, Erledigung je Person, Neuplanung nach Bestätigung, App ohne Migration 005), Timeline, Analyse sowie den kompletten Push-Ablauf in der App (Einführung, iPhone-Installationshinweis, „Vielleicht später“, Aktivieren, Einstellungen, Testnachricht mit Sperrfrist, Profilwechsel, Abmelden) gegen eine nachgebildete `push-api`. `node scripts/screens.mjs <ordner>` erstellt Bildschirmfotos aller Seiten (Smartphone, iPad, Desktop; hell/dunkel).
 
 Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#manuelle-abnahme)): echte Realtime-Verbindung zwischen zwei Geräten, echter Datei-Upload zu Supabase Storage, **echte Zustellung über Apple/Google/Mozilla auf einem echten iPhone**, Safari/Firefox/Edge.
 
@@ -298,7 +324,7 @@ Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/A
 ├── public/                        Icons, Startbildschirme, Favicon, einrichtung/vapid.html
 ├── scripts/                       Icon-Generator, Datenbank- und Browsertests
 ├── supabase/
-│   ├── migrations/                001 Schema · 002 Sicherheit · 003 Storage · 004 Push + Fokus
+│   ├── migrations/                001 Schema · 002 Sicherheit · 003 Storage · 004 Push + Fokus · 005 Hausaufgaben
 │   ├── functions/                 Edge Functions push-api, push-scheduler (+ _shared: Web Push, Erinnerungslogik)
 │   ├── cron.sql                   Zeitsteuerung (Supabase Cron, alle 5 Minuten)
 │   ├── seed.sql                   Startdaten (Personen, Module, Prüfungen)
@@ -327,6 +353,7 @@ Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/A
 | „Server noch nicht eingerichtet“ (Benachrichtigungen) | Variable `VITE_VAPID_PUBLIC_KEY` fehlt (12.6) → setzen und neu veröffentlichen |
 | „…auf dem Server noch nicht bereitgestellt“ | Edge Functions fehlen (12.4) |
 | „Push ist auf dem Server noch nicht eingerichtet“ | Secrets `VAPID_*` in Supabase fehlen oder sind falsch (12.3) |
+| „Hausaufgaben sind noch nicht eingerichtet“ | `005_homework.sql` ausführen (Schritt 13) |
 | iPhone bietet keine Benachrichtigungen an | StudySpace muss vom Home-Bildschirm gestartet werden, iOS ≥ 16.4 (12.7) |
 | Test angenommen, aber keine Nachricht | Mitteilungen für StudySpace in den iPhone-Einstellungen prüfen, Fokus/Nicht stören aus; Gerät kurz sperren |
 | Keine automatischen Erinnerungen | `cron.sql` ausgeführt? `cron.job_run_details` prüfen; Projekt pausiert? |

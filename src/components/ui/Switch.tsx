@@ -1,3 +1,4 @@
+import { Switch as GlisseSwitch } from 'glisse';
 import { haptic } from '../../lib/haptics';
 
 interface Props {
@@ -8,23 +9,19 @@ interface Props {
   id?: string;
 }
 
-/** Nativ wirkender Schalter mit federndem Knopf (Fluid Toggle). */
+/** Schalter auf Basis von Glisse: Daumen lässt sich ziehen und hebt sich beim Halten als Linse an. */
 export function Switch({ checked, onChange, label, disabled, id }: Props) {
   return (
-    <button
+    <GlisseSwitch
       id={id}
-      type="button"
-      role="switch"
-      aria-checked={checked}
       aria-label={label}
       disabled={disabled}
-      className="ss-switch"
-      onClick={() => {
+      checked={checked}
+      className="ss-gswitch"
+      onCheckedChange={(next) => {
         haptic('toggle');
-        onChange(!checked);
+        onChange(next);
       }}
-    >
-      <span aria-hidden />
-    </button>
+    />
   );
 }

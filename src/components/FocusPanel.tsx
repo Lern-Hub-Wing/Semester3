@@ -1,107 +1,105 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Coffee, Maximize2, Music, Music2, Pause, Play, RotateCcw, SlidersHorizontal, Square, Timer } from 'lucide-react';
-import { FOCUS_PRESETS, formatClock, isRunning, progressOf, remainingSec } from '../lib/focus';
-import { unlockAudio } from '../lib/chime';
+import { ArrowUpRight, Coffee, Timer } from 'lucide-react';
+import { formatClock, isRunning, isStarted, phaseTitle, progressOf, remainingSec, type FocusState } from '../lib/focus';
 import { haptic } from '../lib/haptics';
-import { enterFullscreen } from '../lib/fullscreen';
 import { navigate } from '../lib/router';
-import { spring } from '../lib/motion';
 import { useNow } from '../hooks/useNow';
-import { useIsMobile } from '../hooks/useMediaQuery';
-import { currentPreset, focusActions, useFocus } from '../store/focus';
-import { useCurrentMember, useModules } from '../store/derived';
+import { rhythmOf, useFocus } from '../store/focus';
 import { useData } from '../store/data';
 
-/** Live-Zustand des Timers (aktualisiert 4× pro Sekunde, solange er läuft) */
-export function useFocusLive() {
-  const timer = useFocus((s) => s.timer);
-  const running = isRunning(timer);
-  const now = useNow(running ? 250 : 1000);
-  const rest = remainingSec(timer, now);
-  return { timer, running, started: running || timer.pausedRemainingSec !== null, rest, progress: progressOf(timer, now), isBreak: timer.phase === 'break' };
+/** Farben je Phase: Fokus violett, kurze Pause mint, lange Pause blau */
+export function phaseColors(timer: Pick<FocusState, 'phase' | 'long'>) {
+  if (timer.phase === 'focus') return { main: '#a9a6ff', soft: '#c6b6ff', tint: 'rgba(120,110,255,0.22)' };
+  if (timer.long) return { main: '#8cbcff', soft: '#bcd8ff', tint: 'rgba(90,150,255,0.22)' };
+  return { main: '#7fd6b6', soft: '#bff0dc', tint: 'rgba(80,200,160,0.2)' };
 }
 
-/** Großer Ring mit Lichtpunkt, der während einer laufenden Session um den Bogen wandert */
-export function FocusRing({ size, stroke, children }: { size: number; stroke: number; children?: React.ReactNode }) {
-  const reduce = useReducedMotion();
-  const { running, progress, isBreak } = useFocusLive();
+/** Live-Zustand des Timers – tickt nur sekündlich und nur, solange er läuft */
+export function useFocusLive() {
+  const timer = useFocus((s) => s.timer);
+  const settings = useFocus((s) => s.settings);
+  const running = isRunning(timer);
+  const now = useNow(running ? 1000 : 60_000);
+  const rhythm = rhythmOf(settings);
+  return {
+    timer,
+    rhythm,
+    running,
+    started: isStarted(timer),
+    rest: remainingSec(timer, now),
+    progress: progressOf(timer, now),
+    isBreak: timer.phase === 'break',
+    title: phaseTitle(timer, rhythm),
+  };
+}
+
+/** Fortschrittsring; der Bogen gleitet linear von Sekunde zu Sekunde */
+export function FocusRing({
+  size,
+  stroke,
+  color,
+  soft,
+  glow = true,
+  children,
+}: {
+  size: number;
+  stroke: number;
+  color: string;
+  soft: string;
+  glow?: boolean;
+  children?: ReactNode;
+}) {
+  const { running, progress } = useFocusLive();
   const id = `fr-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pad = Math.ceil(stroke * 4);
-  const color = isBreak ? 'var(--ss-success)' : 'var(--ss-accent)';
-  const angle = progress * 360;
+  const offset = c * (1 - progress);
+  const arc: CSSProperties = { transition: running ? 'stroke-dashoffset 1s linear' : 'stroke-dashoffset 0.6s var(--ease-out)' };
   return (
-    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }} data-testid="focus-ring">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 overflow-visible" aria-hidden>
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={isBreak ? '#c8f3e2' : 'var(--ss-accent-2)'} />
+            <stop offset="0%" stopColor={soft} />
             <stop offset="100%" stopColor={color} />
           </linearGradient>
+          {/* Filterfläche großzügig (userSpaceOnUse), damit der Schein nie eckig abgeschnitten wird */}
           <filter id={`${id}-glow`} filterUnits="userSpaceOnUse" x={-pad} y={-pad} width={size + pad * 2} height={size + pad * 2} colorInterpolationFilters="sRGB">
             <feGaussianBlur stdDeviation={stroke * 0.8} />
           </filter>
         </defs>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--ss-track)" strokeWidth={stroke} />
-        {progress > 0 && (
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - progress)} opacity={running ? 0.55 : 0.3} filter={`url(#${id}-glow)`} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
+        {glow && progress > 0 && (
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset} opacity={running ? 0.5 : 0.28} filter={`url(#${id}-glow)`} style={arc} />
         )}
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={`url(#${id})`}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          animate={{ strokeDashoffset: c * (1 - progress) }}
-          transition={reduce ? { duration: 0 } : { duration: running ? 0.3 : 0.6, ease: 'linear' }}
-        />
-        {/* Lichtpunkt am Ende des Bogens – zeigt sofort: die Session läuft */}
-        {running && progress > 0.004 && (
-          <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${size / 2}px ${size / 2}px` }}>
-            <circle cx={size - stroke / 2} cy={size / 2} r={stroke * 0.95} fill="white" opacity={0.95} />
-            {!reduce && (
-              <motion.circle
-                cx={size - stroke / 2}
-                cy={size / 2}
-                r={stroke * 0.95}
-                fill="none"
-                stroke="white"
-                strokeWidth={1.5}
-                animate={{ r: [stroke * 0.95, stroke * 2.2], opacity: [0.7, 0] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-              />
-            )}
-          </g>
-        )}
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`url(#${id})`} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset} style={arc} />
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
     </div>
   );
 }
 
-/** Große, laufende Uhr mit gleich breiten Ziffern; jede Sekunde springt sichtbar weiter */
-export function FocusDigits({ className = '' }: { className?: string }) {
+/** Große Uhr mit gleich breiten Ziffern; jede Ziffer gleitet beim Wechsel weich nach */
+export function FocusDigits({ className = '', style, seconds = true, duration = 0.38 }: { className?: string; style?: CSSProperties; seconds?: boolean; duration?: number }) {
   const reduce = useReducedMotion();
   const { rest } = useFocusLive();
-  const text = formatClock(rest);
+  const text = formatClock(rest, seconds);
+  const animate = !reduce && duration > 0;
   return (
-    <span className={`num inline-flex font-semibold leading-none tracking-[-0.045em] ${className}`} aria-hidden data-testid="focus-time" data-value={text}>
+    <span className={`num inline-flex leading-none ${className}`} style={style} aria-hidden data-testid="focus-time" data-value={formatClock(rest)}>
       {text.split('').map((ch, i) =>
         /\d/.test(ch) ? (
-          <span key={i} className="relative inline-block w-[0.62em] overflow-hidden text-center" style={{ height: '1.05em' }}>
+          <span key={i} className="relative inline-block w-[0.62em] overflow-hidden text-center" style={{ height: '1.08em' }}>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={ch + i}
                 className="absolute inset-0"
-                initial={reduce ? false : { y: '-70%', opacity: 0 }}
+                initial={animate ? { y: '-60%', opacity: 0 } : false}
                 animate={{ y: 0, opacity: 1 }}
-                exit={reduce ? undefined : { y: '70%', opacity: 0 }}
-                transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                exit={animate ? { y: '60%', opacity: 0 } : undefined}
+                transition={{ duration, ease: [0.16, 1, 0.3, 1] }}
               >
                 {ch}
               </motion.span>
@@ -117,211 +115,60 @@ export function FocusDigits({ className = '' }: { className?: string }) {
   );
 }
 
-export function FocusStatusChip() {
-  const { running, started, isBreak } = useFocusLive();
-  const label = isBreak ? (running ? 'Pause läuft' : 'Pause') : running ? 'Fokus läuft' : started ? 'Pausiert' : 'Bereit';
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold ${running ? 'lens text-ink' : 'bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)] text-muted'}`} data-testid="focus-status">
-      <span className="relative flex size-2">
-        {running && <span className="absolute inline-flex size-full animate-ping rounded-full opacity-70" style={{ background: isBreak ? 'var(--ss-success)' : 'var(--ss-accent)' }} />}
-        <span className="relative inline-flex size-2 rounded-full" style={{ background: running ? (isBreak ? 'var(--ss-success)' : 'var(--ss-accent)') : 'var(--ss-text-3)' }} />
-      </span>
-      {label}
-    </span>
-  );
+/** Kurzer Status als Text (für Karte und Vollbild) */
+export function focusStatusLabel(running: boolean, started: boolean, finished: boolean): string {
+  if (finished) return 'Phase beendet';
+  return running ? 'Läuft' : started ? 'Pausiert' : 'Bereit';
 }
 
-function RoundButton({ label, onClick, disabled, children, active }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode; active?: boolean }) {
-  return (
-    <motion.button
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={active}
-      disabled={disabled}
-      whileTap={{ scale: 0.88 }}
-      transition={spring.micro}
-      onClick={onClick}
-      className={`glass mat-interactive grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-40 ${active ? 'text-accent' : 'text-ink'}`}
-    >
-      {children}
-    </motion.button>
-  );
-}
-
-/** Steuerung: Signalton · Zurücksetzen · Start/Pause · Beenden · Einstellungen */
-export function FocusControlBar({ onSettings, big = true }: { onSettings?: () => void; big?: boolean }) {
-  const me = useCurrentMember();
-  const sound = useFocus((s) => s.settings.sound);
-  const setSettings = useFocus((s) => s.setSettings);
-  const { running, started, timer } = useFocusLive();
-  return (
-    <div className="flex items-center justify-center gap-3">
-      <RoundButton label={sound ? 'Signalton aus' : 'Signalton an'} active={sound} onClick={() => setSettings({ sound: !sound })}>
-        {sound ? <Music2 className="size-[18px]" /> : <Music className="size-[18px] opacity-60" />}
-      </RoundButton>
-      <RoundButton label="Zurücksetzen" disabled={!started} onClick={() => focusActions.reset()}>
-        <RotateCcw className="size-[18px]" />
-      </RoundButton>
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.9 }}
-        transition={spring.micro}
-        onClick={() => {
-          haptic('select');
-          unlockAudio();
-          if (running) focusActions.pause();
-          else focusActions.start();
-        }}
-        aria-label={running ? 'Fokus pausieren' : started ? 'Fokus fortsetzen' : 'Fokus starten'}
-        className={`btn-primary grid ${big ? 'size-16' : 'size-13'} shrink-0 place-items-center rounded-full`}
-      >
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span key={running ? 'p' : 's'} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.4, opacity: 0 }} transition={spring.micro}>
-            {running ? <Pause className="size-6" fill="currentColor" /> : <Play className="ml-0.5 size-6" fill="currentColor" />}
-          </motion.span>
-        </AnimatePresence>
-      </motion.button>
-      <RoundButton label="Fokus beenden und Zeit speichern" disabled={!started || timer.phase !== 'focus' || !me} onClick={() => me && void focusActions.finishEarly(me.id)}>
-        <Square className="size-4" />
-      </RoundButton>
-      {onSettings && (
-        <RoundButton label="Fokus-Einstellungen" onClick={onSettings}>
-          <SlidersHorizontal className="size-[18px]" />
-        </RoundButton>
-      )}
-    </div>
-  );
-}
-
-function FocusSettings() {
-  const presetIndex = useFocus((s) => s.settings.presetIndex);
-  const timer = useFocus((s) => s.timer);
-  const modules = useModules();
-  const locked = isRunning(timer);
-  return (
-    <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label="Fokus-Rhythmus" className="flex flex-wrap gap-2">
-        {FOCUS_PRESETS.map((p, i) => (
-          <button
-            key={p.label}
-            type="button"
-            role="radio"
-            aria-checked={presetIndex === i}
-            disabled={locked && presetIndex !== i}
-            onClick={() => focusActions.choosePreset(i)}
-            className={`num rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-40 ${presetIndex === i ? 'lens text-ink' : 'text-muted hover:text-ink'}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-      <select className="field !min-h-10 !py-2" value={timer.moduleId ?? ''} onChange={(e) => focusActions.setModule(e.target.value || null)} aria-label="Modul für diese Fokusphase">
-        <option value="">Kein bestimmtes Modul</option>
-        {modules.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-/** Fokus starten und direkt in die Vollbild-Ansicht wechseln (aus einem Klick heraus) */
-export function openFocusFullscreen() {
+/** Fokus öffnen: immer die immersive Vollbildansicht */
+export function openFocus() {
   haptic('select');
-  unlockAudio();
-  void enterFullscreen();
-  navigate('/fokus/vollbild');
+  navigate('/fokus');
 }
 
 /**
- * Breites Fokus-Panel (Querformat): links der Ring, rechts großer Countdown,
- * Live-Fortschritt, Session-Infos und Steuerung.
+ * Dashboard-Karte: zeigt nur den Zustand und öffnet die Fokusansicht.
+ * Bewusst ohne eigene Steuerung – alle Bedienelemente liegen im Vollbild.
  */
-export function FocusPanel({ compact = false, stage = false }: { compact?: boolean; stage?: boolean }) {
-  const { running, rest, progress, timer, isBreak } = useFocusLive();
+export function FocusLauncher({ large = false }: { large?: boolean }) {
+  const { timer, running, started, rest, progress, isBreak, title } = useFocusLive();
   const modules = useData((s) => s.modules);
-  const [showSettings, setShowSettings] = useState(false);
-  const mobile = useIsMobile();
-  const preset = currentPreset();
-  const elapsed = Math.max(0, timer.durationSec - rest);
   const module = timer.moduleId ? modules[timer.moduleId] : null;
-  const endsAtLabel = timer.endsAt ? new Date(timer.endsAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : null;
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showSettings) return;
-    const close = (e: PointerEvent) => !panelRef.current?.contains(e.target as Node) && setShowSettings(false);
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [showSettings]);
-
+  const c = phaseColors(timer);
+  const status = focusStatusLabel(running, started, timer.finished);
   return (
-    <div ref={panelRef} className={`relative flex flex-col items-center justify-center gap-5 sm:flex-row sm:items-center ${stage ? 'sm:gap-14' : 'sm:gap-8'}`} data-testid="focus-panel">
-      <div className="glass shrink-0 rounded-full p-2.5">
-      <FocusRing size={compact ? 150 : stage ? (mobile ? 184 : 236) : 200} stroke={compact ? 9 : stage && mobile ? 10 : 12}>
-        <div>
-          {isBreak ? <Coffee className="mx-auto size-6 text-success" aria-hidden /> : <Timer className="mx-auto size-6 text-accent" aria-hidden />}
-          <p className="num mt-1.5 text-[13px] font-semibold text-muted">{Math.round(progress * 100)} %</p>
-        </div>
-      </FocusRing>
-      </div>
-      <div className={`flex min-w-0 flex-col items-center gap-3 sm:items-start ${stage ? '' : 'flex-1'}`}>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <FocusStatusChip />
-          <span className="text-[12.5px] text-muted">
-            {isBreak ? `${preset.rest} Min. Pause` : `${preset.focus} Min. Fokus`}
-            {module ? ` · ${module.name}` : ''}
+    <button
+      type="button"
+      onClick={openFocus}
+      className="group relative flex w-full items-center gap-5 text-left sm:gap-7"
+      aria-label={`Fokus öffnen – ${title}, ${status}, noch ${formatClock(rest)}`}
+      data-testid="focus-launcher"
+    >
+      <span className="glass shrink-0 rounded-full p-1.5 transition-transform duration-300 group-hover:scale-[1.03]">
+        <FocusRing size={large ? 156 : 112} stroke={large ? 10 : 8} color={c.main} soft={c.soft} glow={running}>
+          {isBreak ? <Coffee className="size-6" style={{ color: c.main }} aria-hidden /> : <Timer className="size-6" style={{ color: c.main }} aria-hidden />}
+        </FocusRing>
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="flex flex-wrap items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
+          <span className="relative flex size-2">
+            {running && <span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: c.main }} />}
+            <span className="relative inline-flex size-2 rounded-full" style={{ background: running ? c.main : 'var(--ss-text-3)' }} />
           </span>
-        </div>
-        <p className="sr-only" aria-live="polite">
-          {isBreak ? 'Pause' : 'Fokuszeit'}, noch {Math.ceil(rest / 60)} Minuten{running ? '' : ', angehalten'}
-        </p>
-        <FocusDigits className={`${compact ? 'text-[56px] md:text-[64px]' : 'text-[76px] md:text-[112px]'}`} />
-        <div className={`w-full ${stage ? 'max-w-[460px]' : 'max-w-md'}`}>
-          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--ss-track)]" role="progressbar" aria-label="Fortschritt der Phase" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
-            <div className="h-full rounded-full transition-[width] duration-300 ease-linear" style={{ width: `${progress * 100}%`, background: isBreak ? 'var(--ss-success)' : 'linear-gradient(90deg, var(--ss-accent-2), var(--ss-accent))' }} />
-          </div>
-          <div className="num mt-1.5 flex justify-between text-[11.5px] text-muted">
-            <span>{formatClock(elapsed)} vergangen</span>
-            <span>{endsAtLabel ? `Ende um ${endsAtLabel}` : `noch ${formatClock(rest)}`}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <FocusControlBar onSettings={() => setShowSettings((v) => !v)} big={!compact} />
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.9 }}
-            onClick={() => {
-              if (!isRunning(useFocus.getState().timer)) focusActions.start();
-              openFocusFullscreen();
-            }}
-            aria-label="Fokus im Vollbild"
-            title="Fokus im Vollbild"
-            className="glass mat-interactive hidden size-11 place-items-center rounded-full sm:grid"
-          >
-            <Maximize2 className="size-[18px]" />
-          </motion.button>
-        </div>
-        <AnimatePresence initial={false}>
-          {showSettings && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-md overflow-hidden"
-            >
-              <div className="glass mat-float mt-1 rounded-[22px] p-4">
-                <p className="mb-3 text-[13px] font-semibold">Rhythmus & Modul</p>
-                <FocusSettings />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
+          <span data-testid="focus-status">{title}</span>
+          <span aria-hidden>·</span>
+          <span>{status}</span>
+        </span>
+        <FocusDigits className={`font-semibold tracking-[-0.045em] ${large ? 'text-[64px] lg:text-[88px]' : 'text-[54px] md:text-[64px]'}`} />
+        <span className="flex items-center gap-3">
+          <span className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--ss-track)]">
+            <span className="block h-full rounded-full" style={{ width: `${progress * 100}%`, background: `linear-gradient(90deg, ${c.soft}, ${c.main})`, transition: running ? 'width 1s linear' : undefined }} />
+          </span>
+          {module && <span className="max-w-[40%] truncate text-[12.5px] text-muted">{module.name}</span>}
+        </span>
+      </span>
+      <ArrowUpRight className="size-5 shrink-0 self-start text-muted transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden />
+    </button>
   );
 }

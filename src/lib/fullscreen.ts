@@ -18,7 +18,7 @@ export function isFullscreen(): boolean {
 }
 
 /** Muss direkt aus einer Benutzeraktion (Klick/Tipp) aufgerufen werden. */
-export async function enterFullscreen(): Promise<boolean> {
+export async function enterFullscreen({ lockLandscape = true }: { lockLandscape?: boolean } = {}): Promise<boolean> {
   const el = document.documentElement as FsElement;
   try {
     if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
@@ -28,6 +28,7 @@ export async function enterFullscreen(): Promise<boolean> {
     return false;
   }
   // Querformat sperren (nur Android im Vollbild)
+  if (!lockLandscape) return true;
   try {
     await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape');
   } catch {

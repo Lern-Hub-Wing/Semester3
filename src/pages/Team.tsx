@@ -57,7 +57,6 @@ export function Team({ me }: { me: Member }) {
     <div>
       <PageHeader
         title="Team"
-        subtitle="Jeder hat seinen eigenen Fortschritt – gemeinsam erreichen wir 100 %."
         actions={
           <>
             <Segmented

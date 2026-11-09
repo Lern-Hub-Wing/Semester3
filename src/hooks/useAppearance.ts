@@ -13,6 +13,8 @@ export function useAppearance() {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('dark', dark);
+    // Glisse-Komponenten lesen das Theme aus data-theme
+    root.dataset.theme = dark ? 'dark' : 'light';
     root.classList.toggle('reduce-motion', motion === 'reduced');
     root.classList.toggle('force-motion', motion === 'full');
     root.classList.toggle('compact', compact);

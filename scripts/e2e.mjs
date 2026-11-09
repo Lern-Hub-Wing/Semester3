@@ -158,27 +158,41 @@ async function checkRingGlow(page, label) {
 /** Smartphone: Navigation, Glas, Profilbutton, Sticky-Logo, Abstände, Team-Kreise, Haptik. */
 async function mobileDesignChecks(p, name) {
   const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
-  const bar = nav.locator('.glass').first();
-  for (const [label, hash] of [['Fächer', '#/faecher'], ['Team', '#/team'], ['Lernplan', '#/lernplan'], ['Home', '#/']]) {
+  const bar = nav;
+  const glass = nav.locator('.lg-tab-bar-glass').first();
+  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Lernplan', '#/lernplan'], ['Home', '#/']]) {
     await nav.getByRole('link', { name: label }).click();
-    await p.waitForTimeout(300);
+    await p.waitForTimeout(350);
     check(new URL(p.url()).hash.split('?')[0] === hash, `Tab-Leiste (${name}): Antippen öffnet „${label}“`);
   }
-  // Wischgesten sind entfernt: Ziehen über die Leiste wechselt die Seite nicht
+  // Ziehen auf der Leiste: Linse folgt dem Finger, navigiert wird erst beim Loslassen
   const box = await bar.boundingBox();
   const y = box.y + box.height / 2;
   const tab = (i) => box.x + 6 + ((box.width - 12) / 5) * (i + 0.5);
   await p.mouse.move(tab(0), y);
   await p.mouse.down();
-  await p.mouse.move(tab(3), y, { steps: 10 });
+  await p.mouse.move(tab(3), y, { steps: 12 });
+  await p.waitForTimeout(150);
+  const lifted = await bar.evaluate((el) => el.hasAttribute('data-lifted'));
+  check(new URL(p.url()).hash === '#/' && lifted, `Tab-Leiste (${name}): Linse folgt beim Ziehen, noch keine Navigation`);
+  await p.mouse.up();
+  await p.waitForTimeout(500);
+  check(new URL(p.url()).hash === '#/team', `Tab-Leiste (${name}): Loslassen über „Team“ navigiert dorthin (${new URL(p.url()).hash})`);
+  // Keine globale Wischnavigation über dem Seiteninhalt
+  await p.evaluate(() => window.scrollTo(0, 0));
+  await p.mouse.move(60, 320);
+  await p.mouse.down();
+  await p.mouse.move(330, 320, { steps: 10 });
   await p.mouse.up();
   await p.waitForTimeout(300);
-  check(new URL(p.url()).hash === '#/', `Tab-Leiste (${name}): keine Wischnavigation mehr`);
+  check(new URL(p.url()).hash === '#/team', `Tab-Leiste (${name}): Wischen über den Inhalt wechselt keine Seite`);
+  await nav.getByRole('link', { name: 'Home' }).click();
+  await p.waitForTimeout(300);
   const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
-  check(touchAction !== 'none', `Tab-Leiste (${name}): normales Scrollen nicht blockiert (touch-action=${touchAction})`);
+  check(touchAction === 'pan-y', `Tab-Leiste (${name}): senkrechtes Scrollen bleibt frei (touch-action=${touchAction})`);
 
   // Liquid Glass: Hintergrundunschärfe auf Leiste, Logo und Profilbutton
-  for (const [what, loc] of [['Tab-Leiste', bar], ['Suche', p.getByRole('button', { name: 'Suche öffnen' })], ['Profilbutton', p.getByTestId('profile-button')]]) {
+  for (const [what, loc] of [['Tab-Leiste', glass], ['Suche', p.getByRole('button', { name: 'Suche öffnen' })], ['Profilbutton', p.getByTestId('profile-button')]]) {
     const bf = await loc.evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
     check(/blur\(/.test(bf), `Liquid Glass (${name}): ${what} mit Hintergrundunschärfe`);
   }
@@ -592,15 +606,15 @@ try {
     await c.close();
   }
 
-  // --- Neue Bereiche: Timeline, Analyse, Fokus ---------------------------
+  // --- Neue Bereiche: Fokus 2.0, Timeline, Analyse ------------------------
   {
     const t0 = Date.now();
-    // Laufender Timer, der in gut einer Sekunde endet (25 Min. Fokus fast vorbei)
-    const timer = { phase: 'focus', durationSec: 1500, endsAt: t0 + 2500, pausedRemainingSec: null, startedAt: t0 - 1497500, elapsedBeforePauseSec: 0, moduleId: db.modules[4].id };
+    // Laufender Timer, der in gut einer Sekunde endet (Runde 1 von 4, 25 Min. Fokus fast vorbei)
+    const timer = { phase: 'focus', long: false, round: 1, durationSec: 1500, endsAt: t0 + 2500, pausedRemainingSec: null, startedAt: t0 - 1497500, elapsedBeforePauseSec: 0, finished: false, moduleId: db.modules[4].id };
     const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
     await c.addInitScript((t) => {
       if (!sessionStorage.getItem('focus-seeded')) {
-        localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer: t, settings: { presetIndex: 0, sound: false } }));
+        localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer: t, settings: { preset: 'klassisch', sound: false } }));
         sessionStorage.setItem('focus-seeded', '1');
       }
     }, timer);
@@ -608,55 +622,89 @@ try {
     await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
     await p.getByRole('heading', { name: /Person 1/ }).waitFor();
 
-    // Fokus: abgelaufene Phase wird gespeichert und die Pause beginnt
+    // Abgelaufene Fokusphase wird gespeichert (nur echte Fokuszeit), danach kurze Pause
     await p.waitForTimeout(3500);
     const fs = db.focus_sessions;
     check(fs.length === 1 && fs[0].duration_seconds === 1500 && fs[0].member_id.endsWith('01') && fs[0].module_id === db.modules[4].id, `Fokus: abgelaufene Fokusphase gespeichert (${JSON.stringify(fs.map((x) => x.duration_seconds))})`);
-    await p.goto(`${BASE}#/fokus`);
-    await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
-    check((await p.getByText('Pause', { exact: true }).count()) > 0, 'Fokus: nach der Fokusphase folgt automatisch die Pause');
-    await p.getByRole('button', { name: 'Fokus-Einstellungen' }).click();
-    await p.getByRole('radio', { name: '25 / 5' }).click();
-    await p.getByRole('button', { name: 'Fokus-Einstellungen' }).click();
+
+    // Dashboard: Fokus-Karte öffnet direkt die immersive Ansicht; keine Erinnerungsvorschau mehr
+    const hero = p.getByTestId('dashboard-hero');
+    check((await hero.locator('svg.landscape').count()) === 1, 'Dashboard: Hero mit Berglandschaft');
+    check((await hero.getByText('Heute', { exact: true }).count()) === 1 && (await hero.getByText('Fortschritt', { exact: true }).count()) === 1 && (await hero.getByLabel('Prüfungscountdown').count()) === 1, 'Dashboard: Heute, Fortschritt und Nächste Prüfung im Hero');
+    check((await p.getByTestId('lockscreen-preview').count()) === 0, 'Dashboard: Karte „Nächste Erinnerung“ entfernt');
+    check((await p.getByText('Konzentriert lernen mit Pausen').count()) === 0, 'Dashboard: überflüssiger Hilfstext entfernt');
+    await shot(p, '30-dashboard-desktop-light');
+    await p.getByTestId('focus-launcher').click();
+    const imm = p.getByTestId('focus-immersive');
+    await imm.waitFor();
+    check(new URL(p.url()).hash === '#/fokus', 'Fokus: Karte öffnet die Fokusansicht');
+    const phase = () => p.getByTestId('focus-phase').textContent();
+    check((await phase())?.includes('Kurze Pause') && (await imm.getAttribute('data-phase')) === 'short', `Fokus: nach Runde 1 folgt automatisch die kurze Pause (${await phase()})`);
+    check((await imm.locator('svg.landscape').count()) === 1, 'Fokus: Berglandschaft im Hintergrund');
+    check((await p.getByTestId('focus-toggle').getAttribute('aria-label')) === 'Starten', 'Fokus: kein Autostart – bewusster Start (Standard)');
+
+    // Pause überspringen → Runde 2 läuft sofort
+    await p.getByRole('button', { name: 'Pause überspringen' }).click();
+    await p.waitForTimeout(300);
+    check((await phase())?.includes('Runde 2 von 4'), `Fokus: Pause übersprungen → „${await phase()}“`);
     const clock = () => p.getByTestId('focus-time').getAttribute('data-value');
-    check((await clock()) === '25:00', 'Fokus: Rhythmus 25/5 setzt den Timer zurück');
-    await p.getByRole('button', { name: 'Fokus starten' }).click();
-    await p.waitForTimeout(2300);
-    const running = await clock();
-    check(/^24:5\d$/.test(running ?? ''), `Fokus: Timer läuft (${running})`);
-    await p.getByRole('button', { name: 'Fokus pausieren' }).click();
+    const t1 = await clock();
+    await p.waitForTimeout(2200);
+    const t2 = await clock();
+    check(!!t1 && !!t2 && t2 < t1, `Fokus: Countdown läuft herunter (${t1} → ${t2})`);
+    // Steuerleiste blendet sich aus und kehrt bei Bewegung zurück
+    await p.mouse.move(640, 300);
+    await p.waitForTimeout(4600);
+    check((await imm.getAttribute('data-controls')) === 'hidden', 'Fokus: Steuerleiste blendet sich automatisch aus');
+    await p.mouse.move(700, 420);
+    await p.waitForTimeout(200);
+    check((await imm.getAttribute('data-controls')) === 'visible', 'Fokus: Bewegung zeigt die Steuerleiste wieder');
+    await p.getByRole('button', { name: 'Pausieren' }).click();
     const paused = await clock();
     await p.waitForTimeout(1500);
     check((await clock()) === paused, 'Fokus: Pause hält den Timer an');
     await p.reload();
     await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
-    await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
-    check((await clock()) === paused, 'Fokus: angehaltener Stand bleibt nach dem Neuladen erhalten');
-    check((await p.getByText('25 Min.').count()) > 0, 'Fokus: gespeicherte Lernzeit wird angezeigt');
-    // Fokus im Vollbild: Countdown läuft sichtbar herunter, Escape kehrt zurück
-    await p.getByRole('button', { name: 'Fokus im Vollbild', exact: true }).first().click();
-    await p.getByTestId('focus-immersive').waitFor();
-    check(new URL(p.url()).hash === '#/fokus/vollbild', 'Fokus-Vollbild: eigene Ansicht geöffnet');
-    check((await p.getByTestId('focus-status').textContent())?.includes('Fokus läuft'), 'Fokus-Vollbild: Session läuft (Start aus dem Klick)');
-    const t1 = await clock();
-    await p.waitForTimeout(2200);
-    const t2 = await clock();
-    check(!!t1 && !!t2 && t1 !== t2 && t2 < t1, `Fokus-Vollbild: Countdown läuft herunter (${t1} → ${t2})`);
-    check((await p.getByTestId('focus-immersive').locator('svg.landscape').count()) === 1, 'Fokus-Vollbild: Berglandschaft im Hintergrund');
-    check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Fokus-Vollbild)');
-    await shot(p, '33-fokus-vollbild-desktop');
+    await imm.waitFor();
+    check((await clock()) === paused && (await phase())?.includes('Runde 2'), 'Fokus: Stand und Runde bleiben nach dem Neuladen erhalten');
+
+    // Session beenden → Runde 1; Rhythmus „Kurz“ wählen
+    await p.getByRole('button', { name: 'Session beenden und Lernzeit speichern' }).click();
+    await p.getByRole('button', { name: 'Fokus-Einstellungen' }).click();
+    const panel = p.getByRole('dialog', { name: 'Fokus-Einstellungen' });
+    await panel.waitFor();
+    await panel.getByRole('radio', { name: 'Kurz' }).click();
+    await p.waitForTimeout(300);
+    check((await clock()) === '15:00' && (await phase())?.includes('Runde 1 von 4'), `Fokus: Rhythmus „Kurz“ (15/5) gesetzt (${await clock()})`);
+    check((await panel.getByTestId('focus-rhythm').textContent())?.includes('15 Min. Fokus · 5 Min. Pause'), 'Fokus: Rhythmus wird angezeigt');
+    // Individuell: Runden bis zur langen Pause ändern
+    await panel.getByRole('radio', { name: 'Individuell' }).click();
+    await panel.getByLabel('Runden bis zur langen Pause').fill('3');
+    await p.waitForTimeout(200);
+    check((await phase())?.includes('von 3'), `Fokus: individuelle Rundenzahl wirkt sofort (${await phase()})`);
+    // Darstellung: Sekunden aus, Hintergrund Polarlicht
+    await panel.getByRole('radio', { name: 'Anzeige' }).click();
+    await panel.getByRole('switch', { name: 'Sekunden anzeigen' }).click();
+    await p.waitForTimeout(500);
+    const shown = (await p.getByTestId('focus-time').innerText()).replace(/\s/g, '');
+    check(!shown.includes(':'), `Fokus: Anzeige ohne Sekunden („${shown}“)`);
+    await panel.getByRole('radio', { name: 'Bild' }).click();
+    await panel.getByRole('radio', { name: 'Polarlicht' }).click();
+    check((await p.getByTestId('focus-bg').getAttribute('data-bg')) === 'aurora', 'Fokus: Hintergrund „Polarlicht“');
+    const look = await p.evaluate(() => JSON.parse(localStorage.getItem('studyspace.focuslook.v1') ?? '{}'));
+    check(look.background === 'aurora' && look.showSeconds === false, 'Fokus: Darstellung wird gespeichert');
+    await shot(p, '33-fokus-einstellungen-desktop');
+    await panel.getByRole('radio', { name: 'Steuerung' }).click();
+    check((await panel.getByRole('switch', { name: 'Beim Öffnen sofort starten' }).getAttribute('aria-checked')) === 'false', 'Fokus: Autostart beim Öffnen standardmäßig aus');
+    await panel.getByRole('button', { name: 'Darstellung zurücksetzen' }).click();
+    check((await p.getByTestId('focus-bg').getAttribute('data-bg')) === 'mountains', 'Fokus: Zurücksetzen stellt die Berglandschaft wieder her');
+    check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Fokus)');
     await p.keyboard.press('Escape');
-    await p.getByRole('heading', { name: 'Fokus', exact: true }).waitFor();
-    check(new URL(p.url()).hash === '#/fokus', 'Fokus-Vollbild: Escape führt zurück');
-    await p.getByRole('button', { name: 'Fokus pausieren' }).click();
-    // Dashboard: Hero mit Berglandschaft, Karten „Heute“, „Fortschritt“, „Nächste Prüfung“, Erinnerungsvorschau
-    await p.goto(`${BASE}#/`);
-    const hero = p.getByTestId('dashboard-hero');
-    await hero.waitFor();
-    check((await hero.locator('svg.landscape').count()) === 1, 'Dashboard: Hero mit Berglandschaft');
-    check((await hero.getByText('Heute', { exact: true }).count()) === 1 && (await hero.getByText('Fortschritt', { exact: true }).count()) === 1 && (await hero.getByLabel('Prüfungscountdown').count()) === 1, 'Dashboard: Heute, Fortschritt und Nächste Prüfung im Hero');
-    check((await p.getByTestId('lockscreen-preview').count()) >= 1, 'Dashboard: Vorschau der nächsten Erinnerung (Sperrbildschirm-Stil)');
-    await shot(p, '30-fokus-desktop-light');
+    await p.waitForTimeout(700);
+    check((await p.getByRole('dialog', { name: 'Fokus-Einstellungen' }).count()) === 0 && new URL(p.url()).hash === '#/fokus', 'Fokus: Escape schließt zuerst die Einstellungen');
+    await p.keyboard.press('Escape');
+    await p.getByTestId('dashboard-hero').waitFor();
+    check(new URL(p.url()).hash === '#/', 'Fokus: Escape führt zurück zur vorherigen Seite');
 
     // Timeline: alle Module als Zeilen, sechs Prüfungen als Rauten
     await p.goto(`${BASE}#/lernplan?ansicht=timeline`);
@@ -678,6 +726,133 @@ try {
     await shot(p, '32-analyse-desktop-light');
     check(errs.length === 0, `keine JavaScript-Fehler (Fokus/Analyse)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
+  }
+
+  // --- Fokus auf dem Smartphone: Hoch- und Querformat -----------------------
+  for (const [label, viewport] of [['hoch', { width: 390, height: 844 }], ['quer', { width: 844, height: 390 }]]) {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+    await p.goto(`${BASE}#/fokus`);
+    await p.getByRole('button', { name: 'Als Person 3 lernen' }).click();
+    const imm = p.getByTestId('focus-immersive');
+    await imm.waitFor();
+    const digits = await p.getByTestId('focus-time').boundingBox();
+    const toggle = await p.getByTestId('focus-toggle').boundingBox();
+    const inside = (b) => b && b.x >= 0 && b.y >= 0 && b.x + b.width <= viewport.width + 0.5 && b.y + b.height <= viewport.height + 0.5;
+    check(inside(digits) && inside(toggle), `Fokus (${label}format): Zeit und Steuerung vollständig sichtbar`);
+    check(!(await hasHorizontalOverflow(p)), `L: kein horizontaler Überlauf (Fokus ${label})`);
+    await p.getByTestId('focus-toggle').tap();
+    await p.waitForTimeout(300);
+    check((await p.getByTestId('focus-toggle').getAttribute('aria-label')) === 'Pausieren', `Fokus (${label}format): Start per Antippen`);
+    await shot(p, `34-fokus-iphone-${label}`);
+    check(errs.length === 0, `keine JavaScript-Fehler (Fokus ${label})${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Hausaufgaben ---------------------------------------------------------
+  {
+    const berlinToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date());
+    const plus = (n) => {
+      const d = new Date(`${berlinToday}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    const tasksBefore = JSON.stringify(db.tasks.map((t) => [t.id, t.study_entry_id, t.deleted_at]));
+    const entriesBefore = JSON.stringify(db.study_entries.map((e) => [e.id, e.study_date]));
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByRole('heading', { name: /Person 1/ }).waitFor();
+    await p.locator('aside').getByRole('link', { name: 'Hausaufgaben' }).click();
+    await p.getByRole('heading', { name: 'Hausaufgaben', exact: true }).waitFor();
+    check(new URL(p.url()).hash === '#/hausaufgaben', 'Hausaufgaben: über die Seitenleiste erreichbar');
+    await p.getByRole('button', { name: 'Neue Hausaufgabe' }).first().click();
+    const dlg = p.getByRole('dialog', { name: 'Neue Hausaufgabe' });
+    await dlg.waitFor();
+    // Pflichtfelder werden geprüft
+    await dlg.getByTestId('homework-save').click();
+    check((await dlg.getByRole('alert').textContent())?.includes('Titel'), 'Hausaufgaben: Titel ist Pflicht');
+    await dlg.getByLabel('Titel').fill('Übungsblatt 6');
+    await dlg.getByLabel('Modul').selectOption({ label: 'Controlling' });
+    const due = plus(5);
+    await dlg.getByLabel('Abgabe', { exact: true }).fill(due);
+    // Kalender: Bearbeitungszeitraum heute bis Vortag, Abgabe markiert
+    const cal = dlg.getByTestId('homework-calendar');
+    check((await cal.locator('[data-work]').count()) === 5, `Hausaufgaben: 5 Arbeitstage bis zum Vortag (${await cal.locator('[data-work]').count()})`);
+    check((await cal.locator('[data-due]').count()) === 1, 'Hausaufgaben: Abgabetag im Kalender markiert (kein Arbeitstag)');
+    await dlg.getByRole('switch', { name: 'Arbeitseinheiten einplanen' }).click();
+    const preview = dlg.getByTestId('homework-preview');
+    await preview.locator('input[type=date]').nth(1).waitFor();
+    const dates = await preview.locator('input[type=date]').evaluateAll((els) => els.map((e) => e.value));
+    check(dates.length === 2 && dates.every((d) => d >= berlinToday && d < due), `Hausaufgaben: Vorschau plant vor dem Abgabetag (${dates.join(', ')})`);
+    // Datum in der Vorschau von Hand ändern
+    await preview.locator('input[type=date]').first().fill(berlinToday);
+    await dlg.getByTestId('homework-save').click();
+    await dlg.waitFor({ state: 'detached' });
+    await p.waitForTimeout(400);
+    const hw = db.homework.find((h) => h.title === 'Übungsblatt 6');
+    const units = db.homework_parts.filter((x) => x.homework_id === hw?.id && x.kind === 'unit');
+    check(!!hw && hw.due_date === due && hw.module_id === db.modules[4].id, 'Hausaufgaben: gespeichert mit Modul und Abgabedatum');
+    check(units.length === 2 && units.some((u) => u.planned_date === berlinToday) && units.every((u) => u.planned_date < due), `Hausaufgaben: Einheiten mit bestätigten Daten eingetragen (${units.map((u) => u.planned_date).join(', ')})`);
+    check(db.homework_parts.filter((x) => x.homework_id === hw?.id && x.kind === 'subtask').length === 0, 'Hausaufgaben: keine Unteraufgaben erfunden');
+    check(JSON.stringify(db.tasks.map((t) => [t.id, t.study_entry_id, t.deleted_at])) === tasksBefore && JSON.stringify(db.study_entries.map((e) => [e.id, e.study_date])) === entriesBefore, 'Hausaufgaben: bestehende Lernplan-Aufgaben unverändert');
+    const item = p.getByTestId('homework-item').filter({ hasText: 'Übungsblatt 6' });
+    check((await item.getByTestId('homework-due').textContent())?.includes('in 5 Tagen fällig'), 'Hausaufgaben: Countdown bis zur Abgabe');
+    // Erste Einheit abhaken (Person 1)
+    await item.getByRole('button', { name: 'Details anzeigen' }).click();
+    const firstUnit = units.sort((a, b) => a.planned_date.localeCompare(b.planned_date))[0];
+    await item.getByRole('checkbox', { name: `${firstUnit.title} erledigt` }).click();
+    await p.waitForTimeout(400);
+    check(db.homework_completions.some((x) => x.target_id === firstUnit.id && x.member_id.endsWith('01') && x.is_completed), 'Hausaufgaben: Erledigung je Person gespeichert');
+    // Abgabe vorziehen → Neuplanung erst nach Bestätigung, Erledigung bleibt
+    await item.getByRole('button', { name: 'Bearbeiten' }).click();
+    const edit = p.getByRole('dialog', { name: 'Hausaufgabe bearbeiten' });
+    await edit.waitFor();
+    const newDue = plus(2);
+    await edit.getByLabel('Abgabe', { exact: true }).fill(newDue);
+    await edit.getByTestId('homework-save').click();
+    await p.getByTestId('homework-replan').waitFor();
+    check(db.homework.find((h) => h.id === hw.id).due_date === due, 'Hausaufgaben: neues Abgabedatum erst nach Bestätigung gespeichert');
+    await p.getByTestId('homework-replan-apply').click();
+    await p.getByRole('dialog').waitFor({ state: 'detached' });
+    await p.waitForTimeout(400);
+    const after = db.homework_parts.filter((x) => x.homework_id === hw.id && x.kind === 'unit');
+    check(db.homework.find((h) => h.id === hw.id).due_date === newDue && after.every((u) => u.planned_date < newDue), `Hausaufgaben: Einheiten an neue Abgabe angepasst (${after.map((u) => u.planned_date).join(', ')})`);
+    check(db.homework_completions.some((x) => x.target_id === firstUnit.id && x.is_completed), 'Hausaufgaben: Erledigungen bleiben nach Terminänderung erhalten');
+    // Ganze Hausaufgabe abhaken
+    await item.getByRole('checkbox', { name: 'Übungsblatt 6 erledigt' }).click();
+    await p.waitForTimeout(400);
+    check(db.homework_completions.some((x) => x.target_id === hw.id && x.member_id.endsWith('01') && x.is_completed), 'Hausaufgaben: als erledigt markiert');
+    // Dashboard-Karte und Schnellaktion
+    await p.goto(`${BASE}#/`);
+    await p.getByTestId('dashboard-hero').waitFor();
+    check((await p.getByTestId('homework-card').count()) === 1, 'Dashboard: Hausaufgaben-Karte');
+    await p.getByRole('button', { name: 'Neue Hausaufgabe anlegen' }).click();
+    check((await p.getByRole('dialog', { name: 'Neue Hausaufgabe' }).count()) === 1, 'Dashboard: „+ Hausaufgabe“ öffnet das Formular');
+    await p.keyboard.press('Escape');
+    check(errs.length === 0, `keine JavaScript-Fehler (Hausaufgaben)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+
+    // Ohne Migration 005: Funktion bleibt aus, Rest der App läuft
+    const saved = { homework: db.homework, homework_parts: db.homework_parts, homework_completions: db.homework_completions };
+    delete db.homework;
+    delete db.homework_parts;
+    delete db.homework_completions;
+    try {
+      const { page: q, errors: errs2, ctx: c2 } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+      await q.goto(BASE);
+      await q.getByRole('button', { name: 'Als Person 2 lernen' }).click();
+      await q.getByTestId('dashboard-hero').waitFor();
+      await q.waitForTimeout(800);
+      check((await q.getByTestId('homework-card').count()) === 0 && (await q.getByRole('button', { name: 'Neue Hausaufgabe anlegen' }).count()) === 0, 'Ohne Migration 005: keine Hausaufgaben-Karte, keine Schnellaktion');
+      check((await q.locator('#today-card').count()) >= 1, 'Ohne Migration 005: Dashboard funktioniert weiter');
+      await q.goto(`${BASE}#/hausaufgaben`);
+      await q.getByTestId('homework-setup').waitFor();
+      check((await q.getByTestId('homework-setup').textContent())?.includes('005_homework.sql'), 'Ohne Migration 005: verständlicher Hinweis auf die SQL-Datei');
+      check(errs2.length === 0, `keine JavaScript-Fehler (ohne Migration 005)${errs2.length ? ': ' + errs2.join(' | ') : ''}`);
+      await c2.close();
+    } finally {
+      Object.assign(db, saved);
+    }
   }
 
   // --- Push: iPhone im Browser → Installationsanleitung --------------------

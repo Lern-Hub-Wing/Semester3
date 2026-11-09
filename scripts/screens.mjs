@@ -57,6 +57,26 @@ for (const [offset, mod, title, tasks] of plan) {
     });
   });
 }
+// Hausaufgaben (Migration 005)
+const hw = (i, mod, title, due, extra = {}) =>
+  db.homework.push(base({ id: `77777777-7777-4777-8777-00000000000${i}`, module_id: M(mod), title, description: null, due_date: addDays(berlinToday, due), earliest_start: null, priority: 2, effort_minutes: null, unit_count: null, deleted_at: null, ...extra }));
+const part = (i, h, kind, title, day, sort) =>
+  db.homework_parts.push(base({ id: `88888888-8888-4888-8888-0000000000${i}`, homework_id: `77777777-7777-4777-8777-00000000000${h}`, kind, title, planned_date: day === null ? null : addDays(berlinToday, day), sort_order: sort, deleted_at: null }));
+if (db.homework) {
+  hw(1, 4, 'Übungsblatt 5 – Plankostenrechnung', 4, { priority: 3, unit_count: 3, description: 'Aufgaben 1–4, Abgabe als PDF im Moodle.' });
+  part(11, 1, 'subtask', 'Aufgabe 1 und 2', null, 0);
+  part(12, 1, 'subtask', 'Aufgabe 3 und 4', null, 1);
+  part(13, 1, 'unit', 'Arbeitseinheit 1 von 3', 0, 1000);
+  part(14, 1, 'unit', 'Arbeitseinheit 2 von 3', 1, 1001);
+  part(15, 1, 'unit', 'Arbeitseinheit 3 von 3', 2, 1002);
+  hw(2, 2, 'Laborbericht Wärmeübertragung', 9, { unit_count: 2 });
+  part(21, 2, 'unit', 'Arbeitseinheit 1 von 2', 3, 1000);
+  part(22, 2, 'unit', 'Arbeitseinheit 2 von 2', 6, 1001);
+  hw(3, 3, 'Integrale Übung 7', -1);
+  hw(4, 5, 'Skizze Welle-Nabe-Verbindung', 12, { priority: 1 });
+  db.homework_completions.push(base({ target_id: '88888888-8888-4888-8888-000000000011', homework_id: '77777777-7777-4777-8777-000000000001', member_id: db.members[0].id, is_completed: true, completed_at: `${berlinToday}T09:00:00.000Z` }));
+  db.homework_completions.push(base({ target_id: '77777777-7777-4777-8777-000000000004', homework_id: '77777777-7777-4777-8777-000000000004', member_id: db.members[1].id, is_completed: true, completed_at: `${berlinToday}T09:00:00.000Z` }));
+}
 db.members[0].name = 'Luk';
 db.members[1].name = 'Diana';
 db.members[2].name = 'Jonas';
@@ -83,8 +103,10 @@ const pages = [
   ['faecher', '#/faecher'],
   ['team', '#/team'],
   ['pruefungen', '#/pruefungen'],
+  ['hausaufgaben', '#/hausaufgaben'],
+  ['hausaufgabe-neu', '#/hausaufgaben', 'Neue Hausaufgabe'],
   ['fokus', '#/fokus'],
-  ['fokus-vollbild', '#/fokus/vollbild'],
+  ['fokus-einstellungen', '#/fokus', 'Fokus-Einstellungen'],
   ['analyse', '#/analyse'],
   ['einstellungen', '#/einstellungen'],
   ['benachrichtigungen', '#/einstellungen/benachrichtigungen'],
@@ -102,7 +124,7 @@ try {
         // Laufende Fokus-Session (seit 6 Minuten), damit der Countdown sichtbar läuft
         if (!sessionStorage.getItem('seeded')) {
           const now = Date.now();
-          localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer: { phase: 'focus', durationSec: 1500, endsAt: now + 19 * 60_000, pausedRemainingSec: null, startedAt: now - 6 * 60_000, elapsedBeforePauseSec: 0, moduleId: null }, settings: { presetIndex: 0, sound: true } }));
+          localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer: { phase: 'focus', long: false, round: 2, durationSec: 1500, endsAt: now + 19 * 60_000, pausedRemainingSec: null, startedAt: now - 6 * 60_000, elapsedBeforePauseSec: 0, finished: false, moduleId: null }, settings: { preset: 'klassisch' } }));
           sessionStorage.setItem('seeded', '1');
         }
       });
@@ -114,12 +136,17 @@ try {
       if (!ONLY || ONLY.includes('picker')) await page.screenshot({ path: join(OUT, `${device}-${scheme}-picker.png`) });
       await page.getByRole('button', { name: 'Als Luk lernen' }).click();
       await page.getByRole('heading', { name: /Luk/ }).first().waitFor();
-      for (const [name, hash] of pages.slice(1)) {
+      for (const [name, hash, click] of pages.slice(1)) {
         if (ONLY && !ONLY.includes(name)) continue;
         await page.evaluate((h) => (location.hash = h), hash);
         await page.mouse.move(2, 2);
         await page.waitForTimeout(2300);
+        if (click) {
+          await page.getByRole('button', { name: click }).first().click();
+          await page.waitForTimeout(900);
+        }
         await page.screenshot({ path: join(OUT, `${device}-${scheme}-${name}.png`), fullPage: process.env.FULL === '1' });
+        if (click) await page.keyboard.press('Escape');
       }
       await ctx.close();
       console.log(`✓ ${device} ${scheme}`);

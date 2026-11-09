@@ -42,12 +42,15 @@ export function seed() {
     app_settings: [{ key: 'app_name', value: 'StudySpace', version: 1, updated_at: t0, changed_by: null }],
     activity_log: [],
     focus_sessions: [],
+    // Migration 005 – fehlt absichtlich, wenn NO_HOMEWORK gesetzt ist (Feature bleibt dann aus)
+    ...(process.env.NO_HOMEWORK ? {} : { homework: [], homework_parts: [], homework_completions: [] }),
   };
 }
 
 export const db = seed();
 export const requests = [];
-const pk = (table, row) => (table === 'task_completions' ? `${row.task_id}:${row.member_id}` : table === 'app_settings' ? row.key : row.id);
+const pk = (table, row) =>
+  table === 'task_completions' ? `${row.task_id}:${row.member_id}` : table === 'homework_completions' ? `${row.target_id}:${row.member_id}` : table === 'app_settings' ? row.key : row.id;
 
 function parseFilters(url) {
   const f = [];
@@ -65,7 +68,7 @@ function touch(table, row, old) {
   const next = { ...old, ...row, updated_at: t, version: old ? old.version + 1 : 1 };
   if (!old && table !== 'app_settings') next.created_at = t;
   if (table === 'attachments' && !old) next.uploaded_at = t;
-  if (table === 'task_completions') next.completed_at = next.is_completed ? (old?.is_completed ? old.completed_at : t) : null;
+  if (table === 'task_completions' || table === 'homework_completions') next.completed_at = next.is_completed ? (old?.is_completed ? old.completed_at : t) : null;
   return next;
 }
 
@@ -79,7 +82,8 @@ export async function handle(route) {
   requests.push({ method, table, body, url: url.search });
   if (process.env.FAIL_WRITES && method !== 'GET') return route.fulfill({ status: 503, body: JSON.stringify({ message: 'Service unavailable' }) });
   const rows = db[table];
-  if (!rows) return route.fulfill({ status: 404, body: '{}' });
+  // Wie PostgREST: unbekannte Tabelle → PGRST205
+  if (!rows) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST205', message: `Could not find the table 'public.${table}' in the schema cache` }) });
   const reply = (list, status = 200) => {
     if (single) {
       if (list.length !== 1) return route.fulfill({ status: 406, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST116', message: 'no rows' }) });
