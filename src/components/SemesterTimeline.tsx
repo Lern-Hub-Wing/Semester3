@@ -48,12 +48,12 @@ export function SemesterTimeline({ compact, className = '' }: Props) {
 
   if (modules.length === 0) return <p className="py-6 text-center text-sm text-muted">Noch keine Module angelegt.</p>;
 
-  const labelCol = 'w-[148px] sm:w-[200px] lg:w-[230px]';
+  const labelCol = 'w-[118px] sm:w-[200px] lg:w-[230px]';
 
   return (
     <div className={`min-w-0 ${className}`} data-testid="semester-timeline">
       <div ref={scroller} className="timeline-scroll scroll-thin relative overflow-x-auto overscroll-x-contain pb-2">
-        <div className="relative" style={{ minWidth: `calc(${trackWidth}px + 148px)` }}>
+        <div className="relative" style={{ minWidth: `calc(${trackWidth}px + 118px)` }}>
           {/* Wochenkopf */}
           <div className="flex">
             <div className={`timeline-sticky sticky left-0 z-[3] shrink-0 ${labelCol}`} aria-hidden />
@@ -83,7 +83,7 @@ export function SemesterTimeline({ compact, className = '' }: Props) {
                     <button type="button" onClick={() => navigate(`/faecher/${r.module.id}`)} className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl py-1.5 text-left">
                       <span className="size-2.5 shrink-0 rounded-full" style={{ background: r.module.color, boxShadow: `0 0 8px ${r.module.color}` }} aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[12.5px] font-medium leading-snug [overflow-wrap:anywhere] group-hover:text-accent sm:text-[13.5px]">{r.module.name}</span>
+                        <span className="line-clamp-2 text-[12.5px] font-medium leading-snug [overflow-wrap:anywhere] group-hover:text-accent sm:text-[13.5px]" title={r.module.name}>{r.module.name}</span>
                         {!compact && <span className="num block text-[11px] text-muted">{r.group.pct === null ? 'keine Aufgaben' : `Gruppe ${r.group.pct} %`}</span>}
                       </span>
                     </button>

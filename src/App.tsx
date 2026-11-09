@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { AnimatePresence, LayoutGroup, MotionConfig } from 'motion/react';
+import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { config } from './lib/config';
 import { EASE_OUT } from './lib/motion';
-import { matchPath, useLocation } from './lib/router';
+import { matchPath, navigate, useLocation } from './lib/router';
 import { useAppearance } from './hooks/useAppearance';
 import { useData } from './store/data';
 import { installResumePrompt, useSession } from './store/session';
@@ -23,7 +23,8 @@ import { CelebrationWatcher } from './components/Celebration';
 import type { Member } from './lib/types';
 import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
-import { rememberReturnPath } from './lib/focusReturn';
+import { MountainFlight } from './components/landscape/MountainFlight';
+import { rememberReturnPath, returnPath } from './lib/focusReturn';
 import { PushMemberSwitch, PushOnboarding } from './components/PushOnboarding';
 import { BadgeSync } from './components/BadgeSync';
 import { initPush } from './store/push';
@@ -35,19 +36,38 @@ const Modules = lazy(() => import('./pages/Modules').then((m) => ({ default: m.M
 const ModuleDetail = lazy(() => import('./pages/Modules').then((m) => ({ default: m.ModuleDetail })));
 const Team = lazy(() => import('./pages/Team').then((m) => ({ default: m.Team })));
 const MemberDetail = lazy(() => import('./pages/Team').then((m) => ({ default: m.MemberDetail })));
-const Exams = lazy(() => import('./pages/Exams').then((m) => ({ default: m.Exams })));
 const Materials = lazy(() => import('./pages/Materials').then((m) => ({ default: m.Materials })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
-const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
+const loadFocus = () => import('./pages/Focus');
+const FocusLazy = lazy(() => loadFocus().then((m) => ({ default: m.Focus })));
+/** Vorab geladene Fokusansicht – wird dann direkt (ohne Suspense-Verzögerung) gezeigt */
+let FocusReady: (typeof import('./pages/Focus'))['Focus'] | null = null;
+function preloadFocus() {
+  void loadFocus().then((m) => {
+    FocusReady = m.Focus;
+  });
+}
+function FocusView() {
+  if (FocusReady) return <FocusReady />;
+  return (
+    <Suspense fallback={<div className="fixed inset-0 bg-[#0b0c1c]" />}>
+      <FocusLazy />
+    </Suspense>
+  );
+}
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 const Music = lazy(() => import('./pages/Music').then((m) => ({ default: m.Music })));
 const Homework = lazy(() => import('./pages/Homework').then((m) => ({ default: m.Homework })));
 const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
-function Routes({ me }: { me: Member }) {
-  const { path } = useLocation();
+function RedirectTo({ to }: { to: string }) {
+  useEffect(() => navigate(to, { replace: true }), [to]);
+  return null;
+}
+
+function Routes({ me, path }: { me: Member; path: string }) {
   let p: Record<string, string> | null;
   if (path === '/' || path === '') return <Dashboard me={me} />;
   if (path === '/lernplan') return <Plan me={me} />;
@@ -55,7 +75,8 @@ function Routes({ me }: { me: Member }) {
   if ((p = matchPath('/faecher/:id', path))) return <ModuleDetail id={p.id} me={me} />;
   if (path === '/team') return <Team me={me} />;
   if ((p = matchPath('/team/:id', path))) return <MemberDetail id={p.id} me={me} />;
-  if (path === '/pruefungen') return <Exams />;
+  // Prüfungen gehören seit 4.1 zu den Fächern – alte Links führen dorthin
+  if (path === '/pruefungen') return <RedirectTo to="/faecher" />;
   if (path === '/materialien') return <Materials />;
   if (path === '/einstellungen') return <Settings />;
   if (path === '/einstellungen/benachrichtigungen') return <Settings section="benachrichtigungen" />;
@@ -75,8 +96,16 @@ function Main() {
   const activeId = useSession((s) => s.activeMemberId);
   const members = useActiveMembers();
 
+  const isFocus = path === '/fokus' || path === '/fokus/vollbild';
+
   // Letzte Seite merken: „Fokus schließen“ führt dorthin zurück
   useEffect(() => rememberReturnPath(path), [path]);
+
+  // Fokus-Ansicht vorab laden, damit sie beim Antippen ohne Wartezeit erscheint
+  useEffect(() => {
+    const t = setTimeout(preloadFocus, 1200);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     startSync();
@@ -95,24 +124,36 @@ function Main() {
       <AnimatePresence mode="wait">
         {!me || !me.is_active ? (
           <ProfilePicker key="picker" />
-        ) : path === '/fokus' || path === '/fokus/vollbild' ? (
-          // Fokus: immer immersiv im Vollbild, ohne App-Rahmen
-          <Suspense key="focus" fallback={<div className="fixed inset-0 bg-[#0b0c1c]" />}>
-            <Focus />
-          </Suspense>
         ) : path === '/lernmodus' ? (
           // Lernmodus: Vollbild ohne App-Rahmen
           <Suspense key="study" fallback={<div className="fixed inset-0 bg-[#0C1018]" />}>
             <StudyMode />
           </Suspense>
         ) : (
-          <AppShell key="app">
+          <AppShell key="app" inert={isFocus}>
             <Suspense fallback={<PageSkeleton />}>
-              <Routes me={me} />
+              {/* Unter dem Fokus bleibt die vorige Seite stehen */}
+              <Routes me={me} path={isFocus ? returnPath() : path} />
             </Suspense>
           </AppShell>
         )}
       </AnimatePresence>
+      {/* Fokus: eigene Ebene über der App – öffnet sofort im Vollbild, ohne erst die Seite zu wechseln */}
+      <AnimatePresence>
+        {me && me.is_active && isFocus && (
+          <motion.div
+            key="focus"
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <FocusView />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <MountainFlight />
       {me && <CelebrationWatcher />}
       {me && <FocusWatcher />}
       {me && me.is_active && <PushOnboarding me={me} />}

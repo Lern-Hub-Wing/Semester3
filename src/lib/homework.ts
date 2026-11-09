@@ -227,3 +227,52 @@ export function homeworkProgress(hw: Pick<Homework, 'id'>, parts: Pick<HomeworkP
   const completed = done ? parts.length : parts.filter((p) => isDone(p.id)).length;
   return { done, completed, total: parts.length, ratio: completed / parts.length };
 }
+
+// ---------------------------------------------------------------------
+// Zeitraum-Leisten im Kalender
+// ---------------------------------------------------------------------
+
+/** Bearbeitungszeitraum einer Hausaufgabe im Kalender: Beginn bis Abgabetag (einschließlich). */
+export function homeworkSpanRange(hw: Pick<Homework, 'due_date' | 'earliest_start' | 'created_at'>, createdDate: ISODate): { start: ISODate; end: ISODate } {
+  const start = hw.earliest_start ?? createdDate;
+  return { start: start <= hw.due_date ? start : hw.due_date, end: hw.due_date };
+}
+
+export interface SpanSegment {
+  id: UUID;
+  /** erste/letzte Spalte in dieser Zeile (0 = erster Tag) */
+  from: number;
+  to: number;
+  lane: number;
+  /** läuft aus der vorigen Zeile herein / in die nächste weiter */
+  continuesBefore: boolean;
+  continuesAfter: boolean;
+  /** Abgabetag liegt in dieser Zeile */
+  dueInRow: boolean;
+}
+
+/**
+ * Verteilt Zeiträume auf eine Kalenderzeile (z. B. eine Woche) und vergibt
+ * Spuren, damit sich Leisten nicht überlagern. Früher beginnende und längere
+ * Zeiträume kommen nach oben.
+ */
+export function layoutSpans(items: { id: UUID; start: ISODate; end: ISODate }[], days: ISODate[]): { segments: SpanSegment[]; lanes: number } {
+  if (days.length === 0) return { segments: [], lanes: 0 };
+  const first = days[0];
+  const last = days[days.length - 1];
+  const visible = items
+    .filter((i) => i.start <= last && i.end >= first)
+    .sort((a, b) => a.start.localeCompare(b.start) || b.end.localeCompare(a.end) || a.id.localeCompare(b.id));
+  const laneEnds: number[] = [];
+  const segments: SpanSegment[] = [];
+  for (const i of visible) {
+    const from = i.start < first ? 0 : days.indexOf(i.start);
+    const to = i.end > last ? days.length - 1 : days.indexOf(i.end);
+    if (from < 0 || to < 0) continue;
+    let lane = laneEnds.findIndex((end) => end < from);
+    if (lane < 0) lane = laneEnds.length;
+    laneEnds[lane] = to;
+    segments.push({ id: i.id, from, to, lane, continuesBefore: i.start < first, continuesAfter: i.end > last, dueInRow: i.end <= last });
+  }
+  return { segments, lanes: laneEnds.length };
+}

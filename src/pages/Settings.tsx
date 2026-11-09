@@ -358,7 +358,7 @@ function ModulesSection() {
         <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
           Modul hinzufügen
         </Button>
-        <Link to="/pruefungen" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
+        <Link to="/faecher" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
           Prüfungen verwalten
         </Link>
       </div>

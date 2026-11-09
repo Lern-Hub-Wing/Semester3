@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { CloudOff, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
+import { CloudOff, Plus, RefreshCw } from 'lucide-react';
 import { isDone, memberRatio } from '../lib/progress';
 import { formatISODate } from '../lib/time';
 import { suggestColor, alpha } from '../lib/colors';
@@ -20,6 +20,8 @@ import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
 import { Landscape } from '../components/landscape/Landscape';
 import { haptic } from '../lib/haptics';
+import { useIsMobile } from '../hooks/useMediaQuery';
+import { beginFlight } from '../store/flight';
 
 /** Die ausführliche Startanimation läuft nur beim ersten Öffnen der Seite. */
 let introPlayed = false;
@@ -39,6 +41,8 @@ export function ProfilePicker() {
   const [chosen, setChosen] = useState<{ id: string; color: string; x: number; y: number } | null>(null);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
+  const small = useIsMobile();
+  const scenery = useRef<HTMLDivElement>(null);
   const intro = useRef(!introPlayed && !reduce).current;
   introPlayed = true;
 
@@ -49,7 +53,19 @@ export function ProfilePicker() {
     haptic('select');
     const r = el.getBoundingClientRect();
     setChosen({ id, color, x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    setTimeout(() => select(id), reduce ? 0 : 520);
+    setTimeout(() => {
+      // Der Berg bleibt stehen und gleitet ins Countdown-Fenster (statt mit der Seite zu verschwinden)
+      // Nur wenn danach das Dashboard (mit dem Countdown-Fenster) erscheint
+      const box = scenery.current?.getBoundingClientRect();
+      const toDashboard = ['', '#', '#/'].includes(window.location.hash);
+      if (box && !reduce && toDashboard) {
+        // Rahmen auf den Bildschirm begrenzen (die Einblend-Vergrößerung kann noch laufen)
+        const x = Math.max(0, box.left);
+        const w = Math.min(window.innerWidth, box.right) - x;
+        beginFlight({ x, y: Math.max(0, box.top), w, h: box.height - Math.max(0, -box.top) });
+      }
+      select(id);
+    }, reduce ? 0 : 520);
   };
 
   const d = (n: number) => (reduce ? 0 : n);
@@ -63,15 +79,14 @@ export function ProfilePicker() {
       </motion.div>
       {/* Gleiche Stimmung wie im Dashboard: Berglandschaft läuft weich in den Hintergrund aus */}
       <motion.div
+        ref={scenery}
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[62vh] overflow-hidden [mask-image:linear-gradient(180deg,#000_40%,transparent)]"
         initial={{ opacity: 0, scale: 1.06 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: d(1.6), ease: EASE_OUT }}
       >
-        <div className="hero-scene absolute inset-0">
-          <Landscape />
-        </div>
+        <Landscape />
       </motion.div>
 
       {/* Farbschimmer der gewählten Person breitet sich vom Avatar aus */}
@@ -107,7 +122,7 @@ export function ProfilePicker() {
           </motion.span>
         </motion.div>
 
-        <h1 className="display text-center text-[38px] md:text-[60px]">
+        <h1 className="display text-center text-[32px] md:text-[60px]">
           {'Wer lernt heute?'.split(' ').map((word, i) => (
             <motion.span
               key={i}
@@ -125,7 +140,7 @@ export function ProfilePicker() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: d(0.6), delay: d(t0 + 0.2), ease: EASE_OUT }}
-          className="mt-3 text-center text-[15px] text-muted"
+          className="mt-2 text-center text-[14px] text-muted md:mt-3 md:text-[15px]"
         >
           {formatISODate(today, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </motion.p>
@@ -148,7 +163,7 @@ export function ProfilePicker() {
         ) : (
           <>
             <ul
-              className={`mt-12 grid w-full gap-3 [perspective:1200px] md:gap-5 ${
+              className={`mt-8 grid w-full gap-3 [perspective:1200px] md:mt-12 md:gap-5 ${
                 members.length <= 2 ? 'max-w-md grid-cols-2' : members.length === 3 ? 'max-w-3xl grid-cols-3' : 'grid-cols-2 md:grid-cols-4'
               }`}
             >
@@ -175,7 +190,7 @@ export function ProfilePicker() {
                       type="button"
                       onClick={(e) => pick(m.id, m.color, e.currentTarget)}
                       whileTap={reduce ? undefined : { scale: 0.96 }}
-                      className="glass picker-card group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-[30px] px-3 pb-6 pt-7 text-center"
+                      className="glass picker-card group relative flex w-full flex-col items-center gap-2.5 overflow-hidden rounded-[26px] px-3 pb-4 pt-5 text-center md:gap-3 md:rounded-[30px] md:pb-6 md:pt-7"
                       aria-label={`Als ${m.name} lernen`}
                     >
                       <span
@@ -183,13 +198,13 @@ export function ProfilePicker() {
                         className="pointer-events-none absolute -top-20 left-1/2 size-56 -translate-x-1/2 rounded-full transition-opacity duration-500 group-hover:opacity-100"
                         style={{ opacity: isChosen ? 1 : 0.55, background: `radial-gradient(circle, ${alpha(m.color, isChosen ? 0.85 : 0.5)}, transparent 66%)` }}
                       />
-                      <ProgressRing ratio={r} color={m.color} size={96} stroke={5} sublabel={`Fortschritt ${m.name}`} showValue={false}>
+                      <ProgressRing ratio={r} color={m.color} size={small ? 74 : 96} stroke={small ? 4 : 5} sublabel={`Fortschritt ${m.name}`} showValue={false}>
                         <motion.span layoutId={`avatar-${m.id}`} className="inline-grid" transition={spring.page}>
-                          <Avatar name={m.name} color={m.color} size={72} />
+                          <Avatar name={m.name} color={m.color} size={small ? 56 : 72} />
                         </motion.span>
                       </ProgressRing>
-                      <span className="title relative w-full truncate px-1 text-[18px]">{m.name}</span>
-                      <p className="num relative -mt-1.5 text-[12.5px] text-muted">
+                      <span className="title relative w-full truncate px-1 text-[15.5px] md:text-[18px]">{m.name}</span>
+                      <p className="num relative -mt-1.5 text-[11.5px] text-muted md:text-[12.5px]">
                         {r.pct === null ? 'Noch keine Aufgaben' : `${r.pct} % erledigt`}
                         {openToday > 0 && (
                           <>
@@ -234,10 +249,6 @@ export function ProfilePicker() {
                   Person hinzufügen
                 </Button>
               )}
-              <p className="flex max-w-sm items-center justify-center gap-1.5 text-center text-xs text-faint">
-                <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
-                Die Auswahl legt nur fest, wessen Haken gesetzt werden. Es gibt bewusst keine Anmeldung.
-              </p>
             </motion.div>
           </>
         )}

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
-import { PEAK } from './peak';
+import { peakGeometry, type ImgGeo } from './geometry';
 
 /**
  * Berg-Panorama im Alpenglühen (gerendert mit scripts/render-mountains.mjs).
@@ -37,7 +37,14 @@ export function Landscape({ className = '', position = '50% 40%' }: { className?
  * größe berechnet, damit immer genau der Gipfel `pop` Pixel herausschaut –
  * auf Handy, Tablet und Desktop.
  */
-export function PeakStage({ pop, className = '', children, ...rest }: { pop: number; className?: string; children: ReactNode } & HTMLAttributes<HTMLElement>) {
+export function PeakStage({
+  pop,
+  className = '',
+  hidden = false,
+  arriving = false,
+  children,
+  ...rest
+}: { pop: number; className?: string; hidden?: boolean; arriving?: boolean; children: ReactNode } & Omit<HTMLAttributes<HTMLElement>, 'hidden'>) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
 
@@ -51,18 +58,8 @@ export function PeakStage({ pop, className = '', children, ...rest }: { pop: num
     return () => ro.disconnect();
   }, []);
 
-  // Bildlage: Gipfel `tip` px unter der Oberkante des erweiterten Rahmens, waagerecht mittig
-  let geo: { left: number; top: number; width: number; height: number } | null = null;
-  if (box) {
-    const tip = 3;
-    const total = box.h + pop;
-    const scale = Math.max(box.w / PEAK.width, (total - tip) / ((1 - PEAK.y) * PEAK.height));
-    const width = PEAK.width * scale;
-    const height = PEAK.height * scale;
-    const left = Math.min(0, Math.max(box.w - width, box.w / 2 - PEAK.x * width));
-    const top = tip - PEAK.y * height; // relativ zur Oberkante des erweiterten Rahmens
-    geo = { left, top, width, height };
-  }
+  // Bildlage: Gipfel knapp unter der Oberkante des erweiterten Rahmens, waagerecht mittig
+  const geo: ImgGeo | null = box ? peakGeometry(box.w, box.h, pop) : null;
 
   const img = (file: 'mountains' | 'mountains-peak', y: number) =>
     geo && (
@@ -79,15 +76,15 @@ export function PeakStage({ pop, className = '', children, ...rest }: { pop: num
     );
 
   return (
-    <div className="peak-stage relative" style={{ marginTop: pop }}>
-      <section ref={ref} {...rest} className={`photo-stage ${className}`}>
+    <div className={`peak-stage relative ${arriving ? 'peak-stage--arrive' : ''}`} style={{ marginTop: pop, visibility: hidden ? 'hidden' : undefined }}>
+      <section ref={ref} {...rest} data-pop={pop} className={`photo-stage ${className}`}>
         <div className="landscape" aria-hidden>
           {img('mountains', -pop)}
         </div>
         {children}
       </section>
       {/* Gipfel über dem Fensterrand (2 px Überlappung verdecken die Kante) */}
-      <div className="peak-pop" aria-hidden style={{ top: -pop, height: pop + 2 }}>
+      <div className="peak-pop" aria-hidden style={{ top: -pop, height: pop + 2, ['--rise' as string]: `${pop + 2}px` }}>
         {img('mountains-peak', 0)}
       </div>
     </div>

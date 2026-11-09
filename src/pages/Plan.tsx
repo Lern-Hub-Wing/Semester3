@@ -20,6 +20,8 @@ import { Button, IconButton } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ProgressBar } from '../components/ui/Progress';
+import { HomeworkWeekStrip, SPAN_ROW, SpanBars, useHomeworkSpanItems, type SpanItem } from '../components/homework/HomeworkSpans';
+import { layoutSpans } from '../lib/homework';
 
 type View = 'tag' | 'woche' | 'monat' | 'liste' | 'timeline';
 type Status = 'alle' | 'offen' | 'erledigt' | 'ueberfaellig';
@@ -68,6 +70,7 @@ export function Plan({ me }: { me: Member }) {
   const members = useActiveMembers();
   const modules = useModules();
   const openEditor = useUI((s) => s.openEntryEditor);
+  const hwSpans = useHomeworkSpanItems(me.id, moduleFilter);
 
   // Aufgaben nach Filter (Status bezieht sich auf das aktive Profil)
   const views = useMemo(
@@ -206,8 +209,13 @@ export function Plan({ me }: { me: Member }) {
           </div>
         </section>
       )}
-      {view === 'monat' && (mobile ? <MonthMobile date={date} today={today} info={dayInfo} me={me} members={members} /> : <MonthGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} />)}
-      {view === 'woche' && (mobile ? <WeekMobile date={date} today={today} info={dayInfo} /> : <WeekGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} />)}
+      {view === 'monat' &&
+        (mobile ? (
+          <MonthMobile date={date} today={today} info={dayInfo} me={me} members={members} spans={hwSpans} />
+        ) : (
+          <MonthGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} spans={hwSpans} />
+        ))}
+      {view === 'woche' && (mobile ? <WeekMobile date={date} today={today} info={dayInfo} spans={hwSpans} /> : <WeekGrid date={date} today={today} info={dayInfo} onDrop={onDropDate} spans={hwSpans} />)}
       {view === 'tag' && <DayView info={dayInfo(date)} me={me} members={members} views={views} />}
       {view === 'liste' && <ListView entries={entries} views={views} status={status} me={me} members={members} today={today} />}
     </div>
@@ -271,8 +279,9 @@ function EntryChip({ entry, info }: { entry: StudyEntry; info: DayInfo }) {
   );
 }
 
-function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; onDrop: (d: ISODate) => (e: DragEvent) => void }) {
+function MonthGrid({ date, today, info, onDrop, spans }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; onDrop: (d: ISODate) => (e: DragEvent) => void; spans: SpanItem[] }) {
   const days = monthGrid(date);
+  const rows = Array.from({ length: days.length / 7 }, (_, r) => days.slice(r * 7, r * 7 + 7));
   const [over, setOver] = useState<string | null>(null);
   const openEditor = useUI((s) => s.openEntryEditor);
   return (
@@ -284,9 +293,15 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
-        {days.map((d, i) => {
-          const di = info(d);
+      {rows.map((row, r) => {
+        const lanes = layoutSpans(spans, row).lanes;
+        return (
+          <div key={row[0]} className="relative grid grid-cols-7">
+            {/* Hausaufgaben-Zeiträume unter den Tageszahlen */}
+            <SpanBars days={row} items={spans} top={40} />
+            {row.map((d, c) => {
+              const i = r * 7 + c;
+              const di = info(d);
           const inMonth = isSameMonth(d, date);
           const isToday = d === today;
           return (
@@ -324,6 +339,7 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
                   <Plus className="size-4" />
                 </button>
               </div>
+              {lanes > 0 && <div style={{ height: lanes * SPAN_ROW }} aria-hidden />}
               {di.exams.map((e) => (
                 <ExamPill key={e.id} exam={e} small />
               ))}
@@ -342,13 +358,15 @@ function MonthGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODat
               )}
             </div>
           );
-        })}
-      </div>
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function MonthMobile({ date, today, info, me, members }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; me: Member; members: Member[] }) {
+function MonthMobile({ date, today, info, me, members, spans }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; me: Member; members: Member[]; spans: SpanItem[] }) {
   const days = monthGrid(date);
   const color = useModuleColor();
   const selected = info(date);
@@ -391,15 +409,24 @@ function MonthMobile({ date, today, info, me, members }: { date: ISODate; today:
           })}
         </div>
       </div>
+      <HomeworkWeekStrip days={weekDays(date)} items={spans} today={today} />
       <DayView info={selected} me={me} members={members} views={allViews} compactHeader />
     </div>
   );
 }
 
-function WeekGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; onDrop: (d: ISODate) => (e: DragEvent) => void }) {
+function WeekGrid({ date, today, info, onDrop, spans }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; onDrop: (d: ISODate) => (e: DragEvent) => void; spans: SpanItem[] }) {
   const [over, setOver] = useState<string | null>(null);
   const openEditor = useUI((s) => s.openEntryEditor);
+  const days = weekDays(date);
+  const lanes = layoutSpans(spans, days).lanes;
   return (
+    <>
+      {lanes > 0 && (
+        <div className="relative mb-2" style={{ height: lanes * SPAN_ROW }} aria-label="Hausaufgaben in dieser Woche">
+          <SpanBars days={days} items={spans} gap={8} />
+        </div>
+      )}
     <div className="grid grid-cols-7 gap-2">
       {weekDays(date).map((d) => {
         const di = info(d);
@@ -438,13 +465,18 @@ function WeekGrid({ date, today, info, onDrop }: { date: ISODate; today: ISODate
         );
       })}
     </div>
+    </>
   );
 }
 
-function WeekMobile({ date, today, info }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo }) {
+function WeekMobile({ date, today, info, spans }: { date: ISODate; today: ISODate; info: (d: ISODate) => DayInfo; spans: SpanItem[] }) {
   const color = useModuleColor();
   const modules = useData((s) => s.modules);
   return (
+    <>
+    <div className="mb-2.5 empty:hidden">
+      <HomeworkWeekStrip days={weekDays(date)} items={spans} today={today} />
+    </div>
     <ul className="flex flex-col gap-2.5">
       {weekDays(date).map((d, i) => {
         const di = info(d);
@@ -497,6 +529,7 @@ function WeekMobile({ date, today, info }: { date: ISODate; today: ISODate; info
         );
       })}
     </ul>
+    </>
   );
 }
 

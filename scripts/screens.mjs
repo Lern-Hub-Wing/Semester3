@@ -118,7 +118,7 @@ const pages = [
   ['timeline', '#/lernplan?ansicht=timeline'],
   ['faecher', '#/faecher'],
   ['team', '#/team'],
-  ['pruefungen', '#/pruefungen'],
+  ['fach', `#/faecher/${db.modules[0].id}`],
   ['hausaufgaben', '#/hausaufgaben'],
   ['musik', '#/musik'],
   ['hausaufgabe-neu', '#/hausaufgaben', 'Neue Hausaufgabe'],
@@ -153,6 +153,14 @@ try {
       await page.waitForTimeout(2600);
       if (!ONLY || ONLY.includes('picker')) await page.screenshot({ path: join(OUT, `${device}-${scheme}-picker.png`) });
       await page.getByRole('button', { name: 'Als Luk lernen' }).click();
+      // FLIGHT=1: Bildfolge des Übergangs Profilwahl → Dashboard (Berg gleitet ins Fenster)
+      if (process.env.FLIGHT) {
+        const t0 = Date.now();
+        for (let k = 0; Date.now() - t0 < 2000; k++) {
+          const ms = Date.now() - t0;
+          await page.screenshot({ path: join(OUT, `${device}-${scheme}-flight-${String(k).padStart(2, '0')}-${ms}.jpg`), type: 'jpeg', quality: 40, scale: 'css' });
+        }
+      }
       await page.getByRole('heading', { name: /Luk/ }).first().waitFor();
       for (const [name, hash, click] of pages.slice(1)) {
         if (ONLY && !ONLY.includes(name)) continue;

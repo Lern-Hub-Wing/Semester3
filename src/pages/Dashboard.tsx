@@ -239,7 +239,7 @@ function UpcomingExams() {
   const list = useMemo(() => upcomingExams(Object.values(exams), now).slice(0, 6), [exams, now]);
   return (
     <Card className="h-full p-5 md:p-6">
-      <CardHeader title="Bevorstehende Prüfungen" icon={<GraduationCap />} action={<Link to="/pruefungen" className="text-sm font-medium text-accent">Alle</Link>} />
+      <CardHeader title="Bevorstehende Prüfungen" icon={<GraduationCap />} action={<Link to="/faecher" className="text-sm font-medium text-accent">Alle</Link>} />
       {list.length === 0 ? (
         <p className="mt-4 text-sm text-muted">Keine bevorstehenden Prüfungen.</p>
       ) : (

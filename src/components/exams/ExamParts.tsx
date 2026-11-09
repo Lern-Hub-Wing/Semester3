@@ -1,90 +1,42 @@
-import { useMemo, useState } from 'react';
-import { GraduationCap, MapPin, Pencil, Plus, StickyNote, Timer, Trash2 } from 'lucide-react';
-import type { Exam } from '../lib/types';
-import { activeExams, daysUntil, splitDuration } from '../lib/countdown';
-import { formatDuration, formatInstant, formatTime, instantToZoned, isValidISODate, zonedToInstant } from '../lib/time';
-import { LIMITS } from '../lib/config';
-import { useData } from '../store/data';
-import { useModules } from '../store/derived';
-import { createExam, deleteExam, updateExam } from '../store/actions';
-import { useNow } from '../hooks/useNow';
-import { PageHeader } from '../components/layout/AppShell';
-import { Countdown } from '../components/Countdown';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Menu } from '../components/ui/Menu';
-import { Modal } from '../components/ui/Modal';
-import { SelectField, TextArea, TextField } from '../components/ui/Field';
-import { EmptyState } from '../components/ui/EmptyState';
-import { Reveal } from '../components/ui/Reveal';
+import { useState } from 'react';
+import { MapPin, Pencil, StickyNote, Timer, Trash2 } from 'lucide-react';
+import type { Exam } from '../../lib/types';
+import { daysUntil, splitDuration } from '../../lib/countdown';
+import { formatDuration, formatInstant, formatTime, instantToZoned, isValidISODate, zonedToInstant } from '../../lib/time';
+import { LIMITS } from '../../lib/config';
+import { useData } from '../../store/data';
+import { useModules } from '../../store/derived';
+import { createExam, deleteExam, updateExam } from '../../store/actions';
+import { Button } from '../ui/Button';
+import { Menu } from '../ui/Menu';
+import { Modal } from '../ui/Modal';
+import { SelectField, TextArea, TextField } from '../ui/Field';
 
-/** Alle Prüfungen chronologisch, mit Bearbeitung. */
-export function Exams() {
-  const now = useNow(1000);
-  const examsMap = useData((s) => s.exams);
-  const modules = useData((s) => s.modules);
-  const [editing, setEditing] = useState<Exam | 'new' | null>(null);
-  const list = useMemo(() => activeExams(Object.values(examsMap)).filter((e) => !modules[e.module_id]?.archived_at), [examsMap, modules]);
-  const upcoming = list.filter((e) => Date.parse(e.ends_at) > now);
-  const past = list.filter((e) => Date.parse(e.ends_at) <= now);
+/**
+ * Prüfungen leben seit 4.1 bei den Fächern (ein Tab statt zwei):
+ * Karte und Bearbeitungsdialog werden dort wiederverwendet.
+ */
 
-  return (
-    <div>
-      <PageHeader
-        title="Prüfungen"
-        subtitle={`${upcoming.length} bevorstehend · Zeitzone Europe/Berlin`}
-        actions={
-          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
-            Prüfung
-          </Button>
-        }
-      />
-      <div className="mb-6">
-        <Countdown />
-      </div>
-      {list.length === 0 ? (
-        <Card>
-          <EmptyState icon={<GraduationCap className="size-6" />} title="Keine Prüfungen eingetragen" />
-        </Card>
-      ) : (
-        <ol className="relative flex flex-col gap-3 md:pl-6">
-          <span aria-hidden className="absolute bottom-4 left-[7px] top-4 hidden w-px bg-[var(--ss-line)] md:block" />
-          {upcoming.map((e, i) => (
-            <Reveal as="li" key={e.id} delay={Math.min(i * 0.04, 0.2)}>
-              <ExamCard exam={e} now={now} onEdit={() => setEditing(e)} />
-            </Reveal>
-          ))}
-          {past.length > 0 && <li className="mt-4 px-1 text-[13px] font-semibold uppercase tracking-wider text-faint">Vergangen</li>}
-          {past.map((e) => (
-            <li key={e.id} className="opacity-60">
-              <ExamCard exam={e} now={now} onEdit={() => setEditing(e)} />
-            </li>
-          ))}
-        </ol>
-      )}
-      <ExamEditor value={editing} onClose={() => setEditing(null)} />
-    </div>
-  );
-}
-
-function ExamCard({ exam, now, onEdit }: { exam: Exam; now: number; onEdit: () => void }) {
+/** Ein Prüfungstermin (in der Fach-Detailseite): Datum, Zeit, Dauer, Ort, Countdown, Menü. */
+export function ExamCard({ exam, now, onEdit }: { exam: Exam; now: number; onEdit: () => void }) {
   const m = useData((s) => s.modules[exam.module_id]);
   const start = Date.parse(exam.starts_at);
   const end = Date.parse(exam.ends_at);
   const running = start <= now && now < end;
   const d = splitDuration(start - now);
   return (
-    <article className="card lift relative flex items-center gap-4 overflow-hidden rounded-[22px] p-4 md:p-5">
-      <span aria-hidden className="absolute -left-[22px] top-1/2 hidden size-3 -translate-y-1/2 rounded-full ring-4 ring-[var(--ss-bg)] md:block" style={{ background: m?.color }} />
-      <span className="grid w-14 shrink-0 place-items-center rounded-2xl py-2 text-center" style={{ background: `color-mix(in srgb, ${m?.color} 30%, transparent)` }}>
-        <span className="text-[11px] font-semibold uppercase">{formatInstant(exam.starts_at, { month: 'short' }, exam.timezone)}</span>
-        <span className="num text-2xl font-semibold leading-none">{formatInstant(exam.starts_at, { day: 'numeric' }, exam.timezone)}</span>
+    <article className="relative flex items-center gap-3 rounded-2xl bg-[var(--ss-surface-2)] p-3" data-testid="exam-card">
+      <span className="grid w-12 shrink-0 place-items-center rounded-xl py-1.5 text-center" style={{ background: `color-mix(in srgb, ${m?.color} 30%, transparent)` }}>
+        <span className="text-[10.5px] font-semibold uppercase">{formatInstant(exam.starts_at, { month: 'short' }, exam.timezone).replace('.', '')}</span>
+        <span className="num text-xl font-semibold leading-none">{formatInstant(exam.starts_at, { day: 'numeric' }, exam.timezone)}</span>
       </span>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-semibold tracking-tight">{m?.name ?? 'Modul'}</h3>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted">
+        <h3 className="truncate text-[14px] font-semibold">
+          {formatInstant(exam.starts_at, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }, exam.timezone)}
+        </h3>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12.5px] text-muted">
           <span>
-            {formatInstant(exam.starts_at, { weekday: 'long' }, exam.timezone)} · {formatTime(exam.starts_at, exam.timezone)}–{formatTime(exam.ends_at, exam.timezone)} Uhr
+            {formatTime(exam.starts_at, exam.timezone)}–{formatTime(exam.ends_at, exam.timezone)} Uhr
           </span>
           <span className="inline-flex items-center gap-1">
             <Timer className="size-3.5" aria-hidden />
@@ -96,6 +48,9 @@ function ExamCard({ exam, now, onEdit }: { exam: Exam; now: number; onEdit: () =
               {exam.location}
             </span>
           )}
+          <span className="num font-semibold text-ink">
+            {running ? 'läuft' : now > end ? 'vorbei' : d.days > 0 ? `in ${daysUntil(exam.starts_at, now)} Tagen` : `in ${d.hours}:${String(d.minutes).padStart(2, '0')} h`}
+          </span>
         </p>
         {exam.notes && (
           <p className="mt-1 flex items-start gap-1 text-xs text-faint">
@@ -104,9 +59,6 @@ function ExamCard({ exam, now, onEdit }: { exam: Exam; now: number; onEdit: () =
           </p>
         )}
       </div>
-      <span className="num hidden shrink-0 rounded-full bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)] px-3 py-1.5 text-xs font-semibold sm:block">
-        {running ? 'läuft' : now > end ? 'vorbei' : d.days > 0 ? `${daysUntil(exam.starts_at, now)} Tage` : `${d.hours}:${String(d.minutes).padStart(2, '0')} h`}
-      </span>
       <Menu
         items={[
           { label: 'Bearbeiten', icon: <Pencil />, onSelect: onEdit },
@@ -117,7 +69,7 @@ function ExamCard({ exam, now, onEdit }: { exam: Exam; now: number; onEdit: () =
   );
 }
 
-function ExamEditor({ value, onClose }: { value: Exam | 'new' | null; onClose: () => void }) {
+export function ExamEditor({ value, onClose, moduleId }: { value: Exam | 'new' | null; onClose: () => void; moduleId?: string }) {
   const modules = useModules();
   const exam = value && value !== 'new' ? value : null;
   const [form, setForm] = useState({ module_id: '', date: '', start: '14:00', end: '15:30', location: '', notes: '' });
@@ -136,7 +88,7 @@ function ExamEditor({ value, onClose }: { value: Exam | 'new' | null; onClose: (
         const en = instantToZoned(exam.ends_at, exam.timezone);
         setForm({ module_id: exam.module_id, date: st.date, start: st.time, end: en.time, location: exam.location ?? '', notes: exam.notes ?? '' });
       } else {
-        setForm({ module_id: modules[0]?.id ?? '', date: '', start: '14:00', end: '15:30', location: '', notes: '' });
+        setForm({ module_id: moduleId ?? modules[0]?.id ?? '', date: '', start: '14:00', end: '15:30', location: '', notes: '' });
       }
     }
   }

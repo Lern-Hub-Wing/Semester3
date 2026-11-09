@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { daysUntil, distributeUnits, dueLabel, homeworkProgress, replanUnits, suggestedUnits, workWindow } from '../lib/homework';
+import { daysUntil, distributeUnits, dueLabel, homeworkProgress, homeworkSpanRange, layoutSpans, replanUnits, suggestedUnits, workWindow } from '../lib/homework';
+import { weekDays } from '../lib/time';
 
 describe('Hausaufgaben – Bearbeitungszeitraum', () => {
   it('endet am Tag VOR der Abgabe – der Abgabetag ist kein Arbeitstag', () => {
@@ -101,5 +102,41 @@ describe('Hausaufgaben – Fortschritt je Person', () => {
     expect(homeworkProgress({ id: 'h' }, parts, (id) => id === 'a')).toMatchObject({ done: false, completed: 1, total: 2, ratio: 0.5 });
     expect(homeworkProgress({ id: 'h' }, parts, (id) => id === 'h')).toMatchObject({ done: true, completed: 2, ratio: 1 });
     expect(homeworkProgress({ id: 'h' }, [], () => false)).toMatchObject({ completed: 0, total: 1 });
+  });
+});
+
+describe('Hausaufgaben – Zeitraum-Leisten im Kalender', () => {
+  const week = weekDays('2026-11-09'); // Mo 9. – So 15. Nov.
+
+  it('Zeitraum: frühester Beginn, sonst Erstellungstag, bis einschließlich Abgabe', () => {
+    expect(homeworkSpanRange({ due_date: '2026-11-13', earliest_start: '2026-11-10', created_at: '' }, '2026-11-02')).toEqual({ start: '2026-11-10', end: '2026-11-13' });
+    expect(homeworkSpanRange({ due_date: '2026-11-13', earliest_start: null, created_at: '' }, '2026-11-02')).toEqual({ start: '2026-11-02', end: '2026-11-13' });
+    // Beginn nach der Abgabe (Tippfehler) → nur der Abgabetag
+    expect(homeworkSpanRange({ due_date: '2026-11-13', earliest_start: '2026-11-20', created_at: '' }, '2026-11-02')).toEqual({ start: '2026-11-13', end: '2026-11-13' });
+  });
+
+  it('schneidet an den Wochengrenzen ab und merkt sich Fortsetzungen', () => {
+    const { segments, lanes } = layoutSpans([{ id: 'a', start: '2026-11-04', end: '2026-11-11' }], week);
+    expect(lanes).toBe(1);
+    expect(segments[0]).toMatchObject({ from: 0, to: 2, continuesBefore: true, continuesAfter: false, dueInRow: true });
+    const next = layoutSpans([{ id: 'b', start: '2026-11-14', end: '2026-11-20' }], week).segments[0];
+    expect(next).toMatchObject({ from: 5, to: 6, continuesBefore: false, continuesAfter: true, dueInRow: false });
+  });
+
+  it('überlappende Zeiträume bekommen eigene Spuren, freie Spuren werden wiederverwendet', () => {
+    const { segments, lanes } = layoutSpans(
+      [
+        { id: 'a', start: '2026-11-09', end: '2026-11-11' },
+        { id: 'b', start: '2026-11-10', end: '2026-11-13' },
+        { id: 'c', start: '2026-11-12', end: '2026-11-15' },
+      ],
+      week,
+    );
+    expect(lanes).toBe(2);
+    expect(Object.fromEntries(segments.map((s) => [s.id, s.lane]))).toEqual({ a: 0, b: 1, c: 0 });
+  });
+
+  it('ignoriert Zeiträume außerhalb der Woche', () => {
+    expect(layoutSpans([{ id: 'x', start: '2026-10-01', end: '2026-10-05' }], week)).toEqual({ segments: [], lanes: 0 });
   });
 });

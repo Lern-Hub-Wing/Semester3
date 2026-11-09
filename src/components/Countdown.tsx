@@ -42,7 +42,7 @@ export function Countdown({ compact: compactProp, className = '' }: { compact?: 
           <GraduationCap className="size-8 text-muted" aria-hidden />
           <div>
             <p className="font-semibold">Noch keine Prüfungen eingetragen</p>
-            <Link to="/pruefungen" className="text-sm font-medium text-accent hover:underline">
+            <Link to="/faecher" className="text-sm font-medium text-accent hover:underline">
               Prüfung hinzufügen
             </Link>
           </div>
