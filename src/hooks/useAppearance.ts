@@ -3,6 +3,10 @@ import { usePrefs } from '../store/prefs';
 import { useMediaQuery } from './useMediaQuery';
 import { glassFactor } from '../lib/glass';
 
+/** Farbe der Statusleiste = Farbe des oberen Seitenrands (siehe .status-blend in index.css) */
+const TOP_LIGHT = '#D8D4F6';
+const TOP_DARK = '#17162F';
+
 /** Wendet Theme, Bewegung und Glaseffekte als Klassen auf <html> an. */
 export function useAppearance() {
   const { theme, motion, glass, compact, glassClarity } = usePrefs();
@@ -29,7 +33,7 @@ export function useAppearance() {
       document.head.appendChild(m);
       return m;
     })();
-    meta.setAttribute('content', dark ? '#0C1018' : '#F6F8FC');
+    meta.setAttribute('content', dark ? TOP_DARK : TOP_LIGHT);
   }, [dark, motion, glass, compact, glassClarity]);
 
   const reduced = motion === 'reduced' || (motion === 'system' && systemReduced);

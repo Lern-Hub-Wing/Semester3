@@ -81,20 +81,22 @@ function StatusHero({ me, phase }: { me: Member; phase: PushPhase }) {
           </IconTile>
         </motion.div>
         <div className="min-w-0 flex-1" role="status" aria-live="polite">
-          <h2 className="title text-[20px] md:text-[22px]">{s.title}</h2>
+          <h2 className="title text-[20px] [hyphens:auto] [overflow-wrap:anywhere] md:text-[22px]">{s.title}</h2>
           <p className="mt-1 text-[14.5px] text-muted">{s.text(name)}</p>
         </div>
         {(phase === 'on' || phase === 'off') && (
-          <Switch
-            label="Benachrichtigungen auf diesem Gerät"
-            checked={phase === 'on'}
-            onChange={async (v) => {
-              if (v) {
-                const r = await enablePush(me.id);
-                if (r.ok) toast.success('Benachrichtigungen aktiviert.');
-              } else setConfirmOff(true);
-            }}
-          />
+          <div className="shrink-0 pl-2 pt-1">
+            <Switch
+              label="Benachrichtigungen auf diesem Gerät"
+              checked={phase === 'on'}
+              onChange={async (v) => {
+                if (v) {
+                  const r = await enablePush(me.id);
+                  if (r.ok) toast.success('Benachrichtigungen aktiviert.');
+                } else setConfirmOff(true);
+              }}
+            />
+          </div>
         )}
       </div>
 
