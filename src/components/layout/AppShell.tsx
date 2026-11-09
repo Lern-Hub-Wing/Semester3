@@ -9,7 +9,8 @@ import { isDone } from '../../lib/progress';
 import { useToday } from '../../hooks/useToday';
 import { useSession } from '../../store/session';
 import { useUI } from '../../store/ui';
-import { LogoMark } from '../Logo';
+import { Logo, LogoMark } from '../Logo';
+import { greetingFor } from '../../lib/time';
 import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/Button';
 import { NAV, isActive } from './nav';
@@ -54,37 +55,44 @@ export function AppShell({ children }: { children: ReactNode }) {
         Zum Inhalt springen
       </a>
 
-      {/* Seitenleiste aus echtem Liquid Glass: kompakt auf Tablets, ausführlich auf dem Desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[100px] flex-col p-2.5 md:flex lg:w-[264px] lg:p-4">
-        <div className="glass mat-nav ss-sidebar flex h-full flex-col rounded-[30px] p-2 lg:p-3">
-          <Link to="/" className="mb-5 mt-1 flex items-center justify-center gap-3 rounded-2xl px-2 py-2.5 lg:justify-start lg:px-3" aria-label={`${appName} – Dashboard`}>
-            <LogoMark size={36} />
-            <span className="title hidden truncate text-[18px] lg:block">{appName}</span>
+      {/* Seitenleiste: flach, mit Trennlinie; kompakt auf Tablets, ausführlich auf dem Desktop */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[92px] flex-col md:flex lg:w-[248px]">
+        <div className="ss-sidebar flex h-full flex-col px-2.5 pb-4 pt-5 lg:px-4">
+          <Link to="/" className="mb-7 flex items-center justify-center px-2 lg:justify-start lg:px-3" aria-label={`${appName} – Dashboard`}>
+            <span className="lg:hidden">
+              <LogoMark size={34} />
+            </span>
+            <span className="hidden lg:inline-flex">
+              <Logo name={appName} size={30} />
+            </span>
           </Link>
-          <nav aria-label="Hauptnavigation" className="scroll-thin flex flex-1 flex-col gap-0.5 overflow-y-auto">
+          <nav aria-label="Hauptnavigation" className="scroll-thin flex flex-1 flex-col gap-1 overflow-y-auto">
             {mainNav.map((item) => (
               <SideLink key={item.to} item={item} active={isActive(path, item.to)} />
             ))}
-            <p className="eyebrow mb-1 mt-4 hidden px-3.5 !text-[10px] lg:block">Werkzeuge</p>
-            <span className="mx-auto my-2 h-px w-8 bg-[var(--ss-line)] lg:hidden" aria-hidden />
+            <span className="mx-2 my-3 h-px bg-[var(--ss-edge)]" aria-hidden />
             {toolNav.map((item) => (
               <SideLink key={item.to} item={item} active={isActive(path, item.to)} />
             ))}
           </nav>
-          <div className="mt-2 flex flex-col gap-0.5 border-t border-line pt-2">
-            <SideAction icon={<Search className="size-5" strokeWidth={1.75} />} label="Suche" hint="⌘K" onClick={() => setUI({ searchOpen: true })} />
-            <SideAction icon={<Clock3 className="size-5" strokeWidth={1.75} />} label="Lernmodus" onClick={startStudyMode} />
-            <SideAction icon={<Trash2 className="size-5" strokeWidth={1.75} />} label="Papierkorb" onClick={() => navigate('/papierkorb')} />
+          <div className="mt-2 flex flex-col gap-0.5">
+            <SideAction icon={<Clock3 className="size-[18px]" strokeWidth={1.75} />} label="Lernmodus" onClick={startStudyMode} />
+            <SideAction icon={<Trash2 className="size-[18px]" strokeWidth={1.75} />} label="Papierkorb" onClick={() => navigate('/papierkorb')} />
           </div>
         </div>
       </aside>
 
-      <div className="relative z-10 md:pl-[100px] lg:pl-[264px]">
+      <div className="relative z-10 md:pl-[92px] lg:pl-[248px]">
         <header className="sticky top-0 z-20 flex items-center justify-end gap-2 px-4 pb-2 pt-[max(calc(env(safe-area-inset-top)+6px),16px)] md:px-6 md:pt-4 lg:px-8">
           {/* Weich auslaufende Glasfläche hinter den Knöpfen – nur sichtbar, sobald gescrollt wird */}
           <span aria-hidden className={`header-fade pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} />
-          {/* Smartphone: bewusst ohne Logo und ohne Sync-Symbol – nur Suche, Glocke, Profil */}
-          <span className="flex-1" aria-hidden />
+          {/* Links: Handy – Logo; Desktop-Dashboard – Begrüßung */}
+          <div className="min-w-0 flex-1">
+            <span className="md:hidden" data-testid="mobile-logo">
+              <Logo name={appName} size={28} />
+            </span>
+            {path === '/' && <HeaderGreeting />}
+          </div>
           <span className="hidden md:contents">
             <StatusPill quiet />
           </span>
@@ -105,6 +113,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <LiquidTabBar />
       <MoreSheet />
+    </div>
+  );
+}
+
+/** Begrüßung in der Kopfzeile des Dashboards (Tablet/Desktop) */
+function HeaderGreeting() {
+  return (
+    <div className="hidden md:block" data-testid="header-greeting">
+      <p className="text-[13px] font-medium text-muted">{greetingFor()}</p>
+      <p className="title text-[22px] leading-tight lg:text-[26px]">Bereit für eine produktive Session?</p>
     </div>
   );
 }
@@ -138,15 +156,11 @@ function SideLink({ item, active }: { item: (typeof NAV)[number]; active: boolea
       aria-current={active ? 'page' : undefined}
       onClick={() => haptic('tap')}
       title={item.label}
-      className={`nav-item group relative flex flex-col items-center gap-1 rounded-[18px] px-1 py-2.5 text-[10.5px] font-medium lg:flex-row lg:gap-3 lg:px-3.5 lg:py-[11px] lg:text-[14px] ${
+      className={`nav-item group relative flex flex-col items-center gap-1 rounded-[12px] px-1 py-2.5 text-[10.5px] font-medium lg:flex-row lg:gap-3 lg:px-3 lg:py-[9px] lg:text-[14.5px] ${
         active ? 'text-ink' : 'text-muted hover:text-ink'
       }`}
     >
-      {active && (
-        <motion.span layoutId="nav-active" className="lens side-lens absolute inset-0 rounded-[18px]" transition={spring.tab}>
-          <span aria-hidden className="side-lens-glow" />
-        </motion.span>
-      )}
+      {active && <motion.span layoutId="nav-active" className="side-lens absolute inset-0 rounded-[12px]" transition={spring.tab} />}
       <item.icon className={`nav-item-icon relative size-[21px] lg:size-[19px] ${active ? 'text-accent' : ''}`} strokeWidth={active ? 2.1 : 1.75} aria-hidden />
       <span className="relative max-w-full truncate lg:hidden">{item.short ?? item.label}</span>
       <span className="relative hidden lg:inline">{item.label}</span>
@@ -164,7 +178,7 @@ function SideAction({ icon, label, hint, onClick }: { icon: ReactNode; label: st
     <button
       type="button"
       onClick={onClick}
-      className="nav-item flex flex-col items-center gap-1 rounded-[18px] px-1 py-2 text-[10.5px] font-medium text-muted hover:text-ink lg:flex-row lg:gap-3 lg:px-3.5 lg:text-[13.5px]"
+      className="nav-item flex flex-col items-center gap-1 rounded-[12px] px-1 py-2 text-[10.5px] font-medium text-muted hover:text-ink lg:flex-row lg:gap-3 lg:px-3 lg:text-[13.5px]"
     >
       <span className="nav-item-icon">{icon}</span>
       <span>{label}</span>
@@ -183,7 +197,7 @@ function MoreSheet() {
     navigate(to);
   };
   const items = [
-    ...NAV.filter((n) => ['/faecher', '/pruefungen', '/materialien', '/fokus', '/analyse', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
+    ...NAV.filter((n) => ['/pruefungen', '/faecher', '/team', '/materialien', '/analyse', '/musik', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
     { label: 'Suche', icon: Search, run: () => (close(), setUI({ searchOpen: true })) },
     { label: 'Lernmodus', icon: Clock3, run: () => (close(), startStudyMode()) },
     { label: 'Papierkorb', icon: Trash2, run: () => go('/papierkorb') },

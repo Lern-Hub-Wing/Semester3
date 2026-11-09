@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Slider } from 'glisse';
 import {
-  Archive, ArrowDown, Bell, BellRing, ChevronRight, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus,
+  Archive, ArrowDown, Bell, BellRing, ChevronRight, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
 import { validateImport, type ValidationResult } from '../lib/backup';
 import { Link } from '../lib/router';
 import { isHapticsSupported } from '../lib/haptics';
-import { GLASS_CLARITY_DEFAULT, clarityLabel } from '../lib/glass';
 import { useData, useSyncStatus } from '../store/data';
 import { useAllMembers, useAppName, useModules } from '../store/derived';
 import { usePrefs } from '../store/prefs';
@@ -21,6 +19,7 @@ import { PageHeader } from '../components/layout/AppShell';
 import { Card, IconTile } from '../components/ui/Card';
 import { NotificationSettings } from './NotificationSettings';
 import { initPush, usePush } from '../store/push';
+import { useMusic } from '../store/music';
 import { Button, IconButton } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
 import { Avatar } from '../components/ui/Avatar';
@@ -37,6 +36,7 @@ export function Settings({ section }: { section?: 'benachrichtigungen' }) {
       <PageHeader title="Einstellungen" />
       <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-2">
         <NotificationsSummary />
+        <MusicSummary />
         <Appearance />
         <General />
         <People />
@@ -64,13 +64,32 @@ function NotificationsSummary() {
     'not-configured': 'Server noch nicht eingerichtet',
   };
   return (
-    <Link to="/einstellungen/benachrichtigungen" className="glass mat-hero lift group flex items-center gap-4 rounded-[var(--radius-card)] p-5 md:p-6 lg:col-span-2">
+    <Link to="/einstellungen/benachrichtigungen" className="glass mat-hero lift group flex items-center gap-4 rounded-[var(--radius-card)] p-5 md:p-6">
       <IconTile tint={phase === 'on' ? 'var(--ss-success)' : 'var(--ss-accent)'} size={48}>
         {phase === 'on' ? <BellRing /> : <Bell />}
       </IconTile>
       <span className="min-w-0 flex-1">
         <span className="title block text-[17px]">Benachrichtigungen</span>
         <span className="block text-[13.5px] text-muted">{label[phase]} · Erinnerungen, Ruhezeiten, Testnachricht</span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
+    </Link>
+  );
+}
+
+/** Einstieg zur gemeinsamen Musik-Bibliothek (YouTube-Links für alle) */
+function MusicSummary() {
+  const available = useMusic((s) => s.available);
+  const count = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
+  const status = available === false ? 'Noch nicht eingerichtet' : count === 1 ? '1 Titel' : `${count} Titel`;
+  return (
+    <Link to="/musik" className="glass mat-hero lift group flex items-center gap-4 rounded-[var(--radius-card)] p-5 md:p-6" data-testid="settings-music">
+      <IconTile size={48}>
+        <Music2 />
+      </IconTile>
+      <span className="min-w-0 flex-1">
+        <span className="title block text-[17px]">Musik-Bibliothek</span>
+        <span className="block text-[13.5px] text-muted">{status} · YouTube-Links hinzufügen, für alle sichtbar</span>
       </span>
       <ChevronRight className="size-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
     </Link>
@@ -143,12 +162,9 @@ function Appearance() {
           ]}
         />
       </Row>
-      <div className="border-t border-line py-3.5 first:border-t-0 first:pt-0">
-        <GlassClaritySetting value={prefs.glassClarity} onChange={(glassClarity) => prefs.set({ glassClarity })} />
-      </div>
-      <Row label="Glaseffekte" hint="Vereinfachen spart Leistung auf älteren Geräten.">
+      <Row label="Transparenz" hint="„Einfach“ zeigt Leisten ohne Unschärfe – spart Leistung auf älteren Geräten.">
         <Segmented
-          label="Glaseffekte"
+          label="Transparenz"
           value={prefs.glass}
           onChange={(glass) => prefs.set({ glass })}
           options={[
@@ -546,54 +562,3 @@ function ActionLink({ icon, title, text, to }: { icon: ReactNode; title: string;
   );
 }
 
-/** Regler „Durchsichtigkeit“ mit Live-Vorschau – wirkt sofort auf alle Glasflächen. */
-function GlassClaritySetting({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <label htmlFor="ss-glass-clarity" className="text-sm font-medium">
-            Durchsichtigkeit
-          </label>
-          <span className="num text-xs text-muted" aria-hidden>
-            {clarityLabel(value)} · {value}
-          </span>
-        </div>
-        <div className="mt-2.5 flex items-center gap-3">
-          <span className="text-[11px] text-faint">Milchig</span>
-          <div className="min-w-0 flex-1">
-            <Slider
-              id="ss-glass-clarity"
-              min={0}
-              max={100}
-              step={1}
-              value={value}
-              onValueChange={onChange}
-              onDoubleClick={() => onChange(GLASS_CLARITY_DEFAULT)}
-              aria-valuetext={`${clarityLabel(value)}, ${value} von 100`}
-              className="ss-gslider"
-            />
-          </div>
-          <span className="text-[11px] text-faint">Klar</span>
-        </div>
-        {value !== GLASS_CLARITY_DEFAULT && (
-          <button type="button" className="mt-1 text-xs font-medium text-accent hover:underline" onClick={() => onChange(GLASS_CLARITY_DEFAULT)}>
-            Auf Standard zurücksetzen
-          </button>
-        )}
-      </div>
-      {/* Live-Vorschau: Glas über einem farbigen Hintergrund */}
-      <div
-        aria-hidden
-        className="relative h-24 w-full shrink-0 overflow-hidden rounded-2xl sm:w-44"
-        style={{ background: 'linear-gradient(135deg, #AFC5F5 0%, #CBB8F5 45%, #F5C6A5 100%)' }}
-      >
-        <span className="absolute left-3 top-2 text-[22px] font-bold leading-none text-[#1D2533]/70">Aa 12:45</span>
-        <span className="absolute bottom-2 right-3 size-10 rounded-full bg-[#AADCCB]" />
-        <div className="glass absolute inset-x-4 bottom-3 top-7 grid place-items-center rounded-2xl text-xs font-semibold" data-testid="glass-preview">
-          Vorschau
-        </div>
-      </div>
-    </div>
-  );
-}

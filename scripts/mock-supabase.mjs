@@ -44,6 +44,7 @@ export function seed() {
     focus_sessions: [],
     // Migration 005 – fehlt absichtlich, wenn NO_HOMEWORK gesetzt ist (Feature bleibt dann aus)
     ...(process.env.NO_HOMEWORK ? {} : { homework: [], homework_parts: [], homework_completions: [] }),
+    music_tracks: [],
   };
 }
 

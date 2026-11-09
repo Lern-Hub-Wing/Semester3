@@ -5,6 +5,7 @@ import { describeError } from '../lib/errors';
 import { emptyTables, useData, useSyncStatus, type TableState } from './data';
 import { applyServerDelete, applyServerRows, confirmedRow, isPending, replaceTable } from './engine';
 import { applyHomeworkChange, loadHomework } from './homework';
+import { applyMusicChange, loadMusic } from './music';
 
 const CACHE_KEY = 'studyspace.cache.v1';
 const PAGE = 1000;
@@ -45,6 +46,7 @@ export function resync(): Promise<void> {
     try {
       // Hausaufgaben unabhängig laden – ihr Fehlen (Migration 005) stört den Rest nicht
       void loadHomework();
+      void loadMusic();
       const results = await Promise.all(TABLES.map((t) => fetchTable(t)));
       TABLES.forEach((t, i) => replaceTable(t, results[i] as RowByTable[typeof t][]));
       useData.setState({ phase: 'ready', fromCache: false, error: null, lastSyncAt: Date.now() });
@@ -132,6 +134,7 @@ function handleChange(payload: RealtimePostgresChangesPayload<Record<string, unk
   if (!TABLES.includes(table)) {
     // Zusatztabellen (z. B. Hausaufgaben) haben eigene Stores
     applyHomeworkChange(payload.table, payload.eventType, payload.new as Record<string, unknown>);
+    applyMusicChange(payload.table, payload.eventType, payload.new as Record<string, unknown>);
     return;
   }
   if (payload.eventType === 'DELETE') {

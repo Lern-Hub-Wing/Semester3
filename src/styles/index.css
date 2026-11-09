@@ -1413,3 +1413,429 @@ html.compact {
     display: none;
   }
 }
+
+/* =====================================================================
+   StudySpace 4.0 – Designsprache „Summit“
+   ---------------------------------------------------------------------
+   Ruhig, flach, präzise: Flächen mit feinen Rändern statt Glas, Glanz
+   und Leuchten. Ein Akzent (Lavendel), klare Typografie, echte Bilder
+   (Berg-Panorama). Diese Schicht steht bewusst am Ende und überschreibt
+   die Glas-Materialien von 3.x an genau einer Stelle.
+   ===================================================================== */
+:root {
+  --ss-bg: #f5f4fb;
+  --ss-canvas: #f5f4fb;
+  --ss-card: #ffffff;
+  --ss-card-2: #f1effa;
+  --ss-text: #18163a;
+  --ss-text-2: #5e5b80;
+  --ss-text-3: #8f8cab;
+  --ss-line: rgba(28, 24, 84, 0.08);
+  --ss-accent: #6a61e4;
+  --ss-accent-2: #8a83ef;
+  --ss-brand: #6a61e4;
+  --ss-track: rgba(28, 24, 84, 0.08);
+  --ss-surface: #ffffff;
+  --ss-surface-2: #f3f1fb;
+  --ss-surface-float: rgba(255, 255, 255, 0.94);
+  --ss-edge: rgba(28, 24, 84, 0.09);
+  --ss-edge-strong: rgba(28, 24, 84, 0.16);
+  --ss-elev: 0 1px 2px rgba(28, 24, 84, 0.05);
+  --ss-elev-float: 0 24px 60px -24px rgba(28, 24, 84, 0.28), 0 2px 6px rgba(28, 24, 84, 0.06);
+  --ss-accent-soft: rgba(106, 97, 228, 0.1);
+  --ss-btn: #6a61e4;
+  --ss-btn-text: #ffffff;
+  --lens-bg: var(--ss-accent-soft);
+  --lens-edge: transparent;
+  --scrim: rgba(18, 16, 48, 0.36);
+}
+.dark {
+  --ss-bg: #121129;
+  --ss-canvas: #121129;
+  --ss-card: #1b1a39;
+  --ss-card-2: #222046;
+  --ss-text: #efeefb;
+  --ss-text-2: #a4a1c8;
+  --ss-text-3: #75729b;
+  --ss-line: rgba(255, 255, 255, 0.07);
+  --ss-accent: #ada7ff;
+  --ss-accent-2: #c8c3ff;
+  --ss-brand: #b3adff;
+  --ss-track: rgba(255, 255, 255, 0.08);
+  --ss-surface: #1a1937;
+  --ss-surface-2: #23214a;
+  --ss-surface-float: rgba(29, 27, 60, 0.96);
+  --ss-edge: rgba(255, 255, 255, 0.07);
+  --ss-edge-strong: rgba(255, 255, 255, 0.14);
+  --ss-elev: 0 1px 0 rgba(255, 255, 255, 0.02) inset;
+  --ss-elev-float: 0 30px 70px -28px rgba(0, 0, 0, 0.75);
+  --ss-accent-soft: rgba(173, 167, 255, 0.14);
+  --ss-btn: #b8b1ff;
+  --ss-btn-text: #17153a;
+  --ss-success: #86d6b5;
+  --ss-warn: #f0c27e;
+  --ss-danger: #f19d97;
+  --lens-bg: var(--ss-accent-soft);
+  --lens-edge: transparent;
+  --scrim: rgba(6, 5, 20, 0.6);
+}
+
+body {
+  letter-spacing: -0.008em;
+}
+.display {
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.title {
+  font-weight: 620;
+}
+.eyebrow {
+  letter-spacing: 0.12em;
+  color: var(--ss-text-3);
+}
+.brand-word {
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  color: var(--ss-text);
+  line-height: 1;
+}
+
+/* Hintergrund: ruhige Fläche statt wandernder Farbfelder */
+.ambient {
+  background: var(--ss-bg);
+}
+.ambient > span,
+.ambient::after {
+  display: none;
+}
+
+/* Flächen: eine Sprache für Karten, Leisten, Knöpfe */
+.glass,
+.card {
+  background: var(--ss-surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--ss-edge);
+  box-shadow: var(--ss-elev);
+}
+.glass::before,
+.card::before,
+.mat-hero::after,
+.sheen::after {
+  display: none;
+}
+.glass-tint {
+  --m-extra: none;
+}
+.mat-float,
+.glass-strong {
+  background: var(--ss-surface-float);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border-color: var(--ss-edge-strong);
+  box-shadow: var(--ss-elev-float);
+}
+.mat-interactive {
+  background: var(--ss-surface-2);
+  border-color: var(--ss-edge);
+  box-shadow: none;
+  transition:
+    background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mat-interactive:hover {
+    filter: none;
+    background: color-mix(in srgb, var(--ss-surface-2) 70%, var(--ss-edge-strong));
+    border-color: var(--ss-edge-strong);
+  }
+}
+.mat-interactive:active {
+  transform: scale(0.97);
+}
+.lens {
+  background: var(--ss-accent-soft);
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ss-elev);
+    border-color: var(--ss-edge-strong);
+  }
+}
+.btn-primary {
+  color: var(--ss-btn-text);
+  background: var(--ss-btn);
+  box-shadow: none;
+  border: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    filter: brightness(1.05);
+  }
+}
+.field {
+  background: var(--ss-surface-2);
+  border-color: var(--ss-edge);
+}
+
+/* Seitenleiste: flach, Trennlinie statt Glasfläche */
+.ss-sidebar {
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--ss-edge);
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.side-lens {
+  --lens-bg: transparent;
+  background: var(--ss-accent-soft);
+}
+.dark .side-lens {
+  background: rgba(173, 167, 255, 0.16);
+}
+.side-lens-glow {
+  display: none;
+}
+
+/* Kopfzeile beim Scrollen: einfarbig, ohne Glanz */
+.header-fade {
+  background: linear-gradient(180deg, var(--ss-bg) 0%, color-mix(in srgb, var(--ss-bg) 80%, transparent) 55%, transparent 100%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Berg-Panorama */
+.landscape {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  overflow: hidden;
+}
+.landscape img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+/* Bild-Bühne (Countdown auf dem Panorama): Text immer hell, unten abgedunkelt */
+.photo-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: #f6f5ff;
+  background: #1a1840;
+}
+.photo-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(14, 12, 38, 0.05) 0%, rgba(14, 12, 38, 0.15) 40%, rgba(14, 12, 38, 0.62) 100%),
+    radial-gradient(70% 60% at 50% 55%, rgba(14, 12, 38, 0.22), transparent 70%);
+}
+.photo-stage > :not(.landscape) {
+  position: relative;
+  z-index: 1;
+}
+.photo-stage .on-photo {
+  text-shadow: 0 1px 18px rgba(10, 8, 30, 0.45);
+}
+
+/* Glisse-Bedienelemente in der neuen Sprache: deckend, ruhig */
+:root {
+  --lg-glass: var(--ss-surface);
+  --lg-glass-active: var(--ss-surface-2);
+  --lg-selection: var(--ss-accent-soft);
+  --lg-edge: var(--ss-edge-strong);
+  --lg-fill: var(--ss-accent);
+  --lg-on: var(--ss-accent);
+}
+:root.dark,
+[data-theme='dark'] {
+  --lg-glass: #1b1a39;
+  --lg-glass-active: #262451;
+  --lg-selection: rgba(173, 167, 255, 0.2);
+  --lg-edge: rgba(255, 255, 255, 0.1);
+  --lg-fill: #ada7ff;
+  --lg-on: #8f88f5;
+}
+.ss-tabbar.lg-tab-bar {
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.55);
+}
+.ss-tabbar .lg-tab {
+  color: var(--ss-text-2);
+}
+.ss-tabbar .lg-tab[data-selected] {
+  color: var(--ss-accent);
+}
+.ss-seg > .lg-segmented {
+  --lg-segment-track: var(--ss-surface-2);
+  --lg-segment-thumb: var(--ss-surface);
+}
+.dark .ss-seg > .lg-segmented,
+[data-theme='dark'] .ss-seg > .lg-segmented {
+  --lg-segment-track: rgba(255, 255, 255, 0.05);
+  --lg-segment-thumb: rgba(255, 255, 255, 0.12);
+}
+.ss-seg-accent > .lg-segmented,
+.dark .ss-seg-accent > .lg-segmented,
+[data-theme='dark'] .ss-seg-accent > .lg-segmented {
+  --lg-segment-thumb: var(--ss-btn);
+}
+.ss-seg-accent .lg-tab[data-selected],
+.dark .ss-seg-accent .lg-tab[data-selected] {
+  color: var(--ss-btn-text);
+}
+
+/* Statistik-Balken (Fokus-Statistik) */
+.stat-bar {
+  border-radius: 4px 4px 2px 2px;
+  background: color-mix(in srgb, var(--ss-accent) 55%, transparent);
+  transition: height 600ms var(--ease-out);
+}
+.stat-bar[data-today] {
+  background: var(--ss-accent);
+}
+
+/* Mini-Player (Musik) – sichtbar, verkleinerbar, über Seitenwechsel hinweg */
+.mini-player {
+  left: 12px;
+  bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + 12px);
+  max-width: calc(100vw - 24px);
+  background: var(--ss-surface-float);
+  border: 1px solid var(--ss-edge-strong);
+  box-shadow: var(--ss-elev-float);
+  color: var(--ss-text);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+@media (min-width: 768px) {
+  .mini-player {
+    left: calc(92px + 16px);
+    bottom: 16px;
+  }
+}
+@media (min-width: 1200px) {
+  .mini-player {
+    left: calc(248px + 16px);
+  }
+}
+.mini-player--focus {
+  left: 12px;
+  top: calc(max(env(safe-area-inset-top), 14px) + 56px);
+  bottom: auto;
+  background: rgba(20, 18, 46, 0.82);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f2f1ff;
+}
+@media (min-width: 768px) {
+  .mini-player--focus {
+    left: 16px;
+    top: auto;
+    bottom: 16px;
+  }
+}
+
+/* Musik-Bibliothek */
+.music-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ss-text-2);
+  transition: background-color 150ms var(--ease-out), color 150ms;
+}
+.music-cat:hover {
+  color: var(--ss-text);
+  background: var(--ss-surface-2);
+}
+.music-cat--on {
+  color: var(--ss-text);
+  background: var(--ss-accent-soft);
+}
+.music-row,
+.music-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 8px 8px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--ss-edge);
+  background: var(--ss-surface);
+  font-size: 14px;
+}
+.music-slot {
+  border-style: dashed;
+  background: transparent;
+  color: var(--ss-text-2);
+}
+.music-slot:hover {
+  border-color: var(--ss-edge-strong);
+  color: var(--ss-text);
+}
+.music-row--on {
+  border-color: color-mix(in srgb, var(--ss-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--ss-accent) 7%, var(--ss-surface));
+}
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+.eq i {
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--ss-accent);
+  animation: ss-eq 0.9s ease-in-out infinite alternate;
+}
+.eq i:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.eq i:nth-child(3) {
+  animation-delay: -0.6s;
+}
+@keyframes ss-eq {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eq i {
+    animation: none;
+  }
+}
+
+/* Scrollbare Listen in Karten: weicher Ausblendrand statt harter Kante */
+.scroll-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+.reduce-glass .mat-float,
+.reduce-glass .mini-player {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--ss-surface);
+}

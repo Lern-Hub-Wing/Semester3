@@ -15,6 +15,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Setup } from './pages/Setup';
 import { EntryEditor } from './components/EntryEditor';
 import { HomeworkEditor } from './components/homework/HomeworkEditor';
+import { MiniPlayer } from './components/music/MiniPlayer';
 import { MoveTaskDialog } from './components/MoveTaskDialog';
 import { SearchPalette } from './components/SearchPalette';
 import { AttachmentPreview } from './components/Attachments';
@@ -41,6 +42,7 @@ const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 const Focus = lazy(() => import('./pages/Focus').then((m) => ({ default: m.Focus })));
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
+const Music = lazy(() => import('./pages/Music').then((m) => ({ default: m.Music })));
 const Homework = lazy(() => import('./pages/Homework').then((m) => ({ default: m.Homework })));
 const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
@@ -58,6 +60,7 @@ function Routes({ me }: { me: Member }) {
   if (path === '/einstellungen') return <Settings />;
   if (path === '/einstellungen/benachrichtigungen') return <Settings section="benachrichtigungen" />;
   if (path === '/hausaufgaben') return <Homework me={me} />;
+  if (path === '/musik') return <Music />;
   if (path === '/analyse') return <Analytics me={me} />;
   if (path === '/papierkorb') return <Trash />;
   if (path === '/verlauf') return <Activity />;
@@ -117,6 +120,7 @@ function Main() {
       {me && <BadgeSync me={me} />}
       <EntryEditor />
       {me && <HomeworkEditor />}
+      {me && <MiniPlayer />}
       <MoveTaskDialog />
       <SearchPalette />
       <AttachmentPreview />

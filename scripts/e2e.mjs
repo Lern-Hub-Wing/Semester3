@@ -160,7 +160,7 @@ async function mobileDesignChecks(p, name) {
   const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
   const bar = nav;
   const glass = nav.locator('.lg-tab-bar-glass').first();
-  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Lernplan', '#/lernplan'], ['Home', '#/']]) {
+  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Kalender', '#/lernplan'], ['Dashboard', '#/']]) {
     await nav.getByRole('link', { name: label }).click();
     await p.waitForTimeout(350);
     check(new URL(p.url()).hash.split('?')[0] === hash, `Tab-Leiste (${name}): Antippen öffnet „${label}“`);
@@ -177,7 +177,7 @@ async function mobileDesignChecks(p, name) {
   check(new URL(p.url()).hash === '#/' && lifted, `Tab-Leiste (${name}): Linse folgt beim Ziehen, noch keine Navigation`);
   await p.mouse.up();
   await p.waitForTimeout(500);
-  check(new URL(p.url()).hash === '#/team', `Tab-Leiste (${name}): Loslassen über „Team“ navigiert dorthin (${new URL(p.url()).hash})`);
+  check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Loslassen über „Kalender“ navigiert dorthin (${new URL(p.url()).hash})`);
   // Keine globale Wischnavigation über dem Seiteninhalt
   await p.evaluate(() => window.scrollTo(0, 0));
   await p.mouse.move(60, 320);
@@ -185,17 +185,15 @@ async function mobileDesignChecks(p, name) {
   await p.mouse.move(330, 320, { steps: 10 });
   await p.mouse.up();
   await p.waitForTimeout(300);
-  check(new URL(p.url()).hash === '#/team', `Tab-Leiste (${name}): Wischen über den Inhalt wechselt keine Seite`);
-  await nav.getByRole('link', { name: 'Home' }).click();
+  check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Wischen über den Inhalt wechselt keine Seite`);
+  await nav.getByRole('link', { name: 'Dashboard' }).click();
   await p.waitForTimeout(300);
   const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
   check(touchAction === 'pan-y', `Tab-Leiste (${name}): senkrechtes Scrollen bleibt frei (touch-action=${touchAction})`);
 
-  // Liquid Glass: Hintergrundunschärfe auf Leiste, Logo und Profilbutton
-  for (const [what, loc] of [['Tab-Leiste', glass], ['Suche', p.getByRole('button', { name: 'Suche öffnen' })], ['Profilbutton', p.getByTestId('profile-button')]]) {
-    const bf = await loc.evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
-    check(/blur\(/.test(bf), `Liquid Glass (${name}): ${what} mit Hintergrundunschärfe`);
-  }
+  // Designsprache 4.0: Tab-Leiste deckend (lesbar über jedem Inhalt)
+  const tabBg = await glass.evaluate((el) => getComputedStyle(el).backgroundColor);
+  check(!/rgba\([^)]*,\s*0(\.0+)?\)/.test(tabBg) && tabBg !== 'transparent', `Tab-Leiste (${name}): deckende Fläche (${tabBg})`);
 
   // Profilbutton: Avatar exakt mittig, Knopf exakt rund
   const pb = p.getByTestId('profile-button');
@@ -207,7 +205,7 @@ async function mobileDesignChecks(p, name) {
 
   // Kopfzeile bleibt beim Scrollen an ihrer Position
   // Kopfzeile auf dem Handy: bewusst ohne Logo und ohne Sync-Symbol
-  check((await p.getByTestId('mobile-logo').count()) === 0, `Kopfzeile (${name}): kein Logo oben`);
+  check((await p.getByTestId('mobile-logo').filter({ visible: true }).count()) === 1, `Kopfzeile (${name}): StudySpace-Logo oben (Designsprache 4.0)`);
   check((await p.locator('header button[aria-label*="Tippen zum Aktualisieren"]').filter({ visible: true }).count()) === 0, `Kopfzeile (${name}): kein Sync-Symbol`);
   const logo = p.getByTestId('profile-button');
   const before = await logo.boundingBox();
@@ -411,10 +409,11 @@ try {
   // Desktop: Seitenleiste als Liquid Glass, Profilbutton, Fortschrittskreise
   await page.goto(`${BASE}#/`);
   await page.waitForTimeout(2200);
-  const sideBf = await page.locator('aside .glass').first().evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
-  check(/blur\(/.test(sideBf), `Liquid Glass (Desktop): Seitenleiste mit Hintergrundunschärfe (${sideBf})`);
-  const activeNav = await page.locator('aside [aria-current="page"] .lens').count();
-  check(activeNav === 1, 'Seitenleiste: aktiver Navigationspunkt mit gläserner Hervorhebung');
+  const sideBorder = await page.locator('aside .ss-sidebar').first().evaluate((el) => getComputedStyle(el).borderRightWidth);
+  check(sideBorder === '1px', `Seitenleiste: flach mit feiner Trennlinie (${sideBorder})`);
+  const activeNav = await page.locator('aside [aria-current="page"] .side-lens').count();
+  check(activeNav === 1, 'Seitenleiste: aktiver Navigationspunkt hervorgehoben');
+  check((await page.locator('aside').getByText('Space', { exact: true }).count()) === 1, 'Seitenleiste: Wortmarke „StudySpace“');
   {
     const pb = page.getByTestId('profile-button');
     const btn = await pb.boundingBox();
@@ -429,28 +428,6 @@ try {
   await page.waitForTimeout(2200);
   await checkRingGlow(page, 'Teamseite');
 
-  // --- Durchsichtigkeit des Glases: Regler wirkt sofort und bleibt gespeichert ---
-  {
-    await page.goto(`${BASE}#/einstellungen`);
-    const slider = page.locator('#ss-glass-clarity');
-    await slider.waitFor();
-    const lgK = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--lg-k').trim());
-    const previewBlur = () => page.getByTestId('glass-preview').evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '');
-    check((await lgK()) === '1', `Glas-Regler: Standardwert ausgewogen (--lg-k=${await lgK()})`);
-    await slider.fill('100');
-    const clear = await previewBlur();
-    check((await lgK()) === '0.25', `Glas-Regler: „Sehr klar“ wirkt sofort (--lg-k=${await lgK()})`);
-    await slider.fill('0');
-    const milky = await previewBlur();
-    check((await lgK()) === '4' && clear !== milky, `Glas-Regler: Live-Vorschau ändert sich (${clear} → ${milky})`);
-    await slider.fill('100');
-    await page.reload();
-    await page.getByRole('button', { name: 'Als Person 1 lernen' }).click();
-    await slider.waitFor();
-    check((await slider.inputValue()) === '100' && (await lgK()) === '0.25', 'Glas-Regler: Einstellung bleibt nach dem Neuladen erhalten');
-    await page.getByRole('button', { name: 'Auf Standard zurücksetzen' }).click();
-    check((await lgK()) === '1' && (await slider.inputValue()) === '50', 'Glas-Regler: Zurücksetzen auf Standard');
-  }
 
   // --- Lernmodus: Start, sekundengenaue Uhr, Ausblenden, Darstellung, Beenden ---
   {
@@ -629,18 +606,22 @@ try {
 
     // Dashboard: Fokus-Karte öffnet direkt die immersive Ansicht; keine Erinnerungsvorschau mehr
     const hero = p.getByTestId('dashboard-hero');
-    check((await hero.locator('svg.landscape').count()) === 1, 'Dashboard: Hero mit Berglandschaft');
-    check((await hero.getByText('Heute', { exact: true }).count()) === 1 && (await hero.getByText('Fortschritt', { exact: true }).count()) === 1 && (await hero.getByLabel('Prüfungscountdown').count()) === 1, 'Dashboard: Heute, Fortschritt und Nächste Prüfung im Hero');
+    check((await hero.locator('.landscape img').count()) === 1, 'Dashboard: Hero mit Berg-Panorama');
+    check((await hero.getByText('Nächste Prüfung').count()) === 1 && (await hero.getAttribute('aria-label')) === 'Prüfungscountdown', 'Dashboard: Countdown zur nächsten Prüfung im Hero');
+    check((await p.getByTestId('focus-stats').count()) === 1, 'Dashboard: Fokus-Statistik');
+    const today = Number(await p.getByTestId('focus-today').getAttribute('data-seconds'));
+    check(today === 1500, `Fokus-Statistik: heutige Fokuszeit aus gespeicherten Phasen (${today} s)`);
+    check((await p.getByTestId('header-greeting').count()) === 1, 'Dashboard: Begrüßung in der Kopfzeile');
     check((await p.getByTestId('lockscreen-preview').count()) === 0, 'Dashboard: Karte „Nächste Erinnerung“ entfernt');
     check((await p.getByText('Konzentriert lernen mit Pausen').count()) === 0, 'Dashboard: überflüssiger Hilfstext entfernt');
     await shot(p, '30-dashboard-desktop-light');
-    await p.getByTestId('focus-launcher').click();
+    await p.getByTestId('focus-start').click();
     const imm = p.getByTestId('focus-immersive');
     await imm.waitFor();
-    check(new URL(p.url()).hash === '#/fokus', 'Fokus: Karte öffnet die Fokusansicht');
+    check(new URL(p.url()).hash === '#/fokus', 'Fokus: „Fokus starten“ öffnet die Fokusansicht');
     const phase = () => p.getByTestId('focus-phase').textContent();
     check((await phase())?.includes('Kurze Pause') && (await imm.getAttribute('data-phase')) === 'short', `Fokus: nach Runde 1 folgt automatisch die kurze Pause (${await phase()})`);
-    check((await imm.locator('svg.landscape').count()) === 1, 'Fokus: Berglandschaft im Hintergrund');
+    check((await imm.locator('.landscape img').count()) === 1, 'Fokus: Berg-Panorama im Hintergrund');
     check((await p.getByTestId('focus-toggle').getAttribute('aria-label')) === 'Starten', 'Fokus: kein Autostart – bewusster Start (Standard)');
 
     // Pause überspringen → Runde 2 läuft sofort
@@ -723,8 +704,78 @@ try {
     const expected = db.task_completions.filter((x) => x.member_id.endsWith('01') && x.is_completed && activeTasks.has(x.task_id)).length;
     check(Number(await stat.getAttribute('data-value')) === expected, `Analyse: „Erledigt diese Woche“ = echte Erledigungen (${expected})`);
     check((await p.getByText('Fokus-Timer').count()) > 0 && (await p.getByText('25 Min.').count()) > 0, 'Analyse: Lernzeit aus gespeicherten Fokusphasen');
+    // Gewählter Zeitraum lesbar: Schrift hebt sich vom hervorgehobenen Segment ab
+    const segContrast = await p.evaluate(() => {
+      const sel = document.querySelector('.ss-seg-accent .lg-tab[data-selected]');
+      const seg = document.querySelector('.ss-seg-accent > .lg-segmented');
+      if (!sel || !seg) return null;
+      return { text: getComputedStyle(sel).color, thumb: getComputedStyle(seg).getPropertyValue('--lg-segment-thumb').trim() };
+    });
+    check(!!segContrast && segContrast.thumb !== '' && !/^#fff|white|rgb\(255, 255, 255\)$/i.test(segContrast.thumb) && segContrast.text === 'rgb(255, 255, 255)', `Analyse: gewähltes Segment „Woche“ lesbar (${JSON.stringify(segContrast)})`);
     await shot(p, '32-analyse-desktop-light');
     check(errs.length === 0, `keine JavaScript-Fehler (Fokus/Analyse)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Musik-Bibliothek: gemeinsame YouTube-Links --------------------------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    // Einstieg auch über die Einstellungen
+    await p.locator('aside').getByRole('link', { name: 'Einstellungen' }).click();
+    const musicEntry = p.getByTestId('settings-music');
+    await musicEntry.waitFor();
+    const musicCount = db.music_tracks.filter((t) => !t.deleted_at).length;
+    check((await musicEntry.innerText()).includes(`${musicCount} Titel`), `Einstellungen: Musik-Bibliothek zeigt ${musicCount} Titel`);
+    await musicEntry.click();
+    await p.waitForURL(/#\/musik/);
+    check(p.url().endsWith('#/musik'), 'Einstellungen → Musik-Bibliothek öffnet die Musikseite');
+    const lib = p.getByTestId('music-library');
+    await lib.waitFor();
+    check(new URL(p.url()).hash === '#/musik', 'Musik: über die Seitenleiste erreichbar');
+    await lib.getByRole('button', { name: 'Lofi', exact: false }).first().click();
+    const slots = lib.getByTestId('music-slot');
+    check((await slots.count()) === 10, `Musik: 10 freie Plätze „Lofi 1–10“ (${await slots.count()})`);
+    await slots.first().click();
+    const dlg = p.getByRole('dialog', { name: 'Link hinzufügen' });
+    await dlg.waitFor();
+    check((await dlg.getByLabel('Name').inputValue()) === 'Lofi 1', 'Musik: Name „Lofi 1“ vorbelegt');
+    await dlg.getByLabel('YouTube-Link').fill('https://evil.example/watch?v=jfKfPfyJRdk');
+    await dlg.getByTestId('music-save').click();
+    check((await dlg.getByRole('alert').textContent())?.includes('YouTube-Link'), 'Musik: fremde Links werden abgelehnt');
+    await dlg.getByLabel('YouTube-Link').fill('https://youtu.be/jfKfPfyJRdk?t=90');
+    await dlg.getByTestId('music-save').click();
+    await dlg.waitFor({ state: 'detached' });
+    await p.waitForTimeout(300);
+    const saved = db.music_tracks.find((t) => t.title === 'Lofi 1');
+    check(!!saved && saved.youtube_id === 'jfKfPfyJRdk' && saved.start_seconds === 90 && saved.category === 'lofi', 'Musik: Link gespeichert (nur Video-ID + Startzeit)');
+    check((await lib.getByTestId('music-slot').count()) === 9, 'Musik: Platz belegt, 9 frei');
+    check((await lib.getByRole('button', { name: 'Lofi 1 abspielen' }).count()) === 1, 'Musik: Titel mit Abspielknopf');
+    // Für alle sichtbar: zweites Gerät/Person
+    const { page: q, ctx: c2 } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+    await q.goto(`${BASE}#/musik`);
+    await q.getByRole('button', { name: 'Als Person 2 lernen' }).click();
+    await q.getByTestId('music-library').waitFor();
+    await q.waitForTimeout(500);
+    check((await q.getByRole('button', { name: 'Lofi 1 abspielen' }).count()) === 1, 'Musik: Link ist für alle Personen verfügbar');
+    await c2.close();
+    // Umbenennen und entfernen
+    await lib.getByRole('button', { name: 'Weitere Aktionen für Lofi 1' }).click();
+    await p.getByRole('menuitem', { name: 'Umbenennen' }).click();
+    const ren = p.getByRole('dialog', { name: 'Umbenennen' });
+    await ren.getByLabel('Name').fill('Lofi Study');
+    await ren.getByRole('button', { name: 'Speichern' }).click();
+    await p.waitForTimeout(300);
+    check(db.music_tracks.find((t) => t.id === saved.id)?.title === 'Lofi Study', 'Musik: umbenannt');
+    await lib.getByRole('button', { name: 'Weitere Aktionen für Lofi Study' }).click();
+    await p.getByRole('menuitem', { name: 'Entfernen' }).click();
+    await p.waitForTimeout(300);
+    check(!!db.music_tracks.find((t) => t.id === saved.id)?.deleted_at, 'Musik: entfernt (Papierkorb, kein echtes Löschen)');
+    check(!(await hasHorizontalOverflow(p)), 'L: kein horizontaler Überlauf (Musik)');
+    await shot(p, '35-musik-desktop');
+    check(errs.length === 0, `keine JavaScript-Fehler (Musik)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
   }
 
@@ -743,13 +794,17 @@ try {
     await p.getByTestId('focus-toggle').tap();
     await p.waitForTimeout(300);
     check((await p.getByTestId('focus-toggle').getAttribute('aria-label')) === 'Pausieren', `Fokus (${label}format): Start per Antippen`);
-    // Musik: Lofi an und wieder aus (Klang wird im Browser erzeugt)
-    const music = p.getByRole('button', { name: 'Lofi abspielen' });
-    check((await music.count()) === 1, `Fokus (${label}format): Musik-Knopf vorhanden`);
-    await music.tap();
-    await p.waitForTimeout(700);
-    check((await p.getByRole('button', { name: 'Lofi aus' }).getAttribute('aria-pressed')) === 'true', `Fokus (${label}format): Lofi-Musik eingeschaltet`);
-    await p.getByRole('button', { name: 'Lofi aus' }).tap();
+    // Musik: Panel öffnen, erzeugtes Lofi an und wieder aus (ohne Internet)
+    await p.getByRole('button', { name: 'Musik', exact: true }).tap();
+    const panel = p.getByRole('dialog', { name: 'Musik' });
+    await panel.waitFor();
+    await panel.getByRole('button', { name: 'Lofi (erzeugt) abspielen' }).tap();
+    await p.waitForTimeout(500);
+    check((await p.getByTestId('mini-player').count()) === 1 && (await panel.getByRole('button', { name: 'Lofi (erzeugt) pausieren' }).count()) === 1, `Fokus (${label}format): Lofi spielt, Mini-Player sichtbar`);
+    await p.getByRole('button', { name: 'Musik beenden' }).tap();
+    await p.waitForTimeout(400);
+    check((await p.getByTestId('mini-player').count()) === 0, `Fokus (${label}format): Musik beendet`);
+    await p.getByRole('button', { name: 'Musik schließen' }).tap();
     const bar = await p.getByRole('toolbar', { name: 'Fokus-Steuerung' }).boundingBox();
     check(!!bar && bar.x >= 0 && bar.x + bar.width <= viewport.width + 0.5, `Fokus (${label}format): Steuerleiste passt in die Breite`);
     await shot(p, `34-fokus-iphone-${label}`);
@@ -835,8 +890,8 @@ try {
     await p.goto(`${BASE}#/`);
     await p.getByTestId('dashboard-hero').waitFor();
     check((await p.getByTestId('homework-card').count()) === 1, 'Dashboard: Hausaufgaben-Karte');
-    await p.getByRole('button', { name: 'Neue Hausaufgabe anlegen' }).click();
-    check((await p.getByRole('dialog', { name: 'Neue Hausaufgabe' }).count()) === 1, 'Dashboard: „+ Hausaufgabe“ öffnet das Formular');
+    await p.getByRole('button', { name: 'Hausaufgabe hinzufügen' }).click();
+    check((await p.getByRole('dialog', { name: 'Neue Hausaufgabe' }).count()) === 1, 'Dashboard: „+ Hausaufgabe hinzufügen“ öffnet das Formular');
     await p.keyboard.press('Escape');
     check(errs.length === 0, `keine JavaScript-Fehler (Hausaufgaben)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
@@ -852,7 +907,7 @@ try {
       await q.getByRole('button', { name: 'Als Person 2 lernen' }).click();
       await q.getByTestId('dashboard-hero').waitFor();
       await q.waitForTimeout(800);
-      check((await q.getByTestId('homework-card').count()) === 0 && (await q.getByRole('button', { name: 'Neue Hausaufgabe anlegen' }).count()) === 0, 'Ohne Migration 005: keine Hausaufgaben-Karte, keine Schnellaktion');
+      check((await q.getByTestId('homework-card').count()) === 0 && (await q.getByRole('button', { name: 'Hausaufgabe hinzufügen' }).count()) === 0, 'Ohne Migration 005: keine Hausaufgaben-Karte, keine Schnellaktion');
       check((await q.locator('#today-card').count()) >= 1, 'Ohne Migration 005: Dashboard funktioniert weiter');
       await q.goto(`${BASE}#/hausaufgaben`);
       await q.getByTestId('homework-setup').waitFor();

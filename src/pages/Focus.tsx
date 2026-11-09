@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Coffee, Headphones, Maximize, Minimize, Pause, Play, RotateCcw, SkipForward, SlidersHorizontal, Square, Timer, Volume2, VolumeX, X } from 'lucide-react';
-import { AMBIENCE_LABEL, setAmbienceVolume, startAmbience, stopAmbience } from '../lib/ambience';
+import { usePlayer } from '../store/player';
+import { MusicLibrary } from '../components/music/MusicLibrary';
 import { phaseDuration, phaseTitle, formatClock } from '../lib/focus';
 import { digitDuration } from '../lib/focusLook';
 import { CLOCK_FONTS, loadClockFont } from '../lib/studyMode';
@@ -50,18 +51,13 @@ export function Focus() {
   const [controls, setControls] = useState(true);
   const [panel, setPanel] = useState(false);
   const [fs, setFs] = useState(false);
-  const [musicOn, setMusicOn] = useState(false);
-
-  // Musik: Art und Lautstärke folgen den Einstellungen; beim Verlassen aus
-  useEffect(() => {
-    if (musicOn) startAmbience(settings.music);
-    else stopAmbience();
-  }, [musicOn, settings.music]);
-  useEffect(() => setAmbienceVolume(settings.musicVolume / 100), [settings.musicVolume]);
-  useEffect(() => () => stopAmbience(), []);
+  const [musicPanel, setMusicPanel] = useState(false);
+  const musicPlaying = usePlayer((s) => s.playing);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelOpen = useRef(panel);
   panelOpen.current = panel;
+  const musicOpen = useRef(false);
+  musicOpen.current = musicPanel;
   const vp = useViewport();
   const landscape = vp.w > vp.h;
   const c = phaseColors(timer);
@@ -90,6 +86,7 @@ export function Focus() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (panelOpen.current) setPanel(false);
+        else if (musicOpen.current) setMusicPanel(false);
         else if (!isFullscreen()) leave();
         return;
       }
@@ -178,10 +175,11 @@ export function Focus() {
         <BarButton label={settings.sound ? 'Ton aus' : 'Ton an'} onClick={() => setSettings({ sound: !settings.sound })} active={settings.sound}>
           {settings.sound ? <Volume2 className="size-[18px]" /> : <VolumeX className="size-[18px] opacity-70" />}
         </BarButton>
-        <BarButton label={musicOn ? `${AMBIENCE_LABEL[settings.music]} aus` : `${AMBIENCE_LABEL[settings.music]} abspielen`} onClick={() => {
+        <BarButton label="Musik" onClick={() => {
             unlockAudio();
-            setMusicOn((v) => !v);
-          }} active={musicOn}>
+            setPanel(false);
+            setMusicPanel((v) => !v);
+          }} active={musicPanel || musicPlaying}>
           <Headphones className="size-[18px]" />
         </BarButton>
         <BarButton label="Phase neu starten" disabled={!started} onClick={() => focusActions.reset()} className="max-[359px]:hidden">
@@ -208,7 +206,7 @@ export function Focus() {
             <Square className="size-4" />
           </BarButton>
         )}
-        <BarButton label="Fokus-Einstellungen" onClick={() => setPanel((v) => !v)} active={panel}>
+        <BarButton label="Fokus-Einstellungen" onClick={() => (setMusicPanel(false), setPanel((v) => !v))} active={panel}>
           <SlidersHorizontal className="size-[18px]" />
         </BarButton>
       </div>
@@ -294,6 +292,30 @@ export function Focus() {
       {bar}
 
       <AnimatePresence>{panel && <FocusSettingsPanel onClose={() => setPanel(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {musicPanel && (
+          <motion.aside
+            data-panel
+            role="dialog"
+            aria-label="Musik"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+            className="focus-panel absolute inset-x-2 bottom-2 z-30 flex max-h-[72dvh] flex-col overflow-hidden rounded-[24px] sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[420px]"
+          >
+            <div className="flex items-center justify-between px-5 pb-2 pt-4">
+              <h2 className="text-[16px] font-semibold">Musik</h2>
+              <button type="button" onClick={() => setMusicPanel(false)} aria-label="Musik schließen" className="focus-btn grid size-9 place-items-center rounded-full text-white/80">
+                <X className="size-[18px]" />
+              </button>
+            </div>
+            <div className="scroll-thin flex-1 overflow-y-auto px-4 pb-5">
+              <MusicLibrary compact />
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       {look.bar && (
         <div className="absolute inset-x-0 bottom-0 z-10 h-[3px] bg-white/10" aria-hidden data-testid="focus-bar-progress">

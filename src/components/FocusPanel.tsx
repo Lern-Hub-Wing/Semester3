@@ -1,12 +1,8 @@
 import { useId, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowUpRight, Coffee, Timer } from 'lucide-react';
 import { formatClock, isRunning, isStarted, phaseTitle, progressOf, remainingSec, type FocusState } from '../lib/focus';
-import { haptic } from '../lib/haptics';
-import { navigate } from '../lib/router';
 import { useNow } from '../hooks/useNow';
 import { rhythmOf, useFocus } from '../store/focus';
-import { useData } from '../store/data';
 
 /** Farben je Phase: Fokus violett, kurze Pause mint, lange Pause blau */
 export function phaseColors(timer: Pick<FocusState, 'phase' | 'long'>) {
@@ -119,56 +115,4 @@ export function FocusDigits({ className = '', style, seconds = true, duration = 
 export function focusStatusLabel(running: boolean, started: boolean, finished: boolean): string {
   if (finished) return 'Phase beendet';
   return running ? 'Läuft' : started ? 'Pausiert' : 'Bereit';
-}
-
-/** Fokus öffnen: immer die immersive Vollbildansicht */
-export function openFocus() {
-  haptic('select');
-  navigate('/fokus');
-}
-
-/**
- * Dashboard-Karte: zeigt nur den Zustand und öffnet die Fokusansicht.
- * Bewusst ohne eigene Steuerung – alle Bedienelemente liegen im Vollbild.
- */
-export function FocusLauncher({ large = false }: { large?: boolean }) {
-  const { timer, running, started, rest, progress, isBreak, title } = useFocusLive();
-  const modules = useData((s) => s.modules);
-  const module = timer.moduleId ? modules[timer.moduleId] : null;
-  const c = phaseColors(timer);
-  const status = focusStatusLabel(running, started, timer.finished);
-  return (
-    <button
-      type="button"
-      onClick={openFocus}
-      className="group relative flex w-full items-center gap-5 text-left sm:gap-7"
-      aria-label={`Fokus öffnen – ${title}, ${status}, noch ${formatClock(rest)}`}
-      data-testid="focus-launcher"
-    >
-      <span className="glass shrink-0 rounded-full p-1.5 transition-transform duration-300 group-hover:scale-[1.03]">
-        <FocusRing size={large ? 156 : 112} stroke={large ? 10 : 8} color={c.main} soft={c.soft} glow={running}>
-          {isBreak ? <Coffee className="size-6" style={{ color: c.main }} aria-hidden /> : <Timer className="size-6" style={{ color: c.main }} aria-hidden />}
-        </FocusRing>
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="flex flex-wrap items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
-          <span className="relative flex size-2">
-            {running && <span className="absolute inline-flex size-full animate-ping rounded-full opacity-60" style={{ background: c.main }} />}
-            <span className="relative inline-flex size-2 rounded-full" style={{ background: running ? c.main : 'var(--ss-text-3)' }} />
-          </span>
-          <span data-testid="focus-status">{title}</span>
-          <span aria-hidden>·</span>
-          <span>{status}</span>
-        </span>
-        <FocusDigits className={`font-semibold tracking-[-0.045em] ${large ? 'text-[64px] lg:text-[88px]' : 'text-[54px] md:text-[64px]'}`} />
-        <span className="flex items-center gap-3">
-          <span className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--ss-track)]">
-            <span className="block h-full rounded-full" style={{ width: `${progress * 100}%`, background: `linear-gradient(90deg, ${c.soft}, ${c.main})`, transition: running ? 'width 1s linear' : undefined }} />
-          </span>
-          {module && <span className="max-w-[40%] truncate text-[12.5px] text-muted">{module.name}</span>}
-        </span>
-      </span>
-      <ArrowUpRight className="size-5 shrink-0 self-start text-muted transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden />
-    </button>
-  );
 }
