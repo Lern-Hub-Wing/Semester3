@@ -62,6 +62,34 @@ export function validateVapidKeys(keys: VapidKeys): string | null {
   return null;
 }
 
+/**
+ * Prüft, ob VAPID_PRIVATE_KEY wirklich zu VAPID_PUBLIC_KEY gehört:
+ * mit dem privaten Schlüssel signieren, mit dem öffentlichen prüfen.
+ * Passen sie nicht zusammen, lehnen Apple/Google jede Nachricht ab.
+ */
+export async function checkVapidPair(keys: VapidKeys): Promise<string | null> {
+  const mismatch = 'VAPID_PRIVATE_KEY passt nicht zu VAPID_PUBLIC_KEY – beide müssen aus demselben Schlüsselpaar stammen.';
+  try {
+    const priv = await importVapidPrivateKey(keys);
+    const pub = await crypto.subtle.importKey('raw', b64urlDecode(keys.publicKey) as BufferSource, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const data = enc.encode('studyspace-vapid-check');
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, priv, data);
+    const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, sig, data);
+    return ok ? null : mismatch;
+  } catch {
+    return mismatch;
+  }
+}
+
+/** Grund aus der Antwort des Push-Dienstes, z. B. Apples {"reason":"BadJwtToken"} */
+export function pushServiceReason(error: string | undefined): string | null {
+  if (!error) return null;
+  const m = /"reason"\s*:\s*"([^"]+)"/.exec(error);
+  if (m) return m[1];
+  const rest = error.replace(/^\d+\s*/, '').trim();
+  return rest ? rest.slice(0, 120) : null;
+}
+
 async function importVapidPrivateKey(keys: VapidKeys): Promise<CryptoKey> {
   const pub = b64urlDecode(keys.publicKey);
   const jwk: JsonWebKey = {

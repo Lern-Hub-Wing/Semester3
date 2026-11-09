@@ -21,7 +21,7 @@
 // =====================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { clientIp, corsHeaders, json, rateLimited } from '../_shared/http.ts';
-import { isAllowedPushEndpoint, sendPush, sha256Hex, validateVapidKeys, type VapidKeys } from '../_shared/webpush.ts';
+import { checkVapidPair, isAllowedPushEndpoint, pushServiceReason, sendPush, sha256Hex, validateVapidKeys, type VapidKeys } from '../_shared/webpush.ts';
 import { normalizePrefs } from '../_shared/prefs.ts';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -60,10 +60,16 @@ async function activeMember(id: unknown): Promise<string | null> {
   return data && data.is_active ? data.id : null;
 }
 
+// Selbstprüfung der Schlüssel einmal je Funktionsinstanz
+let pairCheck: Promise<string | null> | null = null;
+
 function publicStatus(d: Record<string, unknown> | null) {
-  if (!d) return { registered: false };
+  // serverKey ist der ÖFFENTLICHE Schlüssel (steht ohnehin in der Webseite) –
+  // die App vergleicht ihn mit VITE_VAPID_PUBLIC_KEY und meldet Abweichungen.
+  if (!d) return { registered: false, serverKey: vapid.publicKey };
   return {
     registered: true,
+    serverKey: vapid.publicKey,
     enabled: d.enabled,
     memberId: d.member_id,
     prefs: normalizePrefs(d.prefs),
@@ -79,7 +85,7 @@ Deno.serve(async (req) => {
   const ip = clientIp(req);
   if (rateLimited(`ip:${ip}`, 60, 60_000)) return json(req, { error: 'Zu viele Anfragen. Bitte kurz warten.' }, 429, { 'Retry-After': '60' });
 
-  const vapidProblem = validateVapidKeys(vapid);
+  const vapidProblem = validateVapidKeys(vapid) ?? (await (pairCheck ??= checkVapidPair(vapid)));
   if (vapidProblem) return json(req, { error: 'Push ist auf dem Server noch nicht eingerichtet.', detail: vapidProblem, code: 'not_configured' }, 503);
 
   let body: Body;
@@ -212,7 +218,11 @@ Deno.serve(async (req) => {
 
         if (res.ok) return json(req, { accepted: true, status: res.status });
         if (res.gone) return json(req, { accepted: false, code: 'expired', error: 'Das Abonnement ist abgelaufen. Bitte Benachrichtigungen erneut aktivieren.' }, 410);
-        return json(req, { accepted: false, error: `Der Push-Dienst hat die Nachricht abgelehnt (${res.status || 'keine Verbindung'}).` }, 502);
+        const reason = pushServiceReason(res.error);
+        const hint = /BadJwtToken|VapidPkHashMismatch|InvalidSignature|unauthorized/i.test(reason ?? '') || res.status === 401 || res.status === 403
+          ? ' Wahrscheinlich passen die VAPID-Schlüssel nicht zusammen oder VAPID_SUBJECT ist ungültig (README 12.2/12.3). Danach Benachrichtigungen aus- und wieder einschalten.'
+          : '';
+        return json(req, { accepted: false, code: 'rejected', reason, error: `Der Push-Dienst hat die Nachricht abgelehnt (${res.status || 'keine Verbindung'}${reason ? `: ${reason}` : ''}).${hint}` }, 502);
       }
 
       default:

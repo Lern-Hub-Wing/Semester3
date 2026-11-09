@@ -115,3 +115,29 @@ describe('Web Push (RFC 8291 / 8292)', () => {
     expect(await sha256Hex('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   });
 });
+
+describe('VAPID-Selbstprüfung', () => {
+  it('erkennt passende und vertauschte Schlüsselpaare', async () => {
+    const { checkVapidPair, pushServiceReason } = await import('../../supabase/functions/_shared/webpush.ts');
+    const make = async () => {
+      const kp = (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+      const raw = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+      const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+      const b64 = (u: Uint8Array) => Buffer.from(u).toString('base64url');
+      return { publicKey: b64(raw), privateKey: jwk.d!, subject: 'mailto:test@example.com' };
+    };
+    const a = await make();
+    const b = await make();
+    expect(await checkVapidPair(a)).toBeNull();
+    expect(await checkVapidPair({ ...a, privateKey: b.privateKey })).toMatch(/passt nicht/);
+    expect(pushServiceReason('403 {"reason":"BadJwtToken"}')).toBe('BadJwtToken');
+    expect(pushServiceReason('400 bad request')).toBe('bad request');
+  });
+
+  it('meldet abweichende Schlüssel zwischen Webseite und Server', async () => {
+    const { keyMismatch } = await import('../lib/push');
+    expect(keyMismatch('ABC=', 'ABC')).toBeNull();
+    expect(keyMismatch('ABC', 'XYZ')).toMatch(/passen nicht zusammen/);
+    expect(keyMismatch(undefined, 'XYZ')).toBeNull();
+  });
+});
