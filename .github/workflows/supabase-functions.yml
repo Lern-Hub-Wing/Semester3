@@ -32,9 +32,9 @@ jobs:
             echo "::error::SUPABASE_ACCESS_TOKEN und SUPABASE_PROJECT_REF müssen als Repository-Secrets angelegt sein (README, Schritt 12)."
             exit 1
           fi
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 3.0.0
       - name: Bereitstellen
         run: |
           supabase functions deploy push-api --remote="$SUPABASE_PROJECT_REF" --no-verify-jwt --yes
