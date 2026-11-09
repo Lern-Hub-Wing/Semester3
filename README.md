@@ -89,6 +89,7 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 3 | [`supabase/migrations/003_storage.sql`](supabase/migrations/003_storage.sql) | Storage-Bucket `materials` mit 10-MB-Limit und erlaubten Dateitypen |
 | 4 | [`supabase/migrations/004_push_focus.sql`](supabase/migrations/004_push_focus.sql) | Fokuszeiten und Push-Benachrichtigungen (siehe Schritt 12) |
 | 5 | [`supabase/migrations/005_homework.sql`](supabase/migrations/005_homework.sql) | Hausaufgaben (siehe Schritt 13) |
+| 6 | [`supabase/migrations/006_server_read_access.sql`](supabase/migrations/006_server_read_access.sql) | Leserechte für die Push-Funktionen (siehe Schritt 12.1) |
 
 Falls Supabase warnt, dass die Abfrage „destruktive Operationen“ enthält: Das betrifft nur `drop trigger/policy if exists` (Neuanlage). Mit **Run this query** bestätigen. Alle Skripte können gefahrlos mehrfach ausgeführt werden.
 
@@ -164,11 +165,11 @@ Ohne diesen Schritt funktioniert StudySpace ganz normal – nur die Benachrichti
 
 **So funktioniert es:** Die App meldet ein Gerät bei der Edge Function `push-api` an. Alle 5 Minuten ruft Supabase Cron die Edge Function `push-scheduler` auf; sie prüft Aufgaben, Prüfungen, Ruhezeiten und schickt fällige Erinnerungen über den Push-Dienst von Apple/Google/Mozilla direkt aufs Gerät – auch wenn StudySpace geschlossen ist.
 
-### 12.1 Migration 004 ausführen
+### 12.1 Migrationen 004 und 006 ausführen
 
 SQL Editor → Inhalt von [`supabase/migrations/004_push_focus.sql`](supabase/migrations/004_push_focus.sql) einfügen → **Run**. Es kommen nur neue Tabellen hinzu (`focus_sessions`, `push_devices`, `push_log`, `push_state`); bestehende Lernplandaten werden nicht verändert. Die Push-Tabellen sind für die öffentliche Rolle komplett gesperrt.
 
-> Diese Migration schaltet auch das Speichern der Fokuszeiten (Fokus-Timer, Analyse) frei.
+Danach genauso [`supabase/migrations/006_server_read_access.sql`](supabase/migrations/006_server_read_access.sql) ausführen. Sie erlaubt den Push-Funktionen, Lernprofile, Lernplan und Prüfungen zu **lesen** (nur lesen, keine Datenänderung). Neuere Supabase-Projekte vergeben diese Rechte nicht mehr automatisch – ohne 006 meldet die App beim Aktivieren „Unbekanntes Lernprofil“ bzw. „Der Server darf die Lernprofile nicht lesen“, und es werden keine Erinnerungen verschickt.
 
 ### 12.2 Schlüssel erzeugen
 
@@ -324,7 +325,7 @@ Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/A
 ├── public/                        Icons, Startbildschirme, Favicon, einrichtung/vapid.html
 ├── scripts/                       Icon-Generator, Datenbank- und Browsertests
 ├── supabase/
-│   ├── migrations/                001 Schema · 002 Sicherheit · 003 Storage · 004 Push + Fokus · 005 Hausaufgaben
+│   ├── migrations/                001 Schema · 002 Sicherheit · 003 Storage · 004 Push + Fokus · 005 Hausaufgaben · 006 Leserechte Push
 │   ├── functions/                 Edge Functions push-api, push-scheduler (+ _shared: Web Push, Erinnerungslogik)
 │   ├── cron.sql                   Zeitsteuerung (Supabase Cron, alle 5 Minuten)
 │   ├── seed.sql                   Startdaten (Personen, Module, Prüfungen)
@@ -353,6 +354,7 @@ Nicht automatisiert testbar (manuell prüfen, siehe [docs/ARCHITEKTUR.md](docs/A
 | „Server noch nicht eingerichtet“ (Benachrichtigungen) | Variable `VITE_VAPID_PUBLIC_KEY` fehlt (12.6) → setzen und neu veröffentlichen |
 | „…auf dem Server noch nicht bereitgestellt“ | Edge Functions fehlen (12.4) |
 | „Push ist auf dem Server noch nicht eingerichtet“ | Secrets `VAPID_*` in Supabase fehlen oder sind falsch (12.3) |
+| „Unbekanntes Lernprofil“ / „Der Server darf die Lernprofile nicht lesen“ (Benachrichtigungen) | `006_server_read_access.sql` ausführen (12.1), dann erneut aktivieren |
 | „Hausaufgaben sind noch nicht eingerichtet“ | `005_homework.sql` ausführen (Schritt 13) |
 | iPhone bietet keine Benachrichtigungen an | StudySpace muss vom Home-Bildschirm gestartet werden, iOS ≥ 16.4 (12.7) |
 | Test angenommen, aber keine Nachricht | Mitteilungen für StudySpace in den iPhone-Einstellungen prüfen, Fokus/Nicht stören aus; Gerät kurz sperren |

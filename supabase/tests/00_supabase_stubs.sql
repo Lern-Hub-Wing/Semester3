@@ -6,9 +6,11 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
 end $$;
 grant usage on schema public to anon, authenticated, service_role;
--- Supabase vergibt standardmäßig alle Rechte an neue Tabellen; das bilden wir nach,
--- damit getestet wird, dass Migration 002 sie wirklich wieder entzieht.
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+-- Supabase vergibt standardmäßig alle Rechte an neue Tabellen für anon/authenticated;
+-- das bilden wir nach, damit getestet wird, dass Migration 002 sie wirklich entzieht.
+-- service_role bekommt hier bewusst KEINE Standardrechte (wie in neueren
+-- Supabase-Projekten) – die Migrationen müssen sie ausdrücklich vergeben.
+alter default privileges in schema public grant all on tables to anon, authenticated;
 
 create schema if not exists storage;
 grant usage on schema storage to anon, authenticated, service_role;

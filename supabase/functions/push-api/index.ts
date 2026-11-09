@@ -54,9 +54,16 @@ async function findDevice(token: string) {
   return { device: data, hash };
 }
 
+/** Fehler in der Servereinrichtung (z. B. fehlende Leserechte) – wird verständlich gemeldet */
+class SetupError extends Error {}
+
 async function activeMember(id: unknown): Promise<string | null> {
   if (typeof id !== 'string' || !UUID_RE.test(id)) return null;
-  const { data } = await db.from('members').select('id, is_active').eq('id', id).maybeSingle();
+  const { data, error } = await db.from('members').select('id, is_active').eq('id', id).maybeSingle();
+  if (error) {
+    console.error('push-api members', error);
+    throw new SetupError('Der Server darf die Lernprofile nicht lesen. Bitte supabase/migrations/006_server_read_access.sql im Supabase SQL Editor ausführen (README, Schritt 12.1).');
+  }
   return data && data.is_active ? data.id : null;
 }
 
@@ -229,6 +236,7 @@ Deno.serve(async (req) => {
         return json(req, { error: 'Unbekannte Aktion.' }, 400);
     }
   } catch (err) {
+    if (err instanceof SetupError) return json(req, { error: err.message, code: 'not_configured' }, 503);
     console.error('push-api', err);
     return json(req, { error: 'Interner Fehler. Bitte später erneut versuchen.' }, 500);
   }

@@ -1381,3 +1381,24 @@ html.compact {
   align-items: center;
   text-box: normal;
 }
+
+/* Statusleiste (iPhone/Android als App): gleiche Farbe wie theme-color,
+   läuft unterhalb der Statusleiste weich in den Seitenhintergrund aus. */
+.status-blend {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .status-blend {
+    --top-tint: #d8d4f6;
+    display: block;
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: calc(env(safe-area-inset-top) + 36px);
+    z-index: 15;
+    pointer-events: none;
+    background: linear-gradient(180deg, var(--top-tint) 0, var(--top-tint) env(safe-area-inset-top), color-mix(in srgb, var(--top-tint) 0%, transparent) 100%);
+  }
+  .dark .status-blend {
+    --top-tint: #17162f;
+  }
+}
