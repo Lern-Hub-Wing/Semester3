@@ -49,8 +49,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-dvh">
       <Ambient color={me?.color} />
-      {/* iPhone-App: Statusleiste geht weich in die Seite über (keine harte Kante) */}
-      <div aria-hidden className="status-blend" />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2">
         Zum Inhalt springen
       </a>
