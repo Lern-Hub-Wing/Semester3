@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { setHapticsEnabled } from '../lib/haptics';
+import { setSoundsEnabled } from '../lib/sound';
 import { GLASS_CLARITY_DEFAULT, clampClarity } from '../lib/glass';
 
 /** Gerätebezogene Darstellungseinstellungen (lokal gespeichert, weil es keine Konten gibt). */
@@ -11,12 +12,14 @@ export interface Prefs {
   compact: boolean;
   /** Kurze Vibration bei wichtigen Interaktionen (nur wo unterstützt) */
   haptics: boolean;
+  /** Dezente Klänge beim Antippen, Auswählen und Abhaken */
+  sounds: boolean;
   /** Durchsichtigkeit der Glasflächen, 0 (milchig) … 100 (klar) */
   glassClarity: number;
 }
 
 const KEY = 'studyspace.prefs.v1';
-const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, glassClarity: GLASS_CLARITY_DEFAULT };
+const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, sounds: true, glassClarity: GLASS_CLARITY_DEFAULT };
 
 function load(): Prefs {
   try {
@@ -30,6 +33,7 @@ function load(): Prefs {
       glass: parsed.glass === 'reduced' ? 'reduced' : 'auto',
       compact: parsed.compact === true,
       haptics: parsed.haptics !== false,
+      sounds: parsed.sounds !== false,
       glassClarity: clampClarity(parsed.glassClarity),
     };
   } catch {
@@ -43,11 +47,13 @@ interface PrefsState extends Prefs {
 
 const initial = typeof window === 'undefined' ? DEFAULTS : load();
 setHapticsEnabled(initial.haptics);
+setSoundsEnabled(initial.sounds);
 
 export const usePrefs = create<PrefsState>((set, get) => ({
   ...initial,
   set: (patch) => {
     if (patch.haptics !== undefined) setHapticsEnabled(patch.haptics);
+    if (patch.sounds !== undefined) setSoundsEnabled(patch.sounds);
     set(patch);
     const { set: _omit, ...rest } = { ...get(), ...patch };
     void _omit;

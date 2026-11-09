@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-dvh">
       <Ambient color={me?.color} />
+      <div aria-hidden className="top-fade" />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2">
         Zum Inhalt springen
       </a>

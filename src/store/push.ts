@@ -30,6 +30,8 @@ interface PushStore {
   prefs: PushPrefs;
   error: string | null;
   lastSuccessAt: string | null;
+  /** Letzter Lauf der Zeitsteuerung; undefined = unbekannt (älterer Server) */
+  schedulerAt: string | null | undefined;
   test: TestState;
   set: (p: Partial<PushStore>) => void;
 }
@@ -40,6 +42,7 @@ export const usePush = create<PushStore>((set) => ({
   prefs: DEFAULT_PREFS,
   error: null,
   lastSuccessAt: null,
+  schedulerAt: undefined,
   test: { state: 'idle' },
   set: (p) => set(p),
 }));
@@ -52,6 +55,7 @@ function messageOf(err: unknown): string {
 }
 
 function applyServer(s: ServerStatus) {
+  if (s.schedulerAt !== undefined) setState({ schedulerAt: s.schedulerAt });
   setState({
     prefs: s.prefs ?? DEFAULT_PREFS,
     memberId: s.memberId ?? null,
@@ -211,5 +215,15 @@ export async function sendTestPush(): Promise<void> {
     } else {
       setState({ test: { state: 'failed', message: messageOf(err) } });
     }
+  }
+}
+
+/** Status neu vom Server holen (Einstellungsseite): zeigt u. a., ob die Zeitsteuerung läuft */
+export async function refreshPushStatus(): Promise<void> {
+  try {
+    const status = await pushApi('status');
+    if (status.schedulerAt !== undefined) setState({ schedulerAt: status.schedulerAt });
+  } catch {
+    /* offline o. ä. – Hinweis bleibt aus */
   }
 }

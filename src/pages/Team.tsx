@@ -323,7 +323,7 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-12">
+      <div className="grid gap-5 lg:grid-cols-12 [&>*]:min-w-0">
         <Card className="p-5 lg:col-span-4">
           <CardHeader title="Fortschritt nach Fach" icon={<ListTodo />} />
           <div className="mt-4 flex flex-col gap-3">
@@ -333,7 +333,7 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
               return (
                 <div key={mod.id}>
                   <div className="mb-1.5 flex justify-between gap-2 text-[13px]">
-                    <span className="truncate">{mod.name}</span>
+                    <span className="min-w-0 leading-snug">{mod.name}</span>
                     <span className="num shrink-0 font-semibold">{mr.pct === null ? '–' : `${mr.pct}%`}</span>
                   </div>
                   <ProgressBar ratio={mr} color={mod.color} height={6} label={mod.name} />
@@ -346,6 +346,9 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Segmented
               label="Aufgaben"
+              size="sm"
+              dense
+              className="w-full"
               value={tab}
               onChange={setTab}
               options={[

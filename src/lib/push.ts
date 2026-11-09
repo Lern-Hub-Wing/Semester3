@@ -137,6 +137,8 @@ export interface ServerStatus {
   lastError?: string | null;
   /** Öffentlicher VAPID-Schlüssel des Servers (zum Abgleich mit VITE_VAPID_PUBLIC_KEY) */
   serverKey?: string;
+  /** Letzter Lauf der Zeitsteuerung (null = noch nie; fehlt bei älterem Server) */
+  schedulerAt?: string | null;
 }
 
 /** Prüft, ob der Schlüssel der Webseite zum Schlüssel des Servers passt (Fehlertext oder null). */

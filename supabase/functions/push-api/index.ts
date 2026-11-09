@@ -67,6 +67,13 @@ async function activeMember(id: unknown): Promise<string | null> {
   return data && data.is_active ? data.id : null;
 }
 
+/** Letzter Lauf der Zeitsteuerung (push-scheduler) – nur der Zeitpunkt */
+async function schedulerAt(): Promise<string | null> {
+  const { data } = await db.from('push_state').select('value').eq('key', 'scheduler:heartbeat').maybeSingle();
+  const at = (data?.value as { at?: unknown } | undefined)?.at;
+  return typeof at === 'string' ? at : null;
+}
+
 // Selbstprüfung der Schlüssel einmal je Funktionsinstanz
 let pairCheck: Promise<string | null> | null = null;
 
@@ -179,7 +186,7 @@ Deno.serve(async (req) => {
       case 'status': {
         const { device } = await findDevice(token);
         if (device) await db.from('push_devices').update({ last_seen_at: new Date().toISOString() }).eq('id', device.id);
-        return json(req, publicStatus(device));
+        return json(req, { ...publicStatus(device), schedulerAt: await schedulerAt() });
       }
 
       // -----------------------------------------------------------------

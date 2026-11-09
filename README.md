@@ -210,6 +210,9 @@ Mit installierter [Supabase CLI](https://supabase.com/docs/guides/cli) geht es a
 2. Darin `<PROJEKT-REF>` und `<SCHEDULER-SECRET>` ersetzen (nur im SQL Editor – **nicht** im Repository speichern).
 3. **Run**. Das Secret landet verschlüsselt im Supabase Vault; der Job `studyspace-push-scheduler` läuft alle 5 Minuten.
 4. Nach ein paar Minuten prüfen (steht unten in der Datei): `cron.job_run_details` zeigt `succeeded`, `net._http_response` den Statuscode `200`.
+5. Einfacher: In der App unter Einstellungen → Benachrichtigungen steht „Automatische Erinnerungen aktiv · zuletzt geprüft …“. Fehlt die Zeitsteuerung, steht dort ein Hinweis – dann kommen nur Testnachrichten, aber keine geplanten Erinnerungen.
+
+Hinweis: „Offene Aufgaben“ wird nur verschickt, wenn für heute wirklich noch Aufgaben offen sind, und höchstens einmal am Tag; „Morgendliche Lernübersicht“ nur, wenn heute etwas geplant ist.
 
 ### 12.6 Public Key in GitHub eintragen und veröffentlichen
 
@@ -285,6 +288,8 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder Finger auf der Leiste halten und ziehen: die Glaslinse folgt, beim Loslassen wird gewechselt. Weitere Seiten unter „Mehr“ |
 | haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
 | das Glas klarer oder milchiger machen | Einstellungen → Erscheinungsbild → „Durchsichtigkeit“ (Regler mit Live-Vorschau; wirkt sofort auf alle Glasflächen, gespeichert pro Gerät) |
+| Klänge ein-/ausschalten | Einstellungen → Erscheinungsbild → „Klänge“ (leise Töne beim Antippen, Auswählen, Abhaken; auf dem iPhone gilt der Stummschalter) |
+| Musik beim Lernen | Im Fokus auf das Kopfhörer-Symbol tippen: Lofi, Regen oder Rauschen – live im Browser erzeugt, ohne Musikdateien. Art und Lautstärke unter Einstellungen → Steuerung → Musik |
 | Benachrichtigungen einrichten | Nach der ersten Personenwahl erscheint eine Einführung; sonst Einstellungen → Benachrichtigungen. iPhone: vorher „Zum Home-Bildschirm“ |
 | konzentriert mit Timer lernen | „Fokus“ in der Navigation oder die Fokus-Karte im Dashboard öffnet direkt die Vollbildansicht. Start drücken (Standard: kein Autostart). Unten: Ton, Phase neu starten, Start/Pause, Pause überspringen bzw. Session beenden, Einstellungen. Rhythmus: Kurz 15/5, Klassisch 25/5, Intensiv 50/10 oder Individuell; lange Pause nach N Runden (Standard 4); eigene Vorlagen speichern. Unter „Anzeige“/„Bild“/„Steuerung“: Schrift, Größe, Stärke, Sekunden, Farbe, Leuchten, Position, Animation, Ring, Prozent, Fortschrittslinie, Hintergrund (Berge, Polarlicht, Verlauf, Farbe, eigenes Bild, Weichzeichnen, Abdunkeln, Bewegung), Steuerleiste oben/unten, automatisches Ausblenden, Lautstärke, Mitteilung beim Phasenwechsel, automatischer Phasenwechsel und Autostart. Nur echte Fokuszeit (ohne Pausen) wird gespeichert und in der Analyse gezählt |
 | eine Hausaufgabe eintragen | „Hausaufgaben“ → „Neue Hausaufgabe“ (oder „+ Hausaufgabe“ im Dashboard). Pflicht: Titel, Modul, Abgabe. Optional unter „Weitere Angaben“: Beschreibung, Unteraufgaben, Aufwand, frühester Beginn, Priorität, Anhänge (nach dem ersten Speichern). „Arbeitseinheiten einplanen“ zeigt Vorschläge mit Kalender – Daten lassen sich vor dem Speichern ändern |
