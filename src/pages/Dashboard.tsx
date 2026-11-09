@@ -202,14 +202,14 @@ function QuickActions({ onContinue, onNewEntry, hasOpen }: { onContinue: () => v
     { label: 'Material', icon: <FileText className="size-4" />, run: () => navigate('/materialien') },
   ];
   return (
-    <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:mb-0 md:px-0">
-      <motion.div initial={reduce ? false : { opacity: 0, scale: 0.85, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.25 }}>
+    <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(90deg,#000_calc(100%-28px),transparent)] md:mx-0 md:mb-0 md:px-0 md:[mask-image:none]">
+      <motion.div className="shrink-0" initial={reduce ? false : { opacity: 0, scale: 0.85, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.25 }}>
         <Button variant="primary" icon={<Play className="size-4" fill="currentColor" />} onClick={onContinue}>
           {hasOpen ? 'Weiterlernen' : 'Fokus starten'}
         </Button>
       </motion.div>
       {items.map((it, i) => (
-        <motion.div key={it.label} initial={reduce ? false : { opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, delay: 0.32 + i * 0.05, ease: EASE_EMPH }}>
+        <motion.div key={it.label} className="shrink-0" initial={reduce ? false : { opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, delay: 0.32 + i * 0.05, ease: EASE_EMPH }}>
           <Button variant="glass" icon={it.icon} onClick={it.run} aria-label={it.label === 'Aufgabe+' ? 'Neuen Lerntag mit Aufgaben anlegen' : it.label === 'Hausaufgabe' ? 'Neue Hausaufgabe anlegen' : undefined}>
             {it.label}
           </Button>

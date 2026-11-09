@@ -43,8 +43,8 @@ function CardHead({ title, sub, to, action }: { title: string; sub?: string; to?
   const inner = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="title block truncate text-[15px]">{title}</span>
-        {sub && <span className="block truncate text-[12.5px] text-muted">{sub}</span>}
+        <span className="title block text-[15px] leading-snug">{title}</span>
+        {sub && <span className="block text-[12.5px] leading-snug text-muted">{sub}</span>}
       </span>
       {to && <ChevronRight className="size-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />}
     </>
@@ -112,8 +112,8 @@ export function NextExamCard({ className = '', memberId }: { className?: string;
           <BookOpen className="size-[18px]" aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-semibold">{module?.name ?? 'Prüfung'}</span>
-          <span className="block truncate text-[12px] text-muted">
+          <span className="block text-[15px] font-semibold leading-snug">{module?.name ?? 'Prüfung'}</span>
+          <span className="block text-[12px] leading-snug text-muted">
             {running ? (
               <span className="inline-flex items-center gap-1.5 font-medium text-ink">
                 <span className="relative flex size-1.5">

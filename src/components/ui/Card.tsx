@@ -28,8 +28,8 @@ export function CardHeader({ title, icon, action, subtitle, tint }: { title: Rea
     <div className="flex items-center gap-3">
       {icon && <IconTile tint={tint}>{icon}</IconTile>}
       <div className="min-w-0 flex-1">
-        <h3 className="title truncate text-[15.5px]">{title}</h3>
-        {subtitle && <p className="truncate text-[13px] text-muted">{subtitle}</p>}
+        <h3 className="title text-[15.5px] leading-snug [overflow-wrap:anywhere]">{title}</h3>
+        {subtitle && <p className="text-[13px] leading-snug text-muted">{subtitle}</p>}
       </div>
       {action}
     </div>
