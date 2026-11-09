@@ -9,6 +9,8 @@ import { Link } from '../lib/router';
 import { spring } from '../lib/motion';
 import { formatInstant } from '../lib/time';
 import { useNow } from '../hooks/useNow';
+import { effectiveMinute } from '../../supabase/functions/_shared/reminders.ts';
+import { inQuietHours, minutesToTime, timeToMinutes } from '../../supabase/functions/_shared/prefs.ts';
 import { disablePush, enablePush, initPush, refreshPushStatus, sendTestPush, setPushMember, updatePushPrefs, usePush, type PushPhase } from '../store/push';
 import { useActiveMembers, useCurrentMember } from '../store/derived';
 import { toast } from '../store/toast';
@@ -245,13 +247,21 @@ function Categories() {
   );
 }
 
-function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function TimeField({ label, value, onChange, note, warn }: { label: string; value: string; onChange: (v: string) => void; note?: string; warn?: string | null }) {
   return (
     <label className="flex items-center justify-between gap-3 border-t border-line py-3 text-[14.5px] first:border-t-0 first:pt-1">
-      <span>{label}</span>
+      <span className="min-w-0">
+        <span className="block">{label}</span>
+        {note && <span className="block text-[12px] text-muted">{note}</span>}
+        {warn && (
+          <span className="block text-[12px] font-medium text-warn" data-testid="quiet-warning">
+            {warn}
+          </span>
+        )}
+      </span>
       <input
         type="time"
-        className="field num !w-[118px] !min-h-10 !py-1.5 text-center"
+        className="field num !w-[118px] !min-h-10 shrink-0 !py-1.5 text-center"
         value={value}
         step={300}
         onChange={(e) => /^\d\d:\d\d$/.test(e.target.value) && onChange(e.target.value)}
@@ -264,19 +274,25 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
 function Times() {
   const prefs = usePush((s) => s.prefs);
   const set = (key: keyof PushPrefs) => (v: string) => void updatePushPrefs({ [key]: v });
+  /** Liegt eine Uhrzeit in der Ruhezeit, sagt die App gleich, wann die Nachricht stattdessen kommt (wie der Server rechnet). */
+  const shifted = (time: string) => {
+    const target = timeToMinutes(time);
+    if (!inQuietHours(target, prefs)) return null;
+    return `Liegt in der Ruhezeit (${prefs.quietStart}–${prefs.quietEnd}) – kommt stattdessen um ${minutesToTime(effectiveMinute(target, prefs))} Uhr.`;
+  };
   return (
     <Card className="p-5 md:p-6">
       <CardHeader title="Uhrzeiten & Ruhezeit" subtitle="Europe/Berlin, inklusive Zeitumstellung" icon={<Moon />} />
       <div className="mt-3">
-        <TimeField label="Morgenübersicht" value={prefs.morningTime} onChange={set('morningTime')} />
-        <TimeField label="Erinnerung an Offenes" value={prefs.eveningTime} onChange={set('eveningTime')} />
-        <TimeField label="Überfällige Aufgaben" value={prefs.overdueTime} onChange={set('overdueTime')} />
+        <TimeField label="Morgenübersicht" note="nur wenn heute etwas geplant ist" value={prefs.morningTime} onChange={set('morningTime')} warn={shifted(prefs.morningTime)} />
+        <TimeField label="Erinnerung an Offenes" note="nur wenn heute noch Aufgaben offen sind" value={prefs.eveningTime} onChange={set('eveningTime')} warn={shifted(prefs.eveningTime)} />
+        <TimeField label="Überfällige Aufgaben" note="nur wenn etwas überfällig ist" value={prefs.overdueTime} onChange={set('overdueTime')} warn={shifted(prefs.overdueTime)} />
         <TimeField label="Ruhezeit ab" value={prefs.quietStart} onChange={set('quietStart')} />
         <TimeField label="Ruhezeit bis" value={prefs.quietEnd} onChange={set('quietEnd')} />
       </div>
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
-        In der Ruhezeit kommen keine normalen Erinnerungen; sie werden auf das Ende der Ruhezeit verschoben bzw. zusammengefasst. Prüfungserinnerungen kommen bei frühen Terminen zum
-        letzten erlaubten Zeitpunkt. Push-Dienste garantieren keine minutengenaue Zustellung.
+        In der Ruhezeit kommen keine normalen Erinnerungen: Abends werden sie auf 15 Minuten vor Beginn der Ruhezeit vorgezogen, morgens auf ihr Ende verschoben. Die Zeitsteuerung prüft alle 5 Minuten –
+        eine Nachricht kann also bis zu 5 Minuten später kommen. Prüfungserinnerungen kommen bei frühen Terminen zum letzten erlaubten Zeitpunkt.
       </p>
     </Card>
   );

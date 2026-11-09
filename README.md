@@ -203,7 +203,7 @@ Supabase Dashboard → **Edge Functions → Secrets** (bzw. *Project Settings �
 2. GitHub: **Settings → Secrets and variables → Actions → Reiter „Secrets“ → New repository secret**:
    - `SUPABASE_ACCESS_TOKEN` = der Token aus Schritt 1
    - `SUPABASE_PROJECT_REF` = die Projekt-Referenz (der Teil `abcd1234` aus `https://abcd1234.supabase.co`)
-3. GitHub: **Actions → „Supabase Edge Functions bereitstellen“ → Run workflow**.
+3. GitHub: **Actions → „Supabase Edge Functions bereitstellen“ → Run workflow** (einmalig). Danach läuft der Workflow **automatisch**, sobald Änderungen an den Edge Functions auf `main` landen (z. B. nach dem Zusammenführen eines Pull Requests).
 4. Kontrolle in Supabase unter **Edge Functions**: `push-api` und `push-scheduler` erscheinen, beide mit „Verify JWT“ = aus.
 
 Mit installierter [Supabase CLI](https://supabase.com/docs/guides/cli) geht es auch lokal: `supabase functions deploy push-api --project-ref <REF> --no-verify-jwt` und dasselbe für `push-scheduler`.
@@ -214,7 +214,7 @@ Mit installierter [Supabase CLI](https://supabase.com/docs/guides/cli) geht es a
 2. Darin `<PROJEKT-REF>` und `<SCHEDULER-SECRET>` ersetzen (nur im SQL Editor – **nicht** im Repository speichern).
 3. **Run**. Das Secret landet verschlüsselt im Supabase Vault; der Job `studyspace-push-scheduler` läuft alle 5 Minuten.
 4. Nach ein paar Minuten prüfen (steht unten in der Datei): `cron.job_run_details` zeigt `succeeded`, `net._http_response` den Statuscode `200`.
-5. Einfacher: In der App unter Einstellungen → Benachrichtigungen steht „Automatische Erinnerungen aktiv · zuletzt geprüft …“. Fehlt die Zeitsteuerung, steht dort ein Hinweis – dann kommen nur Testnachrichten, aber keine geplanten Erinnerungen.
+5. Einfacher: In der App unter Einstellungen → Benachrichtigungen steht „Automatische Erinnerungen aktiv · zuletzt geprüft …“. Liegt eine eingestellte Uhrzeit in der Ruhezeit (Standard 21:00–08:00), zeigt die App direkt darunter, wann die Nachricht stattdessen kommt (abends 15 Minuten vor Beginn der Ruhezeit, morgens zu ihrem Ende). Fehlt die Zeitsteuerung, steht dort ein Hinweis – dann kommen nur Testnachrichten, aber keine geplanten Erinnerungen.
 
 Hinweis: „Offene Aufgaben“ wird nur verschickt, wenn für heute wirklich noch Aufgaben offen sind, und höchstens einmal am Tag; „Morgendliche Lernübersicht“ nur, wenn heute etwas geplant ist.
 
@@ -292,7 +292,7 @@ Was die Migration macht:
 
 Solange die Datei nicht ausgeführt ist, zeigt die Bibliothek einen Hinweis; die erzeugten Klänge (Lofi, Regen, Rauschen) funktionieren trotzdem. Ein neues Deployment ist nicht nötig.
 
-So funktioniert's: Unter **Musik** eine Kategorie wählen → freien Platz (z. B. „Lofi 3“) antippen → YouTube-Link einfügen → Name anpassen → **Speichern**. Der Titel erscheint sofort bei allen. Abgespielt wird in einem kleinen, sichtbaren Player (YouTube verlangt einen sichtbaren Player), der beim Seitenwechsel weiterläuft, sich verkleinern lässt und am Ende automatisch von vorn beginnt (∞).
+So funktioniert's: Unter **Musik** eine Kategorie wählen → freien Platz (z. B. „Lofi 3“) antippen → YouTube-Link einfügen → Name anpassen → **Speichern**. Der Titel erscheint sofort bei allen. Abgespielt wird über eine kleine Steuerleiste (Titel, Pause, Stopp), die beim Seitenwechsel weiterläuft; das Video selbst ist versteckt und lässt sich über das Augen-Symbol einblenden. Am Ende beginnt der Titel automatisch von vorn (∞). Hinweis: Die YouTube-Richtlinien sehen einen sichtbaren Player vor – für eine öffentliche App-Store-Version eigene Audiodateien verwenden.
 
 > **Hinweis für eine spätere App-Store-Veröffentlichung:** Eingebettete YouTube-Videos als Hintergrundmusik sind für private Lerngruppen in Ordnung, in einer veröffentlichten App aber rechtlich und nach den YouTube-Nutzungsbedingungen heikel (z. B. kein Abspielen bei gesperrtem Bildschirm). Für eine Store-Version eigene, lizenzierte Audiodateien verwenden – die Bibliothek ist so gebaut, dass später eine weitere Quelle ergänzt werden kann.
 

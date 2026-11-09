@@ -27,8 +27,8 @@ interface PlayerState {
   playing: boolean;
   /** 0–100 */
   volume: number;
-  /** Mini-Player verkleinert */
-  small: boolean;
+  /** YouTube-Video sichtbar (Standard: versteckt, nur Ton + Steuerleiste) */
+  showVideo: boolean;
 }
 
 const VOL_KEY = 'studyspace.player.volume';
@@ -41,7 +41,7 @@ const initialVolume = (() => {
   }
 })();
 
-export const usePlayer = create<PlayerState>(() => ({ current: null, playing: false, volume: initialVolume, small: false }));
+export const usePlayer = create<PlayerState>(() => ({ current: null, playing: false, volume: initialVolume, showVideo: false }));
 
 /** Wird vom Mini-Player gesetzt, sobald der YouTube-Player bereit ist */
 let yt: YTPlayer | null = null;

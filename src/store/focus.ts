@@ -55,6 +55,8 @@ export interface FocusSettings {
   autoStart: boolean;
   /** Timer beim Öffnen der Fokusansicht automatisch starten */
   autoStartOnOpen: boolean;
+  /** Beim Öffnen direkt ins Vollbild (wo der Browser es erlaubt, z. B. Laptop) */
+  fullscreenOnOpen: boolean;
   /** Hintergrundklang im Fokus */
   music: 'lofi' | 'rain' | 'noise';
   /** Lautstärke der Musik 0–100 */
@@ -71,6 +73,7 @@ export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
   autoAdvance: true,
   autoStart: false,
   autoStartOnOpen: false,
+  fullscreenOnOpen: true,
   music: 'lofi',
   musicVolume: 50,
 };
@@ -117,6 +120,7 @@ export function sanitizeSettings(input: unknown): FocusSettings {
     autoAdvance: bool(o.autoAdvance, d.autoAdvance),
     autoStart: bool(o.autoStart, d.autoStart),
     autoStartOnOpen: bool(o.autoStartOnOpen, d.autoStartOnOpen),
+    fullscreenOnOpen: bool(o.fullscreenOnOpen, d.fullscreenOnOpen),
     music: o.music === 'rain' || o.music === 'noise' ? o.music : 'lofi',
     musicVolume: typeof o.musicVolume === 'number' && Number.isFinite(o.musicVolume) ? Math.min(100, Math.max(0, Math.round(o.musicVolume))) : d.musicVolume,
   };

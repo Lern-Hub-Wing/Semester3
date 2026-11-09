@@ -654,6 +654,8 @@ try {
       return { hero: !!hero, inert: !!hero?.closest('[inert]') };
     });
     check(focusDelay < 250 && under.hero && under.inert, `Fokus: öffnet sofort im Vollbild, Dashboard bleibt darunter (${focusDelay} ms, ${JSON.stringify(under)})`);
+    await p.waitForTimeout(300);
+    check(await p.evaluate(() => !!document.fullscreenElement), 'Fokus: öffnet direkt im Vollbild (Laptop/Desktop)');
     check(new URL(p.url()).hash === '#/fokus', 'Fokus: „Fokus starten“ öffnet die Fokusansicht');
     const phase = () => p.getByTestId('focus-phase').textContent();
     check((await phase())?.includes('Kurze Pause') && (await imm.getAttribute('data-phase')) === 'short', `Fokus: nach Runde 1 folgt automatisch die kurze Pause (${await phase()})`);
@@ -719,9 +721,14 @@ try {
     await p.keyboard.press('Escape');
     await p.waitForTimeout(700);
     check((await p.getByRole('dialog', { name: 'Fokus-Einstellungen' }).count()) === 0 && new URL(p.url()).hash === '#/fokus', 'Fokus: Escape schließt zuerst die Einstellungen');
+    // Im Vollbild beendet die erste Escape-Taste nur das Vollbild (macht der Browser selbst)
+    await p.evaluate(() => (document.fullscreenElement ? document.exitFullscreen() : undefined));
+    await p.waitForTimeout(200);
     await p.keyboard.press('Escape');
-    await p.getByTestId('dashboard-hero').waitFor();
-    check(new URL(p.url()).hash === '#/', 'Fokus: Escape führt zurück zur vorherigen Seite');
+    // Das Dashboard liegt unter dem Fokus bereit – deshalb auf die Adresse warten
+    await p.waitForURL(/#\/$/, { timeout: 3000 }).catch(() => undefined);
+    await p.getByTestId('focus-immersive').waitFor({ state: 'detached', timeout: 3000 }).catch(() => undefined);
+    check(new URL(p.url()).hash === '#/' && (await p.getByTestId('focus-immersive').count()) === 0, 'Fokus: Escape führt zurück zur vorherigen Seite');
 
     // Timeline: alle Module als Zeilen, sechs Prüfungen als Rauten
     await p.goto(`${BASE}#/lernplan?ansicht=timeline`);
@@ -822,6 +829,18 @@ try {
     check(!!saved && saved.youtube_id === 'jfKfPfyJRdk' && saved.start_seconds === 90 && saved.category === 'lofi', 'Musik: Link gespeichert (nur Video-ID + Startzeit)');
     check((await lib.getByTestId('music-slot').count()) === 9, 'Musik: Platz belegt, 9 frei');
     check((await lib.getByRole('button', { name: 'Lofi 1 abspielen' }).count()) === 1, 'Musik: Titel mit Abspielknopf');
+    // YouTube-Video ist standardmäßig versteckt (nur Steuerleiste), lässt sich einblenden
+    await lib.getByRole('button', { name: 'Lofi 1 abspielen' }).click();
+    const mini = p.getByTestId('mini-player');
+    await mini.waitFor();
+    const video = p.getByTestId('mini-player-video');
+    const hiddenBox = await video.evaluate((el) => ({ vis: el.dataset.visible, op: getComputedStyle(el).opacity, w: el.getBoundingClientRect().width }));
+    check(hiddenBox.vis === 'false' && hiddenBox.op === '0' && hiddenBox.w >= 200 && (await mini.boundingBox()).height < 70, `Musik: YouTube-Video versteckt, Player läuft im Hintergrund weiter (${JSON.stringify(hiddenBox)})`);
+    await mini.getByRole('button', { name: 'Video anzeigen' }).click();
+    check((await video.getAttribute('data-visible')) === 'true', 'Musik: Video lässt sich bei Bedarf einblenden');
+    await mini.getByRole('button', { name: 'Video ausblenden' }).click();
+    await mini.getByRole('button', { name: 'Musik beenden' }).click();
+    await mini.waitFor({ state: 'detached' });
     // Für alle sichtbar: zweites Gerät/Person
     const { page: q, ctx: c2 } = await newPage(browser, { viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
     await q.goto(`${BASE}#/musik`);
@@ -1085,6 +1104,14 @@ try {
     await p.getByRole('switch', { name: 'Prüfungserinnerungen' }).click();
     await p.waitForTimeout(900);
     check(reg.prefs.exams === false, 'Push: Einstellung (Prüfungserinnerungen aus) wird gespeichert');
+    // Uhrzeit in der Ruhezeit (z. B. 23:05 bei Ruhezeit ab 21:00): App sagt, wann die Nachricht stattdessen kommt
+    await p.getByLabel('Erinnerung an Offenes').fill('23:05');
+    await p.waitForTimeout(900);
+    const warn = p.getByTestId('quiet-warning');
+    check(reg.prefs.eveningTime === '23:05' && (await warn.count()) === 1 && (await warn.innerText()).includes('20:45'), `Push: Hinweis bei Uhrzeit in der Ruhezeit (${(await warn.allInnerTexts()).join(' | ')})`);
+    await p.getByLabel('Erinnerung an Offenes').fill('19:00');
+    await p.waitForTimeout(900);
+    check((await warn.count()) === 0, 'Push: kein Hinweis außerhalb der Ruhezeit');
     await p.getByRole('button', { name: 'Testbenachrichtigung senden' }).click();
     await p.getByText('Vom Push-Dienst zum Versand angenommen.').waitFor();
     check(push.tests.length === 1, 'Push: Testbenachrichtigung über den Server angefordert');

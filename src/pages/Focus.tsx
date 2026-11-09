@@ -111,6 +111,13 @@ export function Focus() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Direkt ins Vollbild (Laptop/Desktop/Android). Die Ansicht öffnet wenige
+  // Millisekunden nach dem Antippen – der Klick zählt dann noch als Benutzeraktion.
+  // Ohne diese (z. B. nach dem Neuladen) lehnt der Browser still ab.
+  useEffect(() => {
+    if (useFocus.getState().settings.fullscreenOnOpen && fullscreenSupported() && !isFullscreen()) void enterFullscreen({ lockLandscape: false });
+  }, []);
+
   // Autostart beim Öffnen (nur wenn eingestellt; Standard: bewusster Start)
   useEffect(() => {
     const st = useFocus.getState();
