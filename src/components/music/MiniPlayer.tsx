@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Maximize2, Minimize2, Pause, Play, X } from 'lucide-react';
+import { Eye, EyeOff, Pause, Play, X } from 'lucide-react';
 import { AMBIENCE_LABEL } from '../../lib/ambience';
 import { attachYouTube, player, usePlayer, type YTPlayer } from '../../store/player';
 import { useLocation } from '../../lib/router';
@@ -35,13 +35,14 @@ function loadYouTubeApi(): Promise<void> {
 }
 
 /**
- * Sichtbarer Mini-Player (YouTube verlangt einen sichtbaren Player).
- * Bleibt über Seitenwechsel bestehen; verkleinerbar; „∞“ = Endlosschleife.
+ * Mini-Player: kleine Steuerleiste (Titel, Pause, Stopp). Das YouTube-Video
+ * läuft unsichtbar dahinter weiter und lässt sich bei Bedarf einblenden.
+ * Bleibt über Seitenwechsel bestehen; „∞“ = Endlosschleife.
  */
 export function MiniPlayer() {
   const current = usePlayer((s) => s.current);
   const playing = usePlayer((s) => s.playing);
-  const small = usePlayer((s) => s.small);
+  const showVideo = usePlayer((s) => s.showVideo);
   const { path } = useLocation();
   const host = useRef<HTMLDivElement>(null);
   const ytRef = useRef<YTPlayer | null>(null);
@@ -118,14 +119,21 @@ export function MiniPlayer() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 16 }}
           transition={{ duration: 0.25 }}
-          className={`mini-player fixed z-[60] overflow-hidden rounded-[16px] ${focus ? 'mini-player--focus' : ''} ${small ? 'w-[220px]' : 'w-[300px]'}`}
+          className={`mini-player fixed z-[60] overflow-hidden ${focus ? 'mini-player--focus' : ''} ${isYT && showVideo ? 'w-[300px] rounded-[16px]' : 'w-[264px] rounded-full'}`}
           data-testid="mini-player"
           role="region"
           aria-label="Musik"
         >
-          {/* Video bleibt sichtbar (YouTube-Vorgabe); bei erzeugten Klängen gibt es kein Video */}
-          <div ref={host} className={`bg-black ${isYT ? (small ? 'aspect-video' : 'aspect-video') : 'hidden'}`} />
-          <div className="flex items-center gap-2 px-3 py-2">
+          {/* Video standardmäßig versteckt: der Player läuft unsichtbar weiter (nur Ton).
+              Er bleibt dabei im Dokument und behält eine echte Größe, sonst halten Browser ihn an. */}
+          <div
+            ref={host}
+            aria-hidden={!showVideo}
+            className={isYT && showVideo ? 'aspect-video bg-black' : 'mini-player-hidden-video'}
+            data-testid="mini-player-video"
+            data-visible={isYT && showVideo ? 'true' : 'false'}
+          />
+          <div className="relative flex items-center gap-2 py-1.5 pl-4 pr-1.5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold" title={title}>
                 {title}
@@ -136,8 +144,8 @@ export function MiniPlayer() {
               {playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="ml-0.5 size-4" fill="currentColor" />}
             </button>
             {isYT && (
-              <button type="button" onClick={() => usePlayer.setState({ small: !small })} aria-label={small ? 'Player vergrößern' : 'Player verkleinern'} className="grid size-8 place-items-center rounded-full text-muted hover:text-ink">
-                {small ? <Maximize2 className="size-4" /> : <Minimize2 className="size-4" />}
+              <button type="button" onClick={() => usePlayer.setState({ showVideo: !showVideo })} aria-label={showVideo ? 'Video ausblenden' : 'Video anzeigen'} aria-pressed={showVideo} className="grid size-8 place-items-center rounded-full text-muted hover:text-ink">
+                {showVideo ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             )}
             <button type="button" onClick={() => player.stop()} aria-label="Musik beenden" className="grid size-8 place-items-center rounded-full text-muted hover:text-ink">

@@ -9,6 +9,7 @@ import { useModules } from '../../store/derived';
 import { toast } from '../../store/toast';
 import { Segmented } from '../ui/Segmented';
 import { Switch } from '../ui/Switch';
+import { fullscreenSupported } from '../../lib/fullscreen';
 import { GlassSlider } from '../ui/GlassSlider';
 
 type Tab = 'rhythmus' | 'anzeige' | 'hintergrund' | 'steuerung';
@@ -346,6 +347,11 @@ function ControlsTab() {
         <Row label="Beim Öffnen sofort starten">
           <Switch label="Beim Öffnen sofort starten" checked={settings.autoStartOnOpen} onChange={(autoStartOnOpen) => setSettings({ autoStartOnOpen })} />
         </Row>
+        {fullscreenSupported() && (
+          <Row label="Im Vollbild öffnen">
+            <Switch label="Im Vollbild öffnen" checked={settings.fullscreenOnOpen} onChange={(fullscreenOnOpen) => setSettings({ fullscreenOnOpen })} />
+          </Row>
+        )}
       </Section>
       <Section title="Ton & Mitteilung">
         <Row label="Signalton">

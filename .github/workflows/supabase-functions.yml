@@ -1,6 +1,8 @@
 # StudySpace – Edge Functions für Push-Benachrichtigungen bereitstellen
 #
-# Manuell starten: Actions → „Supabase Edge Functions bereitstellen“ → Run workflow
+# Läuft automatisch, sobald Änderungen an den Edge Functions (oder an dieser
+# Datei) auf main landen – z. B. nach dem Zusammenführen eines Pull Requests.
+# Manuell: Actions → „Supabase Edge Functions bereitstellen“ → Run workflow
 # (README, Schritt 12). Damit ist keine lokale Installation der Supabase CLI nötig.
 #
 # Benötigte Repository-SECRETS (Settings → Secrets and variables → Actions → Secrets):
@@ -13,6 +15,16 @@ name: Supabase Edge Functions bereitstellen
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/supabase-functions.yml'
+
+# Nie zwei Bereitstellungen gleichzeitig
+concurrency:
+  group: supabase-functions
+  cancel-in-progress: false
 
 permissions:
   contents: read

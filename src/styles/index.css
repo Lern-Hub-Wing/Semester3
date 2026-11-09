@@ -1939,3 +1939,19 @@ select.field:hover {
     animation: none;
   }
 }
+
+/* Mini-Player: YouTube-Video unsichtbar, läuft aber weiter (echte Größe, im Dokument) */
+.mini-player-hidden-video {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200px;
+  height: 113px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.mini-player-hidden-video iframe {
+  width: 200px;
+  height: 113px;
+}
