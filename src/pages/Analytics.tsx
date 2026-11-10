@@ -2,9 +2,9 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { BarChart3, CheckCheck, Flame, Layers, Timer, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
-import { groupRatio, memberRatio } from '../lib/progress';
 import { addDaysISO, diffDaysISO, formatISODate, instantToZoned, isoWeekNumber, startOfWeekISO } from '../lib/time';
 import { formatStudyTime } from '../lib/focus';
+import { focusByDay } from '../lib/focusWeek';
 import { EASE_EMPH } from '../lib/motion';
 import { PageHeader } from '../components/layout/AppShell';
 import { Card, CardHeader, IconTile } from '../components/ui/Card';
@@ -13,10 +13,11 @@ import { ProgressBar } from '../components/ui/Progress';
 import { AnimatedNumber } from '../components/ui/AnimatedNumber';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useData } from '../store/data';
-import { useActiveMemberIds, useActiveMembers, useModules, useTaskViews } from '../store/derived';
+import { useActiveMemberIds, useActiveMembers, useModules, useProgress, useTaskViews } from '../store/derived';
+import { useHomework } from '../store/homework';
 import { loadFocusSessions, useFocus } from '../store/focus';
 import { useToday } from '../hooks/useToday';
-import { FocusTeamCard, MigrationHint } from '../components/FocusStats';
+import { MigrationHint, TeamFocusWeekCard } from '../components/FocusStats';
 
 type Period = 'woche' | 'monat' | 'semester';
 
@@ -39,13 +40,32 @@ export function Analytics({ me }: { me: Member }) {
     void loadFocusSessions();
   }, []);
 
-  // Erledigungen (nur aktive Aufgaben) mit Kalendertag in Berlin
+  const progress = useProgress();
+  const hwCompletions = useHomework((s) => s.completions);
+
+  // Erledigungen (nur aktive Aufgaben) mit Kalendertag in Berlin.
+  // Eine abgehakte Hausaufgabe zählt wie eine Lernplan-Aufgabe genau einmal;
+  // ihre Arbeitseinheiten zählen hier nicht zusätzlich (keine Doppelzählung).
   const done = useMemo(() => {
     const active = new Set(views.map((v) => v.task.id));
-    return Object.values(completions)
-      .filter((c) => c.is_completed && c.completed_at && active.has(c.task_id))
+    const activeHw = new Set(progress.scope.homework.map((h) => h.id));
+    return [
+      ...Object.values(completions)
+        .filter((c) => c.is_completed && c.completed_at && active.has(c.task_id))
+        .map((c) => ({ member: c.member_id, day: instantToZoned(c.completed_at!).date })),
+      ...Object.values(hwCompletions)
+        .filter((c) => c.is_completed && c.completed_at && c.target_id === c.homework_id && activeHw.has(c.homework_id))
+        .map((c) => ({ member: c.member_id, day: instantToZoned(c.completed_at!).date })),
+    ];
+  }, [views, completions, hwCompletions, progress.scope.homework]);
+
+  // Lerntage für die Serie: zusätzlich Tage, an denen eine Arbeitseinheit oder Unteraufgabe abgehakt wurde
+  const partDays = useMemo(() => {
+    const activeHw = new Set(progress.scope.homework.map((h) => h.id));
+    return Object.values(hwCompletions)
+      .filter((c) => c.is_completed && c.completed_at && c.target_id !== c.homework_id && activeHw.has(c.homework_id))
       .map((c) => ({ member: c.member_id, day: instantToZoned(c.completed_at!).date }));
-  }, [views, completions]);
+  }, [hwCompletions, progress.scope.homework]);
 
   const range = useMemo(() => {
     if (period === 'woche') return { from: startOfWeekISO(today), to: addDaysISO(startOfWeekISO(today), 6), bucket: 'day' as const };
@@ -85,7 +105,7 @@ export function Analytics({ me }: { me: Member }) {
 
   // Serie: aufeinanderfolgende Tage (bis heute bzw. gestern) mit mindestens einer Erledigung
   const streak = useMemo(() => {
-    const days = new Set(done.filter((d) => d.member === me.id).map((d) => d.day));
+    const days = new Set([...done, ...partDays].filter((d) => d.member === me.id).map((d) => d.day));
     let n = 0;
     let cursor = days.has(today) ? today : addDaysISO(today, -1);
     while (days.has(cursor)) {
@@ -93,13 +113,15 @@ export function Analytics({ me }: { me: Member }) {
       cursor = addDaysISO(cursor, -1);
     }
     return n;
-  }, [done, me.id, today]);
+  }, [done, partDays, me.id, today]);
 
-  const focusSec = sessions
-    .filter((s) => s.member_id === me.id && inRange(instantToZoned(s.started_at).date))
-    .reduce((a, s) => a + s.duration_seconds, 0);
+  // Fokuszeit im Zeitraum – Sitzungen über Mitternacht anteilig je Tag (lib/focusWeek)
+  const focusSec = useMemo(() => {
+    const days = Array.from({ length: diffDaysISO(range.from, range.to) + 1 }, (_, i) => addDaysISO(range.from, i));
+    return Math.round([...focusByDay(sessions, days, me.id).values()].reduce((a, b) => a + b, 0));
+  }, [sessions, range, me.id]);
 
-  const mine = memberRatio(views, me.id, completions);
+  const mine = progress.member(me.id);
   const team = members
     .map((m) => ({ member: m, value: done.filter((d) => d.member === m.id && inRange(d.day)).length }))
     .sort((a, b) => b.value - a.value);
@@ -126,7 +148,7 @@ export function Analytics({ me }: { me: Member }) {
         }
       />
 
-      {views.length === 0 ? (
+      {views.length === 0 && progress.scope.homework.length === 0 ? (
         <Card className="p-6">
           <EmptyState icon={<BarChart3 />} title="Noch keine Daten" text="Sobald Lerntage angelegt und Aufgaben abgehakt werden, erscheint hier dein Verlauf." />
         </Card>
@@ -172,15 +194,15 @@ export function Analytics({ me }: { me: Member }) {
             </ul>
           </Card>
 
-          <FocusTeamCard className="lg:col-span-12" />
+          <TeamFocusWeekCard meId={me.id} className="lg:col-span-12" />
 
           <Card className="p-5 md:p-6 lg:col-span-12">
-            <CardHeader title="Fortschritt nach Modul" icon={<Layers />} />
+            <CardHeader title="Fortschritt nach Fach" subtitle="Lernplan-Aufgaben und Hausaufgaben · angefangene Hausaufgaben zählen anteilig" icon={<Layers />} />
             <ul className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
               {modules.map((m) => {
-                const mv = views.filter((v) => v.module.id === m.id);
-                const r = memberRatio(mv, me.id, completions);
-                const g = groupRatio(mv, memberIds, completions);
+                const sc = progress.forModule(m.id);
+                const r = progress.member(me.id, sc);
+                const g = progress.group(memberIds, sc);
                 return (
                   <li key={m.id} className="min-w-0">
                     <div className="mb-2 flex items-center gap-2">

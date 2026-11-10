@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { CloudOff, Plus, RefreshCw } from 'lucide-react';
-import { isDone, memberRatio } from '../lib/progress';
+import { isDone } from '../lib/progress';
 import { formatISODate } from '../lib/time';
 import { suggestColor, alpha } from '../lib/colors';
 import { LIMITS } from '../lib/config';
 import { EASE_EMPH, EASE_OUT, spring } from '../lib/motion';
 import { useData, useSyncStatus } from '../store/data';
-import { useActiveMembers, useAppName, useTaskViews } from '../store/derived';
+import { useActiveMembers, useAppName, useProgress, useTaskViews } from '../store/derived';
 import { useSession } from '../store/session';
 import { createMember } from '../store/actions';
 import { resync } from '../store/sync';
@@ -32,6 +32,7 @@ export function ProfilePicker() {
   const members = useActiveMembers();
   const views = useTaskViews();
   const completions = useData((s) => s.task_completions);
+  const progress = useProgress();
   const phase = useData((s) => s.phase);
   const error = useData((s) => s.error);
   const online = useSyncStatus((s) => s.online);
@@ -168,7 +169,7 @@ export function ProfilePicker() {
               }`}
             >
               {members.map((m, i) => {
-                const r = memberRatio(views, m.id, completions);
+                const r = progress.member(m.id);
                 const openToday = todayViews.filter((v) => !isDone(completions, v.task.id, m.id)).length;
                 const isChosen = chosen?.id === m.id;
                 const faded = chosen !== null && !isChosen;

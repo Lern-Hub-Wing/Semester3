@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { AlarmClock, ArrowLeft, CircleCheck, ListTodo, Palette, Plus, Trophy, UserMinus, UserPlus, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
-import { groupBy, groupRatio, isDone, memberRatio, overdueFor, remainingForGroup } from '../lib/progress';
+import { isDone, overdueFor, remainingForGroup } from '../lib/progress';
 import { formatISODate, relativeDayLabel } from '../lib/time';
 import { alpha, suggestColor } from '../lib/colors';
 import { LIMITS } from '../lib/config';
 import { Link, navigate } from '../lib/router';
 import { useData } from '../store/data';
-import { useActiveMembers, useAllMembers, useModules, useTaskViews } from '../store/derived';
+import { useActiveMembers, useAllMembers, useModules, useProgress, useTaskViews } from '../store/derived';
 import { createMember, setMemberActive, updateMember } from '../store/actions';
 import { usePrefs } from '../store/prefs';
+import { TeamFocusWeekCard } from '../components/FocusStats';
 import { useToday } from '../hooks/useToday';
 import { useDebouncedCallback } from '../hooks/useDebounced';
 import { PageHeader } from '../components/layout/AppShell';
@@ -28,19 +29,17 @@ import { TaskRow } from '../components/TaskRow';
 import { MemberProgress } from '../components/MemberProgress';
 
 export function Team({ me }: { me: Member }) {
-  const views = useTaskViews();
   const members = useActiveMembers();
   const all = useAllMembers();
   const modules = useModules();
-  const completions = useData((s) => s.task_completions);
   const goalTitle = useData((s) => s.app_settings.group_goal_title?.value);
   const style = usePrefs((s) => s.progressStyle);
   const setPrefs = usePrefs((s) => s.set);
   const [adding, setAdding] = useState(false);
 
-  const group = groupRatio(views, members.map((m) => m.id), completions);
+  const progress = useProgress();
+  const group = progress.group(members.map((m) => m.id));
   const remaining = remainingForGroup(group);
-  const byModule = useMemo(() => groupBy(views, (v) => v.module.id), [views]);
   const inactive = all.filter((m) => !m.is_active);
   const complete = group.pct === 100;
 
@@ -101,7 +100,7 @@ export function Team({ me }: { me: Member }) {
             <p className="mt-2 text-[15px] text-muted">{message}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2 md:justify-start">
               {members.map((m) => {
-                const r = memberRatio(views, m.id, completions);
+                const r = progress.member(m.id);
                 return (
                   <span key={m.id} className="inline-flex items-center gap-2 rounded-full lens py-1 pl-1 pr-3 text-[13px]">
                     <Avatar name={m.name} color={m.color} size={24} />
@@ -116,9 +115,11 @@ export function Team({ me }: { me: Member }) {
         </div>
       </motion.section>
 
+      <TeamFocusWeekCard meId={me.id} className="mb-4" />
+
       <ul className={`grid gap-4 ${style === 'ring' ? 'sm:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-2'}`}>
         {members.map((m, i) => {
-          const r = memberRatio(views, m.id, completions);
+          const r = progress.member(m.id);
           return (
             <Reveal as="li" key={m.id} delay={i * 0.05}>
               <button type="button" onClick={() => navigate(`/team/${m.id}`)} className="card lift relative flex h-full w-full flex-col gap-4 overflow-hidden rounded-[24px] p-5 text-left">
@@ -139,9 +140,8 @@ export function Team({ me }: { me: Member }) {
                 </div>
                 <div className="relative flex flex-col gap-2">
                   {modules.map((mod) => {
-                    const list = byModule.get(mod.id) ?? [];
-                    if (!list.length) return null;
-                    const mr = memberRatio(list, m.id, completions);
+                    const mr = progress.member(m.id, progress.forModule(mod.id));
+                    if (mr.total === 0) return null;
                     return (
                       <div key={mod.id} className="text-xs">
                         <div className="mb-1 flex justify-between gap-2 text-muted">
@@ -256,7 +256,7 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
 
   useEffect(() => setName(member?.name ?? ''), [member?.name]);
 
-  const byModule = useMemo(() => groupBy(views, (v) => v.module.id), [views]);
+  const progress = useProgress();
   if (!member) {
     return (
       <Card>
@@ -265,7 +265,7 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
     );
   }
 
-  const r = memberRatio(views, member.id, completions);
+  const r = progress.member(member.id);
   const open = views.filter((v) => !isDone(completions, v.task.id, member.id));
   const done = views.filter((v) => isDone(completions, v.task.id, member.id));
   const overdue = overdueFor(views, member.id, completions, today);
@@ -328,8 +328,7 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
           <CardHeader title="Fortschritt nach Fach" icon={<ListTodo />} />
           <div className="mt-4 flex flex-col gap-3">
             {modules.map((mod) => {
-              const l = byModule.get(mod.id) ?? [];
-              const mr = memberRatio(l, member.id, completions);
+              const mr = progress.member(member.id, progress.forModule(mod.id));
               return (
                 <div key={mod.id}>
                   <div className="mb-1.5 flex justify-between gap-2 text-[13px]">

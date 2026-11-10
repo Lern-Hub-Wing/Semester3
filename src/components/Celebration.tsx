@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { groupRatio, memberRatio } from '../lib/progress';
+import { memberRatio } from '../lib/progress';
 import { useData } from '../store/data';
-import { useActiveMemberIds, useCurrentMember, useTaskViews } from '../store/derived';
+import { useActiveMemberIds, useCurrentMember, useProgress, useTaskViews } from '../store/derived';
 import { useToday } from '../hooks/useToday';
 import { toast } from '../store/toast';
 
@@ -39,7 +39,8 @@ export function CelebrationWatcher() {
   const me = useCurrentMember();
   const today = useToday();
 
-  const group = groupRatio(views, memberIds, completions);
+  // Gemeinsames Ziel: Lernplan + Hausaufgaben (dieselbe Regel wie überall)
+  const group = useProgress().group(memberIds);
   const todayViews = useMemo(() => views.filter((v) => v.date === today), [views, today]);
   const mine = me ? memberRatio(todayViews, me.id, completions) : null;
 

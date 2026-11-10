@@ -4,14 +4,14 @@ import {
   Archive, ArrowDown, ArrowLeft, ArrowUp, BookOpen, CalendarPlus, ChevronDown, GraduationCap, Layers, Palette, Pencil, Plus,
 } from 'lucide-react';
 import type { Exam, Member, Module, Topic } from '../lib/types';
-import { groupBy, groupRatio, isDone, memberRatio, type TaskView } from '../lib/progress';
+import { groupBy, groupRatio, memberRatio, type TaskView } from '../lib/progress';
 import { activeExams, daysUntil, upcomingExams } from '../lib/countdown';
 import { formatInstant, formatTime } from '../lib/time';
 import { suggestColor } from '../lib/colors';
 import { LIMITS } from '../lib/config';
 import { Link, navigate } from '../lib/router';
 import { useData } from '../store/data';
-import { useActiveMembers, useModules, useTaskViews } from '../store/derived';
+import { useActiveMembers, useModules, useProgress, useTaskViews } from '../store/derived';
 import { archiveModule, archiveTopic, createModule, createTopic, reorderTopics, updateModule, updateTopic } from '../store/actions';
 import { useUI } from '../store/ui';
 import { useNow } from '../hooks/useNow';
@@ -33,14 +33,12 @@ import { ExamCard, ExamEditor } from '../components/exams/ExamParts';
 /** Fächer mit ihren Prüfungen: ein Tab für beides. */
 export function Modules({ me }: { me: Member }) {
   const modules = useModules();
-  const views = useTaskViews();
   const members = useActiveMembers();
-  const completions = useData((s) => s.task_completions);
   const exams = useData((s) => s.exams);
   const now = useNow(60_000);
   const [editing, setEditing] = useState<Module | 'new' | null>(null);
   const [examEditing, setExamEditing] = useState<{ value: Exam | 'new'; moduleId?: string } | null>(null);
-  const byModule = useMemo(() => groupBy(views, (v) => v.module.id), [views]);
+  const progress = useProgress();
   const active = useMemo(() => activeExams(Object.values(exams)), [exams]);
   const upcoming = useMemo(() => upcomingExams(Object.values(exams), now), [exams, now]);
   const planned = upcoming.filter((e) => modules.some((m) => m.id === e.module_id)).length;
@@ -68,10 +66,9 @@ export function Modules({ me }: { me: Member }) {
       ) : (
         <ul className="grid gap-[var(--gap-grid)] md:grid-cols-2 xl:grid-cols-3">
           {modules.map((m, i) => {
-            const list = byModule.get(m.id) ?? [];
-            const g = groupRatio(list, members.map((x) => x.id), completions);
-            const mine = memberRatio(list, me.id, completions);
-            const open = list.filter((v) => !isDone(completions, v.task.id, me.id)).length;
+            const sc = progress.forModule(m.id);
+            const g = progress.group(members.map((x) => x.id), sc);
+            const mine = progress.member(me.id, sc);
             const exam = upcoming.find((e) => e.module_id === m.id) ?? null;
             const past = exam ? null : [...active].reverse().find((e) => e.module_id === m.id) ?? null;
             return (
@@ -84,7 +81,7 @@ export function Modules({ me }: { me: Member }) {
                       <Link to={`/faecher/${m.id}`} className="block text-[17px] font-semibold leading-snug tracking-tight after:absolute after:inset-0 after:rounded-[22px] after:content-['']">
                         {m.name}
                       </Link>
-                      <p className="mt-0.5 text-[13px] text-muted">{list.length === 0 ? 'Noch keine Aufgaben' : `${open} offen · ${list.length} Aufgaben`}</p>
+                      <p className="mt-0.5 text-[13px] text-muted">{mine.total === 0 ? 'Noch keine Aufgaben' : `${mine.total - mine.done} offen · ${mine.total} ${mine.total === 1 ? 'Aufgabe' : 'Aufgaben'}`}</p>
                     </div>
                     <ProgressRing ratio={mine} color={me.color} size={52} stroke={5} sublabel="Dein Fortschritt" />
                   </div>
@@ -221,11 +218,11 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
   const mod = useData((s) => s.modules[id]);
   const topicsMap = useData((s) => s.module_topics);
   const examsMap = useData((s) => s.exams);
-  const completions = useData((s) => s.task_completions);
   const views = useTaskViews();
   const members = useActiveMembers();
   const openEditor = useUI((s) => s.openEntryEditor);
   const now = useNow(60_000);
+  const progress = useProgress();
   const [editing, setEditing] = useState(false);
   const [examEditing, setExamEditing] = useState<Exam | 'new' | null>(null);
   const [newTopic, setNewTopic] = useState('');
@@ -248,7 +245,8 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
     );
   }
 
-  const group = groupRatio(own, members.map((m) => m.id), completions);
+  const scope = progress.forModule(mod.id);
+  const group = progress.group(members.map((m) => m.id), scope);
   const nextExam = upcomingExams(exams, now)[0] ?? exams[exams.length - 1];
   const move = (index: number, dir: -1 | 1) => {
     const ids = topics.map((t) => t.id);
@@ -370,7 +368,7 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
             <CardHeader title="Fortschritt aller Personen" subtitle={group.pct === null ? 'Noch keine Aufgaben' : `Gruppe: ${group.pct}%`} icon={<Layers />} />
             <div className="mt-3 flex flex-col gap-1">
               {members.map((m) => (
-                <MemberProgress key={m.id} member={m} ratio={memberRatio(own, m.id, completions)} forceStyle="bar" highlight={m.id === me.id} onClick={() => navigate(`/team/${m.id}`)} />
+                <MemberProgress key={m.id} member={m} ratio={progress.member(m.id, scope)} forceStyle="bar" highlight={m.id === me.id} onClick={() => navigate(`/team/${m.id}`)} />
               ))}
             </div>
           </Card>
