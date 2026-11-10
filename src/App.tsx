@@ -79,7 +79,7 @@ function Routes({ me, path }: { me: Member; path: string }) {
   if (path === '/pruefungen') return <RedirectTo to="/faecher" />;
   if (path === '/materialien') return <Materials />;
   if (path === '/einstellungen') return <Settings />;
-  if (path === '/einstellungen/benachrichtigungen') return <Settings section="benachrichtigungen" />;
+  if ((p = matchPath('/einstellungen/:section', path))) return <Settings section={p.section} />;
   if (path === '/hausaufgaben') return <Homework me={me} />;
   if (path === '/musik') return <Music />;
   if (path === '/analyse') return <Analytics me={me} />;

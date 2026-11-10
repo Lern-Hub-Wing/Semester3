@@ -13,6 +13,7 @@ import { createMember, setMemberActive, updateMember } from '../store/actions';
 import { usePrefs } from '../store/prefs';
 import { TeamFocusWeekCard } from '../components/FocusStats';
 import { useToday } from '../hooks/useToday';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { useDebouncedCallback } from '../hooks/useDebounced';
 import { PageHeader } from '../components/layout/AppShell';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -38,6 +39,7 @@ export function Team({ me }: { me: Member }) {
   const [adding, setAdding] = useState(false);
 
   const progress = useProgress();
+  const mobile = useIsMobile();
   const group = progress.group(members.map((m) => m.id));
   const remaining = remainingForGroup(group);
   const inactive = all.filter((m) => !m.is_active);
@@ -77,16 +79,17 @@ export function Team({ me }: { me: Member }) {
 
       <motion.section
         aria-label={typeof goalTitle === 'string' ? goalTitle : 'Unser gemeinsames Lernziel'}
-        className="glass sheen relative mb-6 overflow-hidden rounded-[30px] p-6 md:p-8"
+        className="glass sheen relative mb-4 overflow-hidden rounded-[24px] p-5 md:mb-6 md:rounded-[30px] md:p-8"
         animate={complete ? { boxShadow: ['var(--ss-glass-shadow)', `var(--ss-glass-shadow), 0 0 0 2px ${alpha('#AADCCB', 0.8)}, 0 30px 80px -30px ${alpha('#AADCCB', 0.9)}`] } : {}}
         transition={{ duration: 1.2 }}
       >
         <span aria-hidden className="pointer-events-none absolute inset-0 opacity-70" style={{ background: teamGradient(members) }} />
-        <div className="relative flex flex-col items-center gap-6 md:flex-row md:gap-10">
-          <ProgressRing ratio={group} color={complete ? '#8FD8BD' : 'var(--ss-accent)'} size={168} stroke={14} sublabel="Gruppenfortschritt" />
-          <div className="min-w-0 flex-1 text-center md:text-left">
+        {/* Handy: Kreis und Text nebeneinander, damit die Lernzeit darunter sichtbar bleibt */}
+        <div className="relative flex flex-row items-center gap-4 md:gap-10">
+          <ProgressRing ratio={group} color={complete ? '#8FD8BD' : 'var(--ss-accent)'} size={mobile ? 96 : 168} stroke={mobile ? 9 : 14} sublabel="Gruppenfortschritt" />
+          <div className="min-w-0 flex-1 text-left">
             <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">{typeof goalTitle === 'string' ? goalTitle : 'Unser gemeinsames Lernziel'}</p>
-            <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight md:text-[30px]">
+            <h2 className="mt-1.5 text-[19px] font-semibold leading-tight tracking-tight md:mt-2 md:text-[30px]">
               {complete ? (
                 <span className="inline-flex items-center gap-2">
                   <Trophy className="size-7 text-warn" aria-hidden /> Ziel erreicht!
@@ -97,8 +100,8 @@ export function Team({ me }: { me: Member }) {
                 `${group.pct} % gemeinsam erledigt`
               )}
             </h2>
-            <p className="mt-2 text-[15px] text-muted">{message}</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2 md:justify-start">
+            <p className="mt-1 text-[13px] text-muted md:mt-2 md:text-[15px]">{message}</p>
+            <div className="mt-4 hidden flex-wrap justify-start gap-2 md:flex">
               {members.map((m) => {
                 const r = progress.member(m.id);
                 return (

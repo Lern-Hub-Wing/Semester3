@@ -90,6 +90,26 @@ if (db.homework) {
     db.focus_sessions.push({ id: `99999999-9999-4999-8999-00000000000${i}`, member_id: db.members[0].id, module_id: null, started_at: start.toISOString(), ended_at: end.toISOString(), duration_seconds: m * 60, created_at: end.toISOString() });
   });
 }
+// Fokuszeiten der anderen (Lernzeit der Woche im Team), eine Sitzung über Mitternacht
+{
+  const weekStart = (() => {
+    const d = new Date(`${berlinToday}T12:00:00Z`);
+    return addDays(berlinToday, -((d.getUTCDay() + 6) % 7));
+  })();
+  const rows = [
+    [1, 0, '17:00', 95], [1, 1, '18:30', 120], [1, 2, '07:30', 45],
+    [2, 0, '10:00', 60], [2, 1, '21:50', 70],
+    [3, 1, '09:00', 25],
+  ];
+  rows.forEach(([mi, day, hhmm, min], i) => {
+    const d = addDays(weekStart, day);
+    if (d > berlinToday) return;
+    const start = new Date(`${d}T${hhmm}:00Z`);
+    const end = new Date(start.getTime() + min * 60000);
+    if (end > new Date()) return;
+    db.focus_sessions.push({ id: `99999999-9999-4999-8999-1000000000${String(i).padStart(2, '0')}`, member_id: db.members[mi].id, module_id: null, started_at: start.toISOString(), ended_at: end.toISOString(), duration_seconds: min * 60, created_at: end.toISOString() });
+  });
+}
 // Musik-Bibliothek (Beispiel-IDs; Vorschaubilder werden in Screenshots nicht geladen)
 if (db.music_tracks) {
   [['lofi', 'Lofi Study', 'jfKfPfyJRdk'], ['lofi', 'Lofi 2', '5qap5aO4i9A'], ['regen', 'Leichter Regen', 'mPZkdNFkNps'], ['gewitter', 'Regen & Donner', 'nDq6TstdEi8'], ['kamin', 'Kaminfeuer', 'L_LUpnjgPso']].forEach(([category, title, youtube_id], i) =>
@@ -143,6 +163,11 @@ const pages = [
   ['fokus-musik', '#/fokus', 'Musik'],
   ['analyse', '#/analyse'],
   ['einstellungen', '#/einstellungen'],
+  ['einst-darstellung', '#/einstellungen/darstellung'],
+  ['einst-personen', '#/einstellungen/personen'],
+  ['einst-faecher', '#/einstellungen/faecher'],
+  ['einst-daten', '#/einstellungen/daten'],
+  ['einst-info', '#/einstellungen/info'],
   ['benachrichtigungen', '#/einstellungen/benachrichtigungen'],
   ['papierkorb', '#/papierkorb'],
   ['verlauf', '#/verlauf'],

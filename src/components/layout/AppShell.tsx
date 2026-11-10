@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeftRight, Bell, BellRing, Clock3, History, Search, Trash2 } from 'lucide-react';
+import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, History, Music2, Search, Settings, Trash2, Users } from 'lucide-react';
 import { Link, navigate, useLocation } from '../../lib/router';
 import { useAppName, useCurrentMember, useTaskViews } from '../../store/derived';
 import { useData } from '../../store/data';
 import { usePush } from '../../store/push';
 import { isDone } from '../../lib/progress';
 import { useToday } from '../../hooks/useToday';
-import { useSession } from '../../store/session';
 import { useUI } from '../../store/ui';
 import { Logo, LogoMark } from '../Logo';
 import { greetingFor } from '../../lib/time';
 import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/Button';
+import { ProfileCard } from './ProfileCard';
+import { ListGroup, ListRow } from '../ui/List';
+import { useMusic } from '../../store/music';
 import { NAV, isActive } from './nav';
 import { LiquidTabBar } from './LiquidTabBar';
 import { haptic } from '../../lib/haptics';
@@ -191,42 +193,69 @@ function SideAction({ icon, label, hint, onClick }: { icon: ReactNode; label: st
 function MoreSheet() {
   const open = useUI((s) => s.moreOpen);
   const setUI = useUI((s) => s.set);
-  const select = useSession((s) => s.select);
+  const modules = useData((s) => s.modules);
+  const members = useData((s) => s.members);
+  const trashCount = useData((s) => Object.values(s.study_entries).filter((e) => e.deleted_at).length + Object.values(s.tasks).filter((t) => t.deleted_at).length);
+  const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
   const close = () => setUI({ moreOpen: false });
-  const go = (to: string) => {
+  const go = (to: string) => () => {
     close();
     navigate(to);
   };
-  const items = [
-    ...NAV.filter((n) => ['/faecher', '/team', '/materialien', '/analyse', '/musik', '/einstellungen'].includes(n.to)).map((n) => ({ label: n.label, icon: n.icon, run: () => go(n.to) })),
-    { label: 'Suche', icon: Search, run: () => (close(), setUI({ searchOpen: true })) },
-    { label: 'Lernmodus', icon: Clock3, run: () => (close(), startStudyMode()) },
-    { label: 'Papierkorb', icon: Trash2, run: () => go('/papierkorb') },
-    { label: 'Verlauf', icon: History, run: () => go('/verlauf') },
-    { label: 'Person wechseln', icon: ArrowLeftRight, run: () => (close(), select(null)) },
-  ];
+  const subjectCount = Object.values(modules).filter((m) => !m.archived_at).length;
+  const memberCount = Object.values(members).filter((m) => m.is_active).length;
+
   return (
     <Modal open={open} onClose={close} title="Mehr">
-      <div className="grid grid-cols-3 gap-2.5 pb-2">
-        {items.map((i, idx) => (
-          <motion.button
-            key={i.label}
-            type="button"
-            initial={{ opacity: 0, y: 14, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ ...spring.comp, delay: 0.04 + idx * 0.025 }}
-            onClick={() => {
-              haptic('tap');
-              i.run();
-            }}
-            className="glass mat-interactive flex aspect-square flex-col items-center justify-center gap-2 rounded-[22px] p-2 text-center text-[12.5px] font-medium"
-          >
-            <i.icon className="size-6 text-accent" strokeWidth={1.7} aria-hidden />
-            {i.label}
-          </motion.button>
-        ))}
+      <div className="flex flex-col gap-5 pb-2" data-testid="more-sheet">
+        <ProfileCard onSwitch={close} />
+
+        {/* Häufige Schnellaktionen */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <QuickAction icon={<Search />} tint="#6F7BF7" label="Suche" hint="Alles finden" onClick={() => (close(), setUI({ searchOpen: true }))} />
+          <QuickAction icon={<Clock3 />} tint="#3F4A7A" label="Lernmodus" hint="Uhr im Vollbild" onClick={() => (close(), startStudyMode())} />
+        </div>
+
+        <ListGroup title="Lernen">
+          <ListRow icon={<BookOpen />} tint="#7C6FF0" label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} />
+          <ListRow icon={<Users />} tint="#2FA58B" label="Team" value={memberCount || undefined} onClick={go('/team')} />
+          <ListRow icon={<FileText />} tint="#3D8BE0" label="Materialien" onClick={go('/materialien')} />
+          <ListRow icon={<Music2 />} tint="#E0559A" label="Musik" value={tracks ? `${tracks} Titel` : undefined} onClick={go('/musik')} />
+        </ListGroup>
+
+        <ListGroup title="Überblick">
+          <ListRow icon={<ChartLine />} tint="#F08A24" label="Statistiken" onClick={go('/analyse')} />
+          <ListRow icon={<History />} tint="#7A8499" label="Änderungsverlauf" onClick={go('/verlauf')} />
+        </ListGroup>
+
+        <ListGroup>
+          <ListRow icon={<Settings />} tint="#8E8E93" label="Einstellungen" onClick={go('/einstellungen')} />
+          <ListRow icon={<Trash2 />} tint="#E5484D" label="Papierkorb" value={trashCount || undefined} onClick={go('/papierkorb')} />
+        </ListGroup>
       </div>
     </Modal>
+  );
+}
+
+function QuickAction({ icon, tint, label, hint, onClick }: { icon: ReactNode; tint: string; label: string; hint: string; onClick: () => void }) {
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.97 }}
+      onClick={() => {
+        haptic('tap');
+        onClick();
+      }}
+      className="quick-action"
+    >
+      <span className="list-row-icon" style={{ '--row-tint': tint } as React.CSSProperties} aria-hidden>
+        {icon}
+      </span>
+      <span>
+        <span className="block leading-tight">{label}</span>
+        <span className="block text-[12px] font-normal text-muted">{hint}</span>
+      </span>
+    </motion.button>
   );
 }
 

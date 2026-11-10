@@ -263,12 +263,13 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
       </button>
       <div className="subject-hero card relative mb-5 overflow-hidden rounded-[24px] p-5 md:p-7" style={{ '--subject': mod.color } as React.CSSProperties}>
         <div className="relative flex flex-wrap items-start gap-4">
-          <div className="min-w-0 flex-1">
+          {/* Titel bekommt Vorrang: auf schmalen Bildschirmen rutschen die Knöpfe darunter statt darüber */}
+          <div className="min-w-[min(100%,15rem)] flex-1">
             <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
               <span className="size-2 rounded-full" style={{ background: mod.color }} aria-hidden />
               Fach
             </p>
-            <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-tight md:text-[32px]">{mod.name}</h1>
+            <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-tight [overflow-wrap:anywhere] md:text-[32px]">{mod.name}</h1>
             {mod.description && <p className="mt-2 max-w-2xl text-sm text-muted">{mod.description}</p>}
             <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span className="inline-flex items-center gap-1.5">

@@ -114,6 +114,12 @@ Ruhig, flach, professionell – ohne Glasränder, Glanzlichter oder wandernde Fa
 - **Hausaufgaben-Leisten im Lernplan:** `lib/homework.ts` → `homeworkSpanRange()` (frühester Beginn, sonst Erstellungstag, bis einschließlich Abgabe) und `layoutSpans()` (Zuschnitt je Kalenderzeile, Spuren ohne Überlappung; Unit-Tests). Darstellung in `components/homework/HomeworkSpans.tsx`: Monatsansicht als Wochenzeilen mit Leisten unter der Tageszahl, Wochenansicht als Streifen über den Tagen, Handy als Wochenstreifen.
 - **Auswahlfelder:** alle `select.field` mit iOS-Doppelpfeil (⌃⌄) in Akzentfarbe, ohne gekacheltes Hintergrundbild (die Summit-Ebene setzt nur noch `background-color`).
 
+## Fortschritt, Lernzeit, Navigation (StudySpace 4.2)
+
+- **Fortschritt = Lernplan + Hausaufgaben:** `lib/progress.ts` (`scopeMemberRatio`, `scopeGroupRatio`, `homeworkCredit`, `activeHomeworkItems`) und zentral `useProgress()` in `store/derived.ts`. Jede aktive Hausaufgabe ist genau ein Posten. Erledigt (1,0), wenn sie selbst oder alle Teile abgehakt sind; sonst zählt der Anteil erledigter Teile für den Prozentwert. `done` zählt nur vollständig erledigte Posten. 100 % nur bei wirklich allem. Alle Anzeigen (Dashboard, Team, Fächer, Statistik, Profilwahl, Semester-Timeline, Erfolgsmeldung) nutzen dieselbe Funktion. Unit-Tests in `src/test/progress.test.ts`.
+- **Lernzeit der Woche:** `lib/focusWeek.ts` – Kalenderwoche Mo–So in Europe/Berlin (Zeitumstellung beachtet), Sitzungen werden anteilig auf die Tage verteilt, doppelte IDs zählen einmal. `components/FocusStats.tsx` → `TeamFocusWeekCard` (Team-Seite und Statistik). Aktualisierung: eigene Sitzungen sofort, fremde per Realtime (Migration 008, optional) bzw. minütlich und beim Zurückkehren in die App (`refreshFocusSessions`).
+- **Mehr-Menü und Einstellungen:** gemeinsame Bausteine `components/ui/List.tsx` (gruppierte Liste mit iOS-Symbolen) und `components/layout/ProfileCard.tsx`. Einstellungen: Übersicht als Liste, Kategorien als eigene Seiten `#/einstellungen/{darstellung|personen|faecher|daten|info}`; ab 1024 px Liste links, Kategorie rechts.
+
 ## Musik (StudySpace 4.0)
 
 - **Datenbank:** `007_music.sql` → `music_tracks` (Kategorie per `check`, Titel 1–120 Zeichen, `youtube_id` per Regex auf genau 11 Zeichen `[A-Za-z0-9_-]`, `start_seconds`, `sort_order`, Soft Delete). Gleiche Schutzmechanismen wie der Lernplan (RLS, keine `delete`-Policy, Versionierung, Verlauf, Rate Limit 60/min, Realtime). Test: `supabase/tests/50_music_test.sql`.

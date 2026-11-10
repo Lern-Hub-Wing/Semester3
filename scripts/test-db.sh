@@ -15,6 +15,7 @@ FILES=(
   "$ROOT/supabase/migrations/005_homework.sql"
   "$ROOT/supabase/migrations/006_server_read_access.sql"
   "$ROOT/supabase/migrations/007_music.sql"
+  "$ROOT/supabase/migrations/008_focus_realtime.sql"
   "$ROOT/supabase/seed.sql"
   # Migrationen ein zweites Mal: prüft, dass sie wiederholbar sind
   "$ROOT/supabase/migrations/001_schema.sql"
@@ -24,6 +25,7 @@ FILES=(
   "$ROOT/supabase/migrations/005_homework.sql"
   "$ROOT/supabase/migrations/006_server_read_access.sql"
   "$ROOT/supabase/migrations/007_music.sql"
+  "$ROOT/supabase/migrations/008_focus_realtime.sql"
   "$ROOT/supabase/seed.sql"
   "$ROOT/supabase/tests/10_behaviour_test.sql"
   "$ROOT/supabase/tests/20_push_focus_test.sql"

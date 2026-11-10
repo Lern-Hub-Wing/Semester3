@@ -141,7 +141,7 @@ export function ProfilePicker() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: d(0.6), delay: d(t0 + 0.2), ease: EASE_OUT }}
-          className="mt-2 text-center text-[14px] text-muted md:mt-3 md:text-[15px]"
+          className="mt-2 rounded-full bg-[color-mix(in_srgb,var(--ss-bg)_62%,transparent)] px-3.5 py-1 text-center text-[13.5px] font-medium text-ink backdrop-blur-md md:mt-3 md:text-[15px]"
         >
           {formatISODate(today, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </motion.p>
