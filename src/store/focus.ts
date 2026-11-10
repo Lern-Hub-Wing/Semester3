@@ -316,6 +316,50 @@ function isMissingTable(err: unknown): boolean {
   return e?.code === '42P01' || e?.code === 'PGRST205' || /does not exist|schema cache/i.test(e?.message ?? '');
 }
 
+/** Fügt Sitzungen ein, ohne eine doppelt zu führen (Schlüssel: id). */
+function mergeSessions(rows: FocusSession[]) {
+  if (rows.length === 0) return;
+  useFocus.setState((s) => {
+    const byId = new Map(s.sessions.map((x) => [x.id, x]));
+    let changed = false;
+    for (const r of rows) {
+      if (!byId.has(r.id)) changed = true;
+      byId.set(r.id, r);
+    }
+    if (!changed) return s;
+    return { sessions: [...byId.values()].sort((a, b) => a.started_at.localeCompare(b.started_at)), available: true };
+  });
+}
+
+/** Realtime: neue Fokuszeit eines anderen Geräts (wirkt, sobald die Tabelle veröffentlicht ist – Migration 008) */
+export function applyFocusChange(table: string, type: 'INSERT' | 'UPDATE' | 'DELETE', row: Record<string, unknown>) {
+  if (table !== 'focus_sessions' || type !== 'INSERT' || typeof row?.id !== 'string') return;
+  mergeSessions([row as unknown as FocusSession]);
+}
+
+let refreshing: Promise<void> | null = null;
+
+/**
+ * Holt nur die Fokuszeiten seit `sinceIso` nach (z. B. seit Wochenbeginn) –
+ * damit die Lernzeiten der anderen auch ohne Realtime aktuell bleiben.
+ */
+export function refreshFocusSessions(sinceIso: string): Promise<void> {
+  if (!config.isConfigured || useFocus.getState().available === false) return Promise.resolve();
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try {
+      const { data, error } = await getSupabase().from('focus_sessions').select('*').gte('ended_at', sinceIso).order('started_at', { ascending: true }).limit(1000);
+      if (error) throw error;
+      mergeSessions((data ?? []) as FocusSession[]);
+    } catch (err) {
+      if (isMissingTable(err)) useFocus.setState({ available: false });
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
 let loadPromise: Promise<void> | null = null;
 
 /** Lädt die gespeicherten Fokuszeiten (tolerant, falls die Tabelle fehlt). */

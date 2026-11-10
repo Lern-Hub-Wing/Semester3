@@ -55,6 +55,9 @@ export function MountainFlight() {
 
     const frame = (now: number) => {
       const hero = document.querySelector<HTMLElement>('[data-testid="dashboard-hero"]');
+      // Seite schon gewechselt (z. B. gleich auf einen Tab getippt) → Flug sofort beenden
+      const onDashboard = ['', '#', '#/'].includes(window.location.hash);
+      if (!onDashboard || (t0 && !hero)) return finish(false);
       if (!hero) {
         // Ziel noch nicht da (Seite lädt) – höchstens 2,5 s warten, sonst ausblenden
         if (!waited) waited = now;

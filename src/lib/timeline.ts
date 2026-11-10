@@ -38,13 +38,15 @@ interface Input {
   completions: Record<string, Completion>;
   memberIds: UUID[];
   today: ISODate;
+  /** Gruppenfortschritt je Fach inkl. Hausaufgaben (Standard: nur Lernplan-Aufgaben) */
+  groupOf?: (moduleId: UUID) => Ratio;
   /** Mindestanzahl Wochen, damit kurze Pläne nicht gestreckt wirken */
   minWeeks?: number;
   /** Höchstens so viele Wochen vor heute anzeigen */
   maxPastWeeks?: number;
 }
 
-export function buildTimeline({ modules, views, exams, completions, memberIds, today, minWeeks = 6, maxPastWeeks = 2 }: Input): Timeline {
+export function buildTimeline({ modules, views, exams, completions, memberIds, today, groupOf, minWeeks = 6, maxPastWeeks = 2 }: Input): Timeline {
   const activeExams = exams.filter((e) => !e.deleted_at);
   const rows: TimelineRow[] = modules.map((module) => {
     const mv = views.filter((v) => v.module.id === module.id);
@@ -58,7 +60,7 @@ export function buildTimeline({ modules, views, exams, completions, memberIds, t
       phase: days.length ? { from: days[0], to: days[days.length - 1] } : null,
       days,
       exams: ex,
-      group: groupRatio(mv, memberIds, completions),
+      group: groupOf ? groupOf(module.id) : groupRatio(mv, memberIds, completions),
     };
   });
 

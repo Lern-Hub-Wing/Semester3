@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { activeTaskViews, groupRatio, memberRatio, overdueFor, ratio, remainingForGroup, taskGroupStatus } from '../lib/progress';
+import {
+  activeHomeworkItems, activeTaskViews, groupRatio, homeworkCredit, memberRatio, overdueFor, ratio, remainingForGroup, scopeForModule, scopeGroupRatio, scopeMemberRatio, taskGroupStatus,
+  type DoneLookup, type ProgressScope,
+} from '../lib/progress';
 import { byId, completions, done, entry, mod, task } from './fixtures';
 
 const modules = byId(mod('controlling'), mod('archiv', { archived_at: '2026-11-02T00:00:00Z' }));
@@ -120,5 +123,76 @@ describe('überfällige Aufgaben', () => {
     const c = completions(done('t1', 'A'));
     expect(overdueFor(views, 'A', c, '2026-12-11').map((v) => v.task.id)).toEqual(['t2', 't3', 't4']);
     expect(overdueFor(views, 'A', c, '2026-12-10')).toEqual([]);
+  });
+});
+
+describe('Hausaufgaben im Fortschritt', () => {
+  // 4 Lernplan-Aufgaben (t1–t4) + 3 Hausaufgaben: ohne Teile, mit 4 Einheiten, im archivierten Fach
+  const hw = {
+    h1: { id: 'h1', module_id: 'controlling', deleted_at: null },
+    h2: { id: 'h2', module_id: 'controlling', deleted_at: null },
+    hArch: { id: 'hArch', module_id: 'archiv', deleted_at: null },
+    hDel: { id: 'hDel', module_id: 'controlling', deleted_at: '2026-11-03T00:00:00Z' },
+  };
+  const parts: Record<string, { id: string; homework_id: string; deleted_at: string | null }> = {
+    ...Object.fromEntries(['u1', 'u2', 'u3', 'u4'].map((id) => [id, { id, homework_id: 'h2', deleted_at: null }])),
+    uDel: { id: 'uDel', homework_id: 'h2', deleted_at: '2026-11-03T00:00:00Z' },
+  };
+  const items = activeHomeworkItems(hw, parts, modules);
+  const scope: ProgressScope = { tasks: views, homework: items };
+  const hwDone = (...keys: string[]) => Object.fromEntries(keys.map((k) => [k, { is_completed: true }]));
+  const lookup = (taskRows: ReturnType<typeof done>[], hwKeys: string[]): DoneLookup => ({ tasks: completions(...taskRows), homework: hwDone(...hwKeys) });
+
+  it('zählt nur aktive Hausaufgaben – jede als genau einen Posten, Teile nie zusätzlich', () => {
+    expect(items.map((i) => i.id)).toEqual(['h1', 'h2']);
+    expect(items.find((i) => i.id === 'h2')!.partIds.sort()).toEqual(['u1', 'u2', 'u3', 'u4']);
+    // 4 Aufgaben + 2 Hausaufgaben = 6 Posten (nicht 4 + 1 + 4)
+    expect(scopeMemberRatio(scope, 'A', lookup([], [])).total).toBe(6);
+  });
+
+  it('abgehakte Hausaufgabe erhöht den persönlichen Fortschritt sofort', () => {
+    expect(scopeMemberRatio(scope, 'A', lookup([done('t1', 'A')], []))).toMatchObject({ done: 1, total: 6, pct: 16 });
+    expect(scopeMemberRatio(scope, 'A', lookup([done('t1', 'A')], ['h1:A']))).toMatchObject({ done: 2, total: 6, pct: 33 });
+  });
+
+  it('Arbeitseinheiten zählen anteilig; „done“ bleibt die Zahl vollständig erledigter Posten', () => {
+    expect(homeworkCredit(items[1], 'A', hwDone('u1:A', 'u2:A'))).toBe(0.5);
+    // 0,5 von 6 Posten = 8 %
+    expect(scopeMemberRatio(scope, 'A', lookup([], ['u1:A', 'u2:A']))).toMatchObject({ done: 0, total: 6, pct: 8 });
+    // alle vier Einheiten = Hausaufgabe erledigt, auch ohne Haken an der Hausaufgabe selbst
+    expect(scopeMemberRatio(scope, 'A', lookup([], ['u1:A', 'u2:A', 'u3:A', 'u4:A']))).toMatchObject({ done: 1, pct: 16 });
+  });
+
+  it('keine Doppelzählung: Hausaufgabe UND ihre Einheiten abgehakt zählt genau 1', () => {
+    expect(homeworkCredit(items[1], 'A', hwDone('h2:A', 'u1:A', 'u2:A', 'u3:A', 'u4:A'))).toBe(1);
+    expect(scopeMemberRatio(scope, 'A', lookup([], ['h2:A', 'u1:A', 'u2:A', 'u3:A', 'u4:A'])).done).toBe(1);
+  });
+
+  it('gelöschte Teile und fremde Haken zählen nicht', () => {
+    expect(homeworkCredit(items[1], 'A', hwDone('uDel:A', 'u1:B'))).toBe(0);
+  });
+
+  it('100 % nur, wenn wirklich alles erledigt ist (auch Hausaufgaben)', () => {
+    const allTasks = ['t1', 't2', 't3', 't4'].map((t) => done(t, 'A'));
+    expect(scopeMemberRatio(scope, 'A', lookup(allTasks, ['h1:A', 'u1:A', 'u2:A', 'u3:A'])).pct).toBe(95);
+    expect(scopeMemberRatio(scope, 'A', lookup(allTasks, ['h1:A', 'h2:A'])).pct).toBe(100);
+  });
+
+  it('Gruppenfortschritt: alle Personen × alle Posten, Hausaufgaben eingeschlossen', () => {
+    // A: 2 Aufgaben + h1 = 3; B: halbe h2 = 0,5 → 3,5 von 12 = 29 %
+    const r = scopeGroupRatio(scope, ['A', 'B'], lookup([done('t1', 'A'), done('t2', 'A')], ['h1:A', 'u1:B', 'u2:B']));
+    expect(r).toMatchObject({ done: 3, total: 12, pct: 29 });
+  });
+
+  it('Ausschnitt je Fach enthält die Hausaufgaben dieses Fachs', () => {
+    expect(scopeForModule(scope, 'controlling').homework).toHaveLength(2);
+    expect(scopeForModule(scope, 'anderes')).toEqual({ tasks: [], homework: [] });
+  });
+
+  it('ohne Hausaufgaben identisch zur bisherigen Berechnung', () => {
+    const c = [done('t1', 'A'), done('t2', 'A'), done('t1', 'B')];
+    const plain: ProgressScope = { tasks: views, homework: [] };
+    expect(scopeMemberRatio(plain, 'A', lookup(c, []))).toEqual(memberRatio(views, 'A', completions(...c)));
+    expect(scopeGroupRatio(plain, members, lookup(c, []))).toEqual(groupRatio(views, members, completions(...c)));
   });
 });

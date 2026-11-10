@@ -5,7 +5,7 @@ import { formatISODate, startOfWeekISO } from '../lib/time';
 import { EASE_EMPH } from '../lib/motion';
 import { navigate } from '../lib/router';
 import { useData } from '../store/data';
-import { useActiveMemberIds, useModules, useTaskViews } from '../store/derived';
+import { useActiveMemberIds, useModules, useProgress, useTaskViews } from '../store/derived';
 import { useToday } from '../hooks/useToday';
 
 interface Props {
@@ -26,12 +26,17 @@ export function SemesterTimeline({ compact, className = '' }: Props) {
   const examsMap = useData((s) => s.exams);
   const completions = useData((s) => s.task_completions);
   const memberIds = useActiveMemberIds();
+  const progress = useProgress();
   const today = useToday();
   const scroller = useRef<HTMLDivElement>(null);
 
   const t = useMemo(
-    () => buildTimeline({ modules, views, exams: Object.values(examsMap), completions, memberIds, today, minWeeks: compact ? 6 : 8 }),
-    [modules, views, examsMap, completions, memberIds, today, compact],
+    () =>
+      buildTimeline({
+        modules, views, exams: Object.values(examsMap), completions, memberIds, today, minWeeks: compact ? 6 : 8,
+        groupOf: (id) => progress.group(memberIds, progress.forModule(id)),
+      }),
+    [modules, views, examsMap, completions, memberIds, today, compact, progress],
   );
   const todayPos = dayPosition(t, today);
   const currentWeek = startOfWeekISO(today);

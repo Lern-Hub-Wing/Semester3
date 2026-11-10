@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Archive, ArrowDown, Bell, BellRing, ChevronRight, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus,
+  Archive, ArrowDown, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
@@ -16,108 +16,154 @@ import { resync } from '../store/sync';
 import { toast } from '../store/toast';
 import { useDebouncedCallback } from '../hooks/useDebounced';
 import { PageHeader } from '../components/layout/AppShell';
-import { Card, IconTile } from '../components/ui/Card';
+import { ListGroup, ListRow } from '../components/ui/List';
+import { ProfileCard } from '../components/layout/ProfileCard';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { NotificationSettings } from './NotificationSettings';
 import { initPush, usePush } from '../store/push';
 import { useMusic } from '../store/music';
-import { Button, IconButton } from '../components/ui/Button';
+import { Button } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Segmented';
 import { Switch } from '../components/ui/Switch';
 import { Avatar } from '../components/ui/Avatar';
 import { Modal } from '../components/ui/Modal';
+import { Menu } from '../components/ui/Menu';
 import { ColorPicker } from '../components/ui/ColorPicker';
 import { AddMemberDialog, MemberColorEditor } from './Team';
 import { ModuleEditor } from './Modules';
 import { StatusPill } from '../components/layout/StatusPill';
 
-export function Settings({ section }: { section?: 'benachrichtigungen' }) {
+const SECTIONS = {
+  darstellung: { title: 'Darstellung & Bedienung', render: () => <Appearance /> },
+  personen: { title: 'Personen', render: () => <People /> },
+  faecher: { title: 'Fächer', render: () => <ModulesSection /> },
+  daten: { title: 'Sicherung & Import', render: () => <DataSection /> },
+  info: { title: 'Über StudySpace', render: () => <General /> },
+} as const;
+type SectionKey = keyof typeof SECTIONS;
+const isSection = (k: string | undefined): k is SectionKey => !!k && k in SECTIONS;
+
+/**
+ * Einstellungen: ruhige Übersicht als gruppierte Liste; jede Kategorie ist
+ * eine eigene Seite. Auf großen Bildschirmen steht die Liste links und die
+ * gewählte Kategorie rechts daneben.
+ */
+export function Settings({ section }: { section?: string }) {
+  const wide = useMediaQuery('(min-width: 1024px)');
   if (section === 'benachrichtigungen') return <NotificationSettings />;
+  const key = isSection(section) ? section : null;
+
+  if (!wide) {
+    if (!key)
+      return (
+        <div>
+          <PageHeader title="Einstellungen" />
+          <SettingsNav />
+        </div>
+      );
+    return (
+      <div data-testid={`settings-${key}`}>
+        <Link to="/einstellungen" className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
+          <ArrowLeft className="size-4" aria-hidden /> Einstellungen
+        </Link>
+        <h1 className="display mb-5 text-[28px]">{SECTIONS[key].title}</h1>
+        {SECTIONS[key].render()}
+      </div>
+    );
+  }
+
+  const active = key ?? 'darstellung';
   return (
     <div>
       <PageHeader title="Einstellungen" />
-      <div className="grid grid-cols-1 gap-[var(--gap-grid)] lg:grid-cols-2">
-        <NotificationsSummary />
-        <MusicSummary />
-        <Appearance />
-        <General />
-        <People />
-        <ModulesSection />
-        <DataSection />
+      <div className="grid grid-cols-[320px_minmax(0,1fr)] items-start gap-8">
+        <div className="sticky top-[84px]">
+          <SettingsNav active={active} />
+        </div>
+        <div data-testid={`settings-${active}`}>
+          <h2 className="title mb-4 text-[22px]">{SECTIONS[active].title}</h2>
+          {SECTIONS[active].render()}
+        </div>
       </div>
     </div>
   );
 }
 
-/** Einstieg zu den Benachrichtigungen mit aktuellem Status */
-function NotificationsSummary() {
+const PUSH_LABEL: Record<string, string> = {
+  loading: '…',
+  on: 'An',
+  off: 'Aus',
+  working: '…',
+  denied: 'Blockiert',
+  'needs-install': 'Einrichten',
+  unsupported: 'Nicht verfügbar',
+  'not-configured': 'Nicht verfügbar',
+};
+
+/** Übersicht aller Einstellungen als gruppierte Liste mit dem jeweils aktuellen Stand */
+function SettingsNav({ active }: { active?: SectionKey }) {
   const phase = usePush((s) => s.phase);
+  const theme = usePrefs((s) => s.theme);
+  const members = useAllMembers();
+  const modules = useModules();
+  const musicAvailable = useMusic((s) => s.available);
+  const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
   useEffect(() => {
     void initPush();
   }, []);
-  const label: Record<string, string> = {
-    loading: 'Status wird geprüft …',
-    on: 'Aktiviert auf diesem Gerät',
-    off: 'Noch nicht aktiviert',
-    working: 'Wird eingerichtet …',
-    denied: 'Vom Gerät blockiert',
-    'needs-install': 'Zuerst zum Home-Bildschirm hinzufügen',
-    unsupported: 'Von diesem Browser nicht unterstützt',
-    'not-configured': 'Server noch nicht eingerichtet',
-  };
+  const activeMembers = members.filter((m) => m.is_active).length;
+  const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
   return (
-    <Link to="/einstellungen/benachrichtigungen" className="glass mat-hero lift group flex items-center gap-4 rounded-[var(--radius-card)] p-5 md:p-6">
-      <IconTile tint={phase === 'on' ? 'var(--ss-success)' : 'var(--ss-accent)'} size={48}>
-        {phase === 'on' ? <BellRing /> : <Bell />}
-      </IconTile>
-      <span className="min-w-0 flex-1">
-        <span className="title block text-[17px]">Benachrichtigungen</span>
-        <span className="block text-[13.5px] text-muted">{label[phase]} · Erinnerungen, Ruhezeiten, Testnachricht</span>
-      </span>
-      <ChevronRight className="size-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
-    </Link>
+    <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
+      <ProfileCard />
+      <ListGroup title="Dieses Gerät">
+        <ListRow
+          icon={phase === 'on' ? <BellRing /> : <Bell />}
+          tint={phase === 'on' ? '#2FA58B' : '#E5484D'}
+          label="Benachrichtigungen"
+          value={PUSH_LABEL[phase]}
+          to="/einstellungen/benachrichtigungen"
+          testId="settings-push"
+        />
+        <ListRow icon={<Palette />} tint="#7C6FF0" label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
+      </ListGroup>
+      <ListGroup title="Lerngruppe">
+        <ListRow icon={<Users />} tint="#2FA58B" label="Personen" value={activeMembers} {...row('personen')} />
+        <ListRow icon={<BookOpen />} tint="#3D8BE0" label="Fächer" value={modules.length} {...row('faecher')} />
+        <ListRow icon={<Music2 />} tint="#E0559A" label="Musik-Bibliothek" value={musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`} to="/musik" testId="settings-music" />
+      </ListGroup>
+      <ListGroup title="Daten">
+        <ListRow icon={<Download />} tint="#F08A24" label="Sicherung & Import" {...row('daten')} />
+        <ListRow icon={<Trash2 />} tint="#E5484D" label="Papierkorb" to="/papierkorb" />
+        <ListRow icon={<History />} tint="#7A8499" label="Änderungsverlauf" to="/verlauf" />
+      </ListGroup>
+      <ListGroup>
+        <ListRow icon={<Info />} tint="#8E8E93" label="Über StudySpace" value={config.version} {...row('info')} />
+      </ListGroup>
+    </nav>
   );
 }
 
-/** Einstieg zur gemeinsamen Musik-Bibliothek (YouTube-Links für alle) */
-function MusicSummary() {
-  const available = useMusic((s) => s.available);
-  const count = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
-  const status = available === false ? 'Noch nicht eingerichtet' : count === 1 ? '1 Titel' : `${count} Titel`;
+/** Inhalt einer Kategorie: Überschrift steht bereits auf der Seite, hier nur Hinweis + Karte. */
+function Section({ children, hint, className = '' }: { title?: string; icon?: ReactNode; children: ReactNode; hint?: string; className?: string }) {
   return (
-    <Link to="/musik" className="glass mat-hero lift group flex items-center gap-4 rounded-[var(--radius-card)] p-5 md:p-6" data-testid="settings-music">
-      <IconTile size={48}>
-        <Music2 />
-      </IconTile>
-      <span className="min-w-0 flex-1">
-        <span className="title block text-[17px]">Musik-Bibliothek</span>
-        <span className="block text-[13.5px] text-muted">{status} · YouTube-Links hinzufügen, für alle sichtbar</span>
-      </span>
-      <ChevronRight className="size-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
-    </Link>
+    <div className={className}>
+      <div className="settings-card">{children}</div>
+      {hint && <p className="list-group-footer">{hint}</p>}
+    </div>
   );
 }
 
-function Section({ title, icon, children, hint, className = '' }: { title: string; icon: ReactNode; children: ReactNode; hint?: string; className?: string }) {
+/**
+ * Eine Einstellung. `inline`: Bedienelement (z. B. Schalter) steht auch auf
+ * dem Handy rechts neben der Beschriftung, sonst darunter in voller Breite.
+ */
+function Row({ label, hint, children, inline }: { label: string; hint?: string; children: ReactNode; inline?: boolean }) {
   return (
-    <Card className={`p-5 md:p-6 ${className}`}>
-      <div className="mb-4 flex items-center gap-3">
-        <IconTile>{icon}</IconTile>
-        <div>
-          <h2 className="title">{title}</h2>
-          {hint && <p className="text-xs text-muted">{hint}</p>}
-        </div>
-      </div>
-      {children}
-    </Card>
-  );
-}
-
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-line py-3.5 first:border-t-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className={`flex gap-2 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 ${inline ? 'flex-row items-center justify-between gap-4' : 'flex-col sm:flex-row sm:items-center sm:justify-between'}`}>
       <div className="min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        {hint && <p className="text-xs text-muted">{hint}</p>}
+        <p className="text-[14.5px] font-medium">{label}</p>
+        {hint && <p className="mt-0.5 text-[12.5px] leading-snug text-muted">{hint}</p>}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -127,7 +173,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 function Appearance() {
   const prefs = usePrefs();
   return (
-    <Section title="Erscheinungsbild" icon={<Palette />} hint="Wird nur auf diesem Gerät gespeichert.">
+    <Section title="Erscheinungsbild" icon={<Palette />} hint="Diese Einstellungen gelten nur für dieses Gerät.">
       <Row label="Darstellung" hint="System übernimmt die Geräteeinstellung.">
         <Segmented
           label="Darstellung"
@@ -174,15 +220,15 @@ function Appearance() {
           ]}
         />
       </Row>
-      <Row label="Kompakte Darstellung" hint="Kleinere Abstände und Schrift.">
+      <Row inline label="Kompakte Darstellung" hint="Kleinere Abstände und Schrift.">
         <Switch label="Kompakte Darstellung" checked={prefs.compact} onChange={(compact) => prefs.set({ compact })} />
       </Row>
-      <Row label="Klänge" hint="Leise Töne beim Antippen, Auswählen und Abhaken. Auf dem iPhone gilt der Stummschalter.">
+      <Row inline label="Klänge" hint="Leise Töne beim Antippen, Auswählen und Abhaken. Auf dem iPhone gilt der Stummschalter.">
         <Switch label="Klänge" checked={prefs.sounds} onChange={(sounds) => prefs.set({ sounds })} />
       </Row>
       {/* Nur anzeigen, wo das Gerät wirklich vibrieren kann (z. B. Android). iOS Safari unterstützt die Vibration API nicht. */}
       {isHapticsSupported() && (
-        <Row label="Haptisches Feedback" hint="Kurze, dezente Vibration bei wichtigen Aktionen.">
+        <Row inline label="Haptisches Feedback" hint="Kurze, dezente Vibration bei wichtigen Aktionen.">
           <Switch label="Haptisches Feedback" checked={prefs.haptics} onChange={(haptics) => prefs.set({ haptics })} />
         </Row>
       )}
@@ -251,6 +297,7 @@ function People() {
   const members = useAllMembers();
   const [adding, setAdding] = useState(false);
   const [colorFor, setColorFor] = useState<Member | null>(null);
+  const [renaming, setRenaming] = useState<Member | null>(null);
   const move = (i: number, dir: -1 | 1) => {
     const ids = members.map((m) => m.id);
     const j = i + dir;
@@ -259,29 +306,29 @@ function People() {
     void reorderMembers(ids);
   };
   return (
-    <Section title="Personen" icon={<CircleDot />} hint="Interne IDs bleiben bei Umbenennen und Farbänderungen gleich.">
-      <ul className="flex flex-col gap-2">
+    <Section title="Personen" icon={<CircleDot />} hint="Namen, Farben und Reihenfolge gelten für alle. Deaktivierte Personen erscheinen nicht mehr in der Auswahl; ihre Haken bleiben erhalten.">
+      <ul className="-my-1 flex flex-col">
         {members.map((m, i) => (
-          <li key={m.id} className={`flex items-center gap-2 rounded-2xl border border-line p-2 ${m.is_active ? '' : 'opacity-60'}`}>
-            <button type="button" onClick={() => setColorFor(m)} aria-label={`Farbe von ${m.name} ändern`} className="rounded-full">
-              <Avatar name={m.name} color={m.color} size={36} dimmed={!m.is_active} />
+          <li key={m.id} className={`flex min-h-[56px] items-center gap-3 border-t border-line py-2 first:border-t-0 ${m.is_active ? '' : 'opacity-60'}`} data-testid="settings-person">
+            <button type="button" onClick={() => setColorFor(m)} aria-label={`Farbe von ${m.name} ändern`} className="shrink-0 rounded-full">
+              <Avatar name={m.name} color={m.color} size={38} dimmed={!m.is_active} />
             </button>
-            <MemberNameInput member={m} />
-            <IconButton label="Nach oben" size="sm" disabled={i === 0} onClick={() => move(i, -1)}>
-              <ArrowUp className="size-4" />
-            </IconButton>
-            <IconButton label="Nach unten" size="sm" disabled={i === members.length - 1} onClick={() => move(i, 1)}>
-              <ArrowDown className="size-4" />
-            </IconButton>
-            {m.is_active ? (
-              <IconButton label={`${m.name} deaktivieren`} size="sm" onClick={() => void setMemberActive(m.id, false)}>
-                <UserMinus className="size-4" />
-              </IconButton>
-            ) : (
-              <IconButton label={`${m.name} wiederherstellen`} size="sm" onClick={() => void setMemberActive(m.id, true)}>
-                <RotateCcw className="size-4" />
-              </IconButton>
-            )}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[15px] font-medium">{m.name}</span>
+              <span className="block text-[12.5px] text-muted">{m.is_active ? 'aktiv' : 'deaktiviert'}</span>
+            </span>
+            <Menu
+              label={`Aktionen für ${m.name}`}
+              items={[
+                { label: 'Umbenennen', icon: <Pencil />, onSelect: () => setRenaming(m) },
+                { label: 'Farbe ändern', icon: <Palette />, onSelect: () => setColorFor(m) },
+                { label: 'Nach oben', icon: <ArrowUp />, onSelect: () => move(i, -1), hidden: i === 0 },
+                { label: 'Nach unten', icon: <ArrowDown />, onSelect: () => move(i, 1), hidden: i === members.length - 1 },
+                m.is_active
+                  ? { label: 'Deaktivieren', icon: <UserMinus />, danger: true, onSelect: () => void setMemberActive(m.id, false) }
+                  : { label: 'Wieder aktivieren', icon: <RotateCcw />, onSelect: () => void setMemberActive(m.id, true) },
+              ]}
+            />
           </li>
         ))}
       </ul>
@@ -292,11 +339,14 @@ function People() {
       <Modal open={!!colorFor} onClose={() => setColorFor(null)} title={colorFor ? `Farbe von ${colorFor.name}` : ''}>
         {colorFor && <MemberColorEditor member={colorFor} />}
       </Modal>
+      <Modal open={!!renaming} onClose={() => setRenaming(null)} title="Umbenennen" description="Der neue Name gilt für alle; Haken und Verlauf bleiben erhalten.">
+        {renaming && <MemberNameInput member={renaming} onDone={() => setRenaming(null)} />}
+      </Modal>
     </Section>
   );
 }
 
-function MemberNameInput({ member }: { member: Member }) {
+function MemberNameInput({ member, onDone }: { member: Member; onDone?: () => void }) {
   const [name, setName] = useState(member.name);
   const [lastName, setLastName] = useState(member.name);
   if (member.name !== lastName) {
@@ -314,7 +364,9 @@ function MemberNameInput({ member }: { member: Member }) {
         const n = name.trim();
         if (!n) return setName(member.name);
         if (n !== member.name) void updateMember(member.id, { name: n }, member.version);
+        onDone?.();
       }}
+      data-autofocus
       onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
     />
   );
@@ -334,32 +386,33 @@ function ModulesSection() {
     void reorderModules(ids);
   };
   return (
-    <Section title="Module" icon={<Archive />} hint="Fachfarben kennzeichnen Lerninhalte, Personenfarben die Lernenden.">
-      <ul className="flex flex-col gap-2">
+    <Section title="Fächer" icon={<Archive />} hint="Reihenfolge und Farben gelten für alle. Archivierte Fächer zählen nicht zum Fortschritt und lassen sich jederzeit wiederherstellen.">
+      <ul className="-my-1 flex flex-col">
         {modules.map((m, i) => (
-          <li key={m.id} className="flex items-center gap-2 rounded-2xl border border-line p-2">
+          <li key={m.id} className="flex min-h-[56px] items-center gap-3 border-t border-line py-2 first:border-t-0" data-testid="settings-subject">
             <button type="button" aria-label={`Farbe von ${m.name} ändern`} onClick={() => setColorFor(m)} className="size-9 shrink-0 rounded-xl" style={{ background: m.color }} />
-            <button type="button" onClick={() => setEditing(m)} className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium hover:underline">
+            <button type="button" onClick={() => setEditing(m)} className="min-w-0 flex-1 text-left text-[15px] font-medium leading-snug">
               {m.name}
             </button>
-            <IconButton label="Nach oben" size="sm" disabled={i === 0} onClick={() => move(i, -1)}>
-              <ArrowUp className="size-4" />
-            </IconButton>
-            <IconButton label="Nach unten" size="sm" disabled={i === modules.length - 1} onClick={() => move(i, 1)}>
-              <ArrowDown className="size-4" />
-            </IconButton>
-            <IconButton label={`${m.name} archivieren`} size="sm" onClick={() => void archiveModule(m.id)}>
-              <Archive className="size-4" />
-            </IconButton>
+            <Menu
+              label={`Aktionen für ${m.name}`}
+              items={[
+                { label: 'Bearbeiten', icon: <Pencil />, onSelect: () => setEditing(m) },
+                { label: 'Farbe ändern', icon: <Palette />, onSelect: () => setColorFor(m) },
+                { label: 'Nach oben', icon: <ArrowUp />, onSelect: () => move(i, -1), hidden: i === 0 },
+                { label: 'Nach unten', icon: <ArrowDown />, onSelect: () => move(i, 1), hidden: i === modules.length - 1 },
+                { label: 'Archivieren', icon: <Archive />, danger: true, onSelect: () => void archiveModule(m.id) },
+              ]}
+            />
           </li>
         ))}
       </ul>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
-          Modul hinzufügen
+          Fach hinzufügen
         </Button>
         <Link to="/faecher" className="inline-flex h-11 items-center rounded-2xl px-4 text-sm font-medium text-accent hover:bg-[color-mix(in_srgb,var(--ss-text)_6%,transparent)]">
-          Prüfungen verwalten
+          Prüfungstermine bei den Fächern
         </Link>
       </div>
       {archived.length > 0 && (
@@ -434,12 +487,10 @@ function DataSection() {
   };
 
   return (
-    <Section title="Daten & Sicherheit" icon={<ShieldAlert />} className="lg:col-span-2">
-      <div className="grid gap-3 md:grid-cols-4">
-        <ActionTile icon={<Download />} title="Datenexport" text="Vollständige JSON-Sicherung aller Lernplandaten und Haken." onClick={() => void doExport()} busy={busy} />
-        <ActionTile icon={<Upload />} title="Datenimport" text="Export einspielen – wird vorher geprüft und muss bestätigt werden." onClick={() => fileRef.current?.click()} />
-        <ActionLink icon={<Trash2 />} title="Papierkorb" text="Gelöschte Inhalte ansehen und wiederherstellen." to="/papierkorb" />
-        <ActionLink icon={<History />} title="Änderungsverlauf" text="Wer hat wann was geändert (nicht verifiziert)." to="/verlauf" />
+    <Section title="Daten & Sicherheit" icon={<ShieldAlert />} hint="Der Export enthält alle Lernplandaten und Haken. Beim Import wird nichts gelöscht – vorhandene Einträge werden nur ergänzt bzw. aktualisiert.">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ActionTile icon={<Download />} title="Datenexport" text="JSON-Sicherung aller Lernplandaten und Haken herunterladen." onClick={() => void doExport()} busy={busy} />
+        <ActionTile icon={<Upload />} title="Datenimport" text="Sicherung einspielen – wird vorher geprüft und muss bestätigt werden." onClick={() => fileRef.current?.click()} />
       </div>
       <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => (void readFile(e.target.files?.[0]), (e.target.value = ''))} />
       <p className="mt-3 text-xs text-muted">
@@ -526,16 +577,6 @@ function ActionTile({ icon, title, text, onClick, busy }: { icon: ReactNode; tit
       <span className="font-medium">{busy ? 'Bitte warten …' : title}</span>
       <span className="text-xs text-muted">{text}</span>
     </button>
-  );
-}
-
-function ActionLink({ icon, title, text, to }: { icon: ReactNode; title: string; text: string; to: string }) {
-  return (
-    <Link to={to} className="lift flex flex-col gap-2 rounded-2xl border border-line p-4">
-      <span className="text-accent [&>svg]:size-5">{icon}</span>
-      <span className="font-medium">{title}</span>
-      <span className="text-xs text-muted">{text}</span>
-    </Link>
   );
 }
 

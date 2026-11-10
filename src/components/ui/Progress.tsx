@@ -71,7 +71,14 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
   const transition = reduce ? { duration: 0 } : firstFill.current ? tween.fill : spring.value;
 
   return (
-    <div ref={ref} className={`relative inline-grid place-items-center ${className}`} style={{ width: size, height: size }}>
+    <div
+      ref={ref}
+      role="img"
+      aria-label={`${sublabel ?? label ?? 'Fortschritt'}: ${ratio.pct === null ? 'keine Aufgaben' : `${ratio.pct} Prozent`}`}
+      data-pct={ratio.pct ?? ''}
+      className={`relative inline-grid place-items-center ${className}`}
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 overflow-visible" aria-hidden>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">

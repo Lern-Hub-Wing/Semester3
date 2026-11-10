@@ -3,7 +3,7 @@ import { CalendarPlus, Flame, GraduationCap, Play } from 'lucide-react';
 import { getCountdownState, splitDuration } from '../../lib/countdown';
 import { formatInstant } from '../../lib/time';
 import { formatClock } from '../../lib/focus';
-import { addDaysISO, instantToZoned, weekdayIndex } from '../../lib/time';
+import { addDaysISO, weekdayIndex } from '../../lib/time';
 import { navigate } from '../../lib/router';
 import { haptic } from '../../lib/haptics';
 import { useNow } from '../../hooks/useNow';
@@ -11,6 +11,7 @@ import { useToday } from '../../hooks/useToday';
 import { useData } from '../../store/data';
 import { useUI } from '../../store/ui';
 import { loadFocusSessions, useFocus } from '../../store/focus';
+import { focusByDay } from '../../lib/focusWeek';
 import { PeakStage } from '../landscape/Landscape';
 import { useFlight } from '../../store/flight';
 import { useFocusLive } from '../FocusPanel';
@@ -131,12 +132,8 @@ export function useFocusWeek(memberId: string) {
   return useMemo(() => {
     // Letzte 7 Tage, heute ganz rechts
     const days = Array.from({ length: 7 }, (_, i) => addDaysISO(today, i - 6));
-    const perDay = new Map(days.map((d) => [d, 0]));
-    for (const s of sessions) {
-      if (s.member_id !== memberId) continue;
-      const d = instantToZoned(s.started_at).date;
-      if (perDay.has(d)) perDay.set(d, perDay.get(d)! + s.duration_seconds);
-    }
+    // Sitzungen über Mitternacht zählen anteilig an beiden Tagen (lib/focusWeek)
+    const perDay = new Map([...focusByDay(sessions, days, memberId)].map(([d, sec]) => [d, Math.round(sec)]));
     return { available, today: perDay.get(today) ?? 0, days: days.map((d) => ({ date: d, label: WEEKDAYS[weekdayIndex(d)]!, seconds: perDay.get(d)!, isToday: d === today, future: false })) };
   }, [sessions, available, memberId, today]);
 }

@@ -57,12 +57,17 @@ function parseFilters(url) {
   const f = [];
   for (const [k, v] of url.searchParams) {
     if (['select', 'order', 'offset', 'limit', 'on_conflict', 'columns'].includes(k)) continue;
-    const m = /^(eq|lt|gt)\.(.*)$/.exec(v);
+    const m = /^(eq|lt|gt|gte|lte)\.(.*)$/.exec(v);
     if (m) f.push([k, m[1], m[2]]);
   }
   return f;
 }
-const match = (row, filters) => filters.every(([k, op, v]) => (op === 'eq' ? String(row[k]) === v : op === 'lt' ? row[k] < Number(v) : row[k] > Number(v)));
+// Zeitstempel (ISO) als Text vergleichen, Zahlen als Zahl
+const cmp = (a, v) => (typeof a === 'string' ? a.localeCompare(v) : a - Number(v));
+const match = (row, filters) =>
+  filters.every(([k, op, v]) =>
+    op === 'eq' ? String(row[k]) === v : op === 'lt' ? cmp(row[k], v) < 0 : op === 'gt' ? cmp(row[k], v) > 0 : op === 'gte' ? cmp(row[k], v) >= 0 : cmp(row[k], v) <= 0,
+  );
 
 function touch(table, row, old) {
   const t = now();

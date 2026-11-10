@@ -6,6 +6,7 @@ import { emptyTables, useData, useSyncStatus, type TableState } from './data';
 import { applyServerDelete, applyServerRows, confirmedRow, isPending, replaceTable } from './engine';
 import { applyHomeworkChange, loadHomework } from './homework';
 import { applyMusicChange, loadMusic } from './music';
+import { applyFocusChange } from './focus';
 
 const CACHE_KEY = 'studyspace.cache.v1';
 const PAGE = 1000;
@@ -135,6 +136,7 @@ function handleChange(payload: RealtimePostgresChangesPayload<Record<string, unk
     // Zusatztabellen (z. B. Hausaufgaben) haben eigene Stores
     applyHomeworkChange(payload.table, payload.eventType, payload.new as Record<string, unknown>);
     applyMusicChange(payload.table, payload.eventType, payload.new as Record<string, unknown>);
+    applyFocusChange(payload.table, payload.eventType, payload.new as Record<string, unknown>);
     return;
   }
   if (payload.eventType === 'DELETE') {

@@ -188,6 +188,20 @@ async function mobileDesignChecks(p, name) {
   check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Wischen über den Inhalt wechselt keine Seite`);
   await nav.getByRole('link', { name: 'Dashboard' }).click();
   await p.waitForTimeout(300);
+  // „Mehr“: gruppierte Liste statt vieler Kacheln, auf kleinen Geräten vollständig erreichbar
+  await nav.getByRole('button', { name: 'Mehr' }).click();
+  const more = p.getByTestId('more-sheet');
+  await more.waitFor();
+  const groups = await more.locator('.list-group').count();
+  const lastRow = more.getByRole('button', { name: /Papierkorb/ });
+  await lastRow.scrollIntoViewIfNeeded();
+  const lr = await lastRow.boundingBox();
+  check(groups === 3 && lr && lr.y + lr.height <= (p.viewportSize()?.height ?? 0), `Mehr (${name}): drei Gruppen, letzter Eintrag erreichbar (${groups})`);
+  await more.getByRole('button', { name: /Statistiken/ }).click();
+  await p.waitForTimeout(400);
+  check(new URL(p.url()).hash === '#/analyse' && (await p.getByTestId('more-sheet').count()) === 0, `Mehr (${name}): Eintrag öffnet die Seite und schließt das Menü`);
+  await nav.getByRole('link', { name: 'Dashboard' }).click();
+  await p.waitForTimeout(300);
   const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
   check(touchAction === 'pan-y', `Tab-Leiste (${name}): senkrechtes Scrollen bleibt frei (touch-action=${touchAction})`);
 
@@ -524,10 +538,12 @@ try {
       const last = vib[vib.length - 1];
       const total = Array.isArray(last) ? last.reduce((a, b) => a + b, 0) : last;
       check(vib.length >= 1 && total <= 80, `Haptik: kurzer Impuls beim Abhaken (${JSON.stringify(last)})`);
-      await p.goto(`${BASE}#/einstellungen`);
-      await p.getByRole('heading', { name: 'Einstellungen' }).waitFor();
+      await p.goto(`${BASE}#/einstellungen/darstellung`);
+      await p.getByTestId('settings-darstellung').waitFor();
       check((await p.getByRole('switch', { name: 'Haptisches Feedback' }).count()) === 1, 'Haptik: Einstellung „Haptisches Feedback“ vorhanden, wo unterstützt');
       // iOS zoomt bei Eingabefeldern unter 16 px automatisch hinein – das darf nicht passieren
+      await p.goto(`${BASE}#/einstellungen/info`);
+      await p.getByTestId('settings-info').waitFor();
       const small = await p.evaluate(() =>
         [...document.querySelectorAll('input, select, textarea')]
           .filter((el) => !['range', 'checkbox', 'radio', 'color', 'file'].includes(el.type))
@@ -578,6 +594,11 @@ try {
       ['#/analyse', 'analyse'],
       ['#/einstellungen/benachrichtigungen', 'benachrichtigungen'],
       ['#/einstellungen', 'einstellungen'],
+      ['#/einstellungen/darstellung', 'einst-darstellung'],
+      ['#/einstellungen/personen', 'einst-personen'],
+      ['#/einstellungen/faecher', 'einst-faecher'],
+      ['#/einstellungen/daten', 'einst-daten'],
+      ['#/einstellungen/info', 'einst-info'],
     ]) {
       await p.goto(`${BASE}${path}`);
       await p.waitForTimeout(500);
@@ -587,6 +608,14 @@ try {
     if (name === '320') {
       const isDark = await p.evaluate(() => document.documentElement.classList.contains('dark'));
       check(!isDark, 'M: Systemeinstellung „hell“ wird übernommen');
+      // Einstellungen auf dem Handy: ruhige Übersicht, Kategorie als eigene Seite
+      await p.goto(`${BASE}#/einstellungen`);
+      const nav = p.getByTestId('settings-nav');
+      await nav.waitFor();
+      check((await nav.locator('.list-group').count()) === 4 && (await p.getByRole('radio', { name: 'Dunkel' }).count()) === 0, 'Einstellungen (Handy): gruppierte Übersicht ohne Bedienelemente');
+      await nav.getByRole('link', { name: /Darstellung & Bedienung/ }).click();
+      await p.getByTestId('settings-darstellung').waitFor();
+      check((await p.getByRole('link', { name: 'Einstellungen' }).count()) >= 1, 'Einstellungen (Handy): Unterseite mit Zurück-Link');
       await p.getByRole('radio', { name: 'Dunkel' }).click();
       check(await p.evaluate(() => document.documentElement.classList.contains('dark')), 'M: manuelle Umstellung auf Dunkel');
     }
@@ -614,6 +643,17 @@ try {
     await p.waitForTimeout(3500);
     const fs = db.focus_sessions;
     check(fs.length === 1 && fs[0].duration_seconds === 1500 && fs[0].member_id.endsWith('01') && fs[0].module_id === db.modules[4].id, `Fokus: abgelaufene Fokusphase gespeichert (${JSON.stringify(fs.map((x) => x.duration_seconds))})`);
+    // Team: Lernzeit dieser Woche aus den gespeicherten Fokus-Sessions (sofort, ohne Neuladen)
+    await p.evaluate(() => (location.hash = '#/team'));
+    const teamWeek = p.getByTestId('focus-team');
+    await teamWeek.waitFor();
+    const mineRow = teamWeek.locator(`[data-member="${db.members[0].id}"]`);
+    const rowSec = Number(await mineRow.getAttribute('data-seconds'));
+    const total = Number(await teamWeek.getAttribute('data-total'));
+    check(rowSec === 1500 && total === 1500 && (await mineRow.innerText()).includes('25 Min.'), `Team: Lernzeit dieser Woche je Person und gesamt (${rowSec} s, gesamt ${total} s)`);
+    check((await teamWeek.getByTestId('focus-team-row').count()) === db.members.filter((m) => m.is_active).length, 'Team: alle aktiven Personen in der Lernzeit-Übersicht');
+    await p.evaluate(() => (location.hash = '#/'));
+    await p.getByTestId('dashboard-hero').waitFor();
 
     // Dashboard: Fokus-Karte öffnet direkt die immersive Ansicht; keine Erinnerungsvorschau mehr
     const hero = p.getByTestId('dashboard-hero');
@@ -970,10 +1010,23 @@ try {
     const after = db.homework_parts.filter((x) => x.homework_id === hw.id && x.kind === 'unit');
     check(db.homework.find((h) => h.id === hw.id).due_date === newDue && after.every((u) => u.planned_date < newDue), `Hausaufgaben: Einheiten an neue Abgabe angepasst (${after.map((u) => u.planned_date).join(', ')})`);
     check(db.homework_completions.some((x) => x.target_id === firstUnit.id && x.is_completed), 'Hausaufgaben: Erledigungen bleiben nach Terminänderung erhalten');
+    // Fortschrittskreis vorher (Team-Seite: Person 1)
+    const ringPct = async () => {
+      await p.goto(`${BASE}#/team/${db.members[0].id}`);
+      const ring = p.getByRole('img', { name: /Fortschritt/ }).first();
+      await ring.waitFor();
+      await p.waitForTimeout(300);
+      return Number(await ring.getAttribute('data-pct'));
+    };
+    const ringBefore = await ringPct();
+    await p.goto(`${BASE}#/hausaufgaben`);
+    await item.waitFor();
     // Ganze Hausaufgabe abhaken
     await item.getByRole('checkbox', { name: 'Übungsblatt 6 erledigt' }).click();
     await p.waitForTimeout(400);
     check(db.homework_completions.some((x) => x.target_id === hw.id && x.member_id.endsWith('01') && x.is_completed), 'Hausaufgaben: als erledigt markiert');
+    const ringAfter = await ringPct();
+    check(ringAfter > ringBefore, `Fortschritt: erledigte Hausaufgabe erhöht den Fortschrittskreis sofort (${ringBefore} % → ${ringAfter} %)`);
     // Lernplan: Zeitraum als farbige Leiste, am Abgabetag „Abgabe“
     await p.goto(`${BASE}#/lernplan?ansicht=monat&datum=${newDue}`);
     const bar = p.getByTestId('hw-bar').filter({ has: p.getByText('Übungsblatt 6', { exact: true }) });

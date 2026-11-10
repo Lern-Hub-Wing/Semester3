@@ -1,6 +1,7 @@
 import { CalendarDays, ChevronRight, Ellipsis, Plus, Sparkles } from 'lucide-react';
 import type { Member } from '../../lib/types';
-import { groupBy, groupRatio, isDone, memberRatio, type Ratio, type TaskView } from '../../lib/progress';
+import { groupBy, isDone, type Ratio, type TaskView } from '../../lib/progress';
+import { useProgress } from '../../store/derived';
 import { alpha } from '../../lib/colors';
 import { Link } from '../../lib/router';
 import { useData } from '../../store/data';
@@ -114,7 +115,8 @@ export function TodayCard({ views, today, me, members, className = '', allEmpty 
   );
 }
 
-export function useDashboardRatios(views: TaskView[], me: Member, memberIds: string[]) {
-  const completions = useData((s) => s.task_completions);
-  return { mine: memberRatio(views, me.id, completions), group: groupRatio(views, memberIds, completions) };
+/** Gesamtfortschritt (Lernplan + Hausaufgaben) für das Dashboard */
+export function useDashboardRatios(me: Member, memberIds: string[]) {
+  const progress = useProgress();
+  return { mine: progress.member(me.id), group: progress.group(memberIds) };
 }

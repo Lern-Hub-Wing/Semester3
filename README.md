@@ -15,6 +15,8 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 - **Hausaufgaben** mit Abgabedatum, Unteraufgaben, Priorität, Anhängen, Erledigt-Status je Person und optionaler Verteilung von Arbeitseinheiten bis zum Vortag der Abgabe (Migration 005); im Lernplan als farbige Zeitraum-Leiste bis zur „Abgabe“
 - **Push-Benachrichtigungen** auf iPhone (als Home-Bildschirm-App), Android und Desktop – Morgenübersicht, offene und überfällige Aufgaben, Prüfungserinnerungen, Lernplan-Änderungen, gemeinsame Erfolge; mit Ruhezeiten und Testnachricht
 - **Fokus-Statistik:** Lernzeit heute und Verlauf der letzten 7 Tage direkt im Dashboard (nur echte, gespeicherte Fokuszeit)
+- **Lernzeit der Gruppe:** Team-Seite zeigt die Fokuszeit jeder Person in der aktuellen Kalenderwoche (Mo–So, Europe/Berlin) und die Gruppensumme; Sitzungen über Mitternacht oder die Wochengrenze werden anteilig gezählt
+- **Hausaufgaben zählen zum Fortschritt:** jede Hausaufgabe ist ein Posten wie eine Lernplan-Aufgabe; Arbeitseinheiten/Unteraufgaben zählen anteilig, nie doppelt – überall dieselbe Berechnung (Dashboard, Team, Fächer, Statistik, Timeline)
 - **Musik-Bibliothek:** gemeinsame YouTube-Links in Kategorien (10 Lofi-Plätze, Regen, Gewitter, starker Wind, Natur, Lagerfeuer, Kamin, Konzentration, Eigene) – einmal eingetragen, für alle sichtbar; abspielbar im Fokus und auf der Seite „Musik“, in Endlosschleife (Migration 007). Dazu Lofi, Regen und Rauschen ohne Internet, live im Browser erzeugt
 - Dark/Light Mode, ruhige Designsprache „Summit“ (StudySpace 4.0) mit gerendertem Berg-Panorama und neuem Logo, Bedienelemente von [Glisse](https://glisse.kelvinzhang.com) (Tab-Leiste mit Ziehen, Schalter, Regler, Segmente), installierbar als App (PWA)
 
@@ -94,6 +96,7 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 5 | [`supabase/migrations/005_homework.sql`](supabase/migrations/005_homework.sql) | Hausaufgaben (siehe Schritt 13) |
 | 6 | [`supabase/migrations/006_server_read_access.sql`](supabase/migrations/006_server_read_access.sql) | Leserechte für die Push-Funktionen (siehe Schritt 12.1) |
 | 7 | [`supabase/migrations/007_music.sql`](supabase/migrations/007_music.sql) | Gemeinsame Musik-Bibliothek (siehe Schritt 14) |
+| 8 | [`supabase/migrations/008_focus_realtime.sql`](supabase/migrations/008_focus_realtime.sql) | optional: Lernzeiten der anderen erscheinen sofort statt nach spätestens einer Minute (ändert keine Daten) |
 
 Falls Supabase warnt, dass die Abfrage „destruktive Operationen“ enthält: Das betrifft nur `drop trigger/policy if exists` (Neuanlage). Mit **Run this query** bestätigen. Alle Skripte können gefahrlos mehrfach ausgeführt werden.
 

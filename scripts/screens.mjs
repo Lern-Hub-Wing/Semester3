@@ -3,11 +3,14 @@
 //
 // Aufruf:  npm run build:e2e && node scripts/screens.mjs [Zielordner]
 //          ONLY=dashboard,team  begrenzt die Seiten
+//          DEVICES=iphone,se    begrenzt die Geräte (desktop, ipad, iphone, se = 320 px)
+//          AUDIT=1              prüft jede Ansicht zusätzlich automatisch (Dialoge im Bild,
+//                               abgeschnittene Texte, zu kleine Tippflächen) → audit.json
 //
 // Die Beispieldaten existieren nur in diesem Skript (nicht in der App).
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db, handle, base } from './mock-supabase.mjs';
@@ -87,6 +90,26 @@ if (db.homework) {
     db.focus_sessions.push({ id: `99999999-9999-4999-8999-00000000000${i}`, member_id: db.members[0].id, module_id: null, started_at: start.toISOString(), ended_at: end.toISOString(), duration_seconds: m * 60, created_at: end.toISOString() });
   });
 }
+// Fokuszeiten der anderen (Lernzeit der Woche im Team), eine Sitzung über Mitternacht
+{
+  const weekStart = (() => {
+    const d = new Date(`${berlinToday}T12:00:00Z`);
+    return addDays(berlinToday, -((d.getUTCDay() + 6) % 7));
+  })();
+  const rows = [
+    [1, 0, '17:00', 95], [1, 1, '18:30', 120], [1, 2, '07:30', 45],
+    [2, 0, '10:00', 60], [2, 1, '21:50', 70],
+    [3, 1, '09:00', 25],
+  ];
+  rows.forEach(([mi, day, hhmm, min], i) => {
+    const d = addDays(weekStart, day);
+    if (d > berlinToday) return;
+    const start = new Date(`${d}T${hhmm}:00Z`);
+    const end = new Date(start.getTime() + min * 60000);
+    if (end > new Date()) return;
+    db.focus_sessions.push({ id: `99999999-9999-4999-8999-1000000000${String(i).padStart(2, '0')}`, member_id: db.members[mi].id, module_id: null, started_at: start.toISOString(), ended_at: end.toISOString(), duration_seconds: min * 60, created_at: end.toISOString() });
+  });
+}
 // Musik-Bibliothek (Beispiel-IDs; Vorschaubilder werden in Screenshots nicht geladen)
 if (db.music_tracks) {
   [['lofi', 'Lofi Study', 'jfKfPfyJRdk'], ['lofi', 'Lofi 2', '5qap5aO4i9A'], ['regen', 'Leichter Regen', 'mPZkdNFkNps'], ['gewitter', 'Regen & Donner', 'nDq6TstdEi8'], ['kamin', 'Kaminfeuer', 'L_LUpnjgPso']].forEach(([category, title, youtube_id], i) =>
@@ -110,24 +133,89 @@ const targets = [
   ['desktop', { viewport: { width: 1440, height: 960 } }],
   ['ipad', { ...devices['iPad Pro 11'], deviceScaleFactor: 1 }],
   ['iphone', { ...devices['iPhone 14 Pro'], deviceScaleFactor: 2 }],
+  // kleinstes unterstütztes Display (iPhone SE 1. Generation)
+  ['se', { viewport: { width: 320, height: 568 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: devices['iPhone 14 Pro'].userAgent }],
 ];
+const mobileOnly = (fn) => Object.assign(fn, { mobileOnly: true });
+const press = (name) => async (page) => page.getByRole('button', { name }).first().click();
 const pages = [
   ['picker', null],
   ['dashboard', '#/'],
   ['lernplan', '#/lernplan'],
+  ['lernplan-monat', '#/lernplan?ansicht=monat'],
+  ['lernplan-tag', '#/lernplan?ansicht=tag'],
+  ['lernplan-liste', '#/lernplan?ansicht=liste'],
   ['timeline', '#/lernplan?ansicht=timeline'],
+  ['lerntag-neu', '#/lernplan', 'Neuer Lerntag'],
   ['faecher', '#/faecher'],
-  ['team', '#/team'],
   ['fach', `#/faecher/${db.modules[0].id}`],
+  ['pruefung-neu', '#/faecher', 'Prüfung'],
+  ['fach-neu', '#/faecher', 'Fach'],
+  ['team', '#/team'],
+  ['person', `#/team/${db.members[0].id}`],
   ['hausaufgaben', '#/hausaufgaben'],
-  ['musik', '#/musik'],
   ['hausaufgabe-neu', '#/hausaufgaben', 'Neue Hausaufgabe'],
+  ['materialien', '#/materialien'],
+  ['musik', '#/musik'],
+  ['musik-neu', '#/musik', 'Neu'],
   ['fokus', '#/fokus'],
   ['fokus-einstellungen', '#/fokus', 'Fokus-Einstellungen'],
+  ['fokus-musik', '#/fokus', 'Musik'],
   ['analyse', '#/analyse'],
   ['einstellungen', '#/einstellungen'],
+  ['einst-darstellung', '#/einstellungen/darstellung'],
+  ['einst-personen', '#/einstellungen/personen'],
+  ['einst-faecher', '#/einstellungen/faecher'],
+  ['einst-daten', '#/einstellungen/daten'],
+  ['einst-info', '#/einstellungen/info'],
   ['benachrichtigungen', '#/einstellungen/benachrichtigungen'],
+  ['papierkorb', '#/papierkorb'],
+  ['verlauf', '#/verlauf'],
+  ['suche', '#/', 'Suche öffnen'],
+  ['profilmenue', '#/', /Profilmenü/],
+  ['mehr', '#/', mobileOnly(async (page) => page.getByRole('link', { name: 'Mehr' }).or(page.getByRole('tab', { name: 'Mehr' })).or(page.getByRole('button', { name: 'Mehr' })).first().click())],
 ];
+
+/** Automatische Prüfung der gerade sichtbaren Ansicht (läuft im Browser). */
+function inspect(touch) {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const visible = (el) => {
+    const r = el.getBoundingClientRect();
+    const st = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none' && Number(st.opacity) > 0.05 && r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw;
+  };
+  const txt = (el) => (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 48);
+  const out = { dialogs: [], truncated: [], small: [] };
+  // Dialoge und Menüs müssen vollständig im Bild liegen
+  for (const d of document.querySelectorAll('[role=dialog],[role=alertdialog],[role=menu]')) {
+    if (!visible(d)) continue;
+    const r = d.getBoundingClientRect();
+    if (r.left < -1 || r.right > vw + 1 || r.top < -1 || r.bottom > vh + 1) out.dialogs.push(`${txt(d).slice(0, 30)} → ${Math.round(r.left)},${Math.round(r.top)} – ${Math.round(r.right)},${Math.round(r.bottom)} (Bild ${vw}×${vh})`);
+  }
+  // Abgeschnittene Texte („…“)
+  const seen = new Set();
+  for (const el of document.querySelectorAll('body *')) {
+    if (!visible(el) || el.children.length > 3) continue;
+    const st = getComputedStyle(el);
+    const clamp = st.webkitLineClamp && st.webkitLineClamp !== 'none';
+    if ((st.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) || (clamp && el.scrollHeight > el.clientHeight + 2)) {
+      const t = txt(el);
+      if (t && !seen.has(t)) (seen.add(t), out.truncated.push(t));
+    }
+  }
+  // Tippflächen (nur Touch-Geräte): mindestens 32 px in beide Richtungen
+  if (touch) {
+    for (const el of document.querySelectorAll('button, a[href], [role=button], [role=switch], [role=checkbox], [role=radio], select, input:not([type=hidden])')) {
+      if (!visible(el) || el.closest('[inert]') || el.closest('p, li p')) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 32 || r.height < 32) out.small.push(`${txt(el) || el.tagName} (${Math.round(r.width)}×${Math.round(r.height)})`);
+    }
+    out.small = [...new Set(out.small)];
+  }
+  return out;
+}
+const audit = {};
+
 try {
   for (const scheme of ['dark', 'light']) {
     for (const [device, opts] of targets) {
@@ -168,16 +256,32 @@ try {
         await page.mouse.move(2, 2);
         await page.waitForTimeout(2300);
         if (click) {
-          await page.getByRole('button', { name: click }).first().click();
+          if (click.mobileOnly && !opts.isMobile) continue;
+          try {
+            if (typeof click === 'function') await click(page);
+            else await page.getByRole('button', { name: click, exact: typeof click === 'string' }).first().click({ timeout: 5000 });
+          } catch (e) {
+            console.log(`  ! ${device} ${name}: Aktion nicht möglich (${String(e).split('\n')[0].slice(0, 90)})`);
+            (audit[`${device}-${scheme}`] ??= {})[name] = { fehler: 'Aktion nicht möglich' };
+            continue;
+          }
           await page.waitForTimeout(900);
         }
         await page.screenshot({ path: join(OUT, `${device}-${scheme}-${name}.png`), fullPage: process.env.FULL === '1' });
-        if (click) await page.keyboard.press('Escape');
+        if (process.env.AUDIT) {
+          const res = await page.evaluate(inspect, !!opts.hasTouch);
+          if (res.dialogs.length || res.truncated.length || res.small.length) (audit[`${device}-${scheme}`] ??= {})[name] = res;
+        }
+        if (click) {
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(350);
+        }
       }
       await ctx.close();
       console.log(`✓ ${device} ${scheme}`);
     }
   }
+  if (process.env.AUDIT) writeFileSync(join(OUT, 'audit.json'), JSON.stringify(audit, null, 2));
 } finally {
   await browser.close();
   server.kill();

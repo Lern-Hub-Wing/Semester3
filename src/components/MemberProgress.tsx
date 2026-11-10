@@ -1,7 +1,7 @@
 import type { Member } from '../lib/types';
-import { memberRatio, type Ratio, type TaskView } from '../lib/progress';
+import type { Ratio } from '../lib/progress';
 import { navigate } from '../lib/router';
-import { useData } from '../store/data';
+import { useProgress } from '../store/derived';
 import { usePrefs } from '../store/prefs';
 import { ProgressBar, ProgressRing } from './ui/Progress';
 import { Avatar } from './ui/Avatar';
@@ -63,9 +63,9 @@ export function MemberProgress({ member, ratio, ringSize = 84, onClick, highligh
  * (Balken). Kreise brechen automatisch um – nie abgeschnitten, nie gequetscht.
  */
 export function TeamProgressGrid({
-  members, views, meId, ringSize = 78, className = '',
-}: { members: Member[]; views: TaskView[]; meId: string; ringSize?: number; className?: string }) {
-  const completions = useData((s) => s.task_completions);
+  members, meId, ringSize = 78, className = '',
+}: { members: Member[]; meId: string; ringSize?: number; className?: string }) {
+  const progress = useProgress();
   const style = usePrefs((s) => s.progressStyle);
   return (
     <div
@@ -77,7 +77,7 @@ export function TeamProgressGrid({
         <MemberProgress
           key={m.id}
           member={m}
-          ratio={memberRatio(views, m.id, completions)}
+          ratio={progress.member(m.id)}
           ringSize={ringSize}
           highlight={m.id === meId}
           onClick={() => navigate(`/team/${m.id}`)}

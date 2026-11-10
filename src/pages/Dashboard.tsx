@@ -36,7 +36,7 @@ export function Dashboard({ me }: { me: Member }) {
 
   const todayViews = useMemo(() => views.filter((v) => v.date === today), [views, today]);
   const overdue = useMemo(() => overdueFor(views, me.id, completions, today), [views, me.id, completions, today]);
-  const { mine, group } = useDashboardRatios(views, me, memberIds);
+  const { mine, group } = useDashboardRatios(me, memberIds);
 
   if (mobile) {
     return (
@@ -59,7 +59,7 @@ export function Dashboard({ me }: { me: Member }) {
         <HomeworkDashCard me={me} />
         {overdue.length > 0 && <OverdueCard overdue={overdue} me={me} members={members} today={today} />}
         <ProgressCard me={me} mine={mine} group={group} ringSize={104} />
-        <TeamCard me={me} members={members} views={views} />
+        <TeamCard me={me} members={members} />
         <Card className="p-4">
           <CardHeader title="Semester-Timeline" icon={<CalendarRange />} action={<TimelineLink />} />
           <SemesterTimeline compact className="mt-4" />
@@ -86,7 +86,7 @@ export function Dashboard({ me }: { me: Member }) {
       <div className="grid grid-cols-1 gap-[var(--gap-grid)] md:grid-cols-2 lg:grid-cols-12 [&>*]:min-w-0">
         <ProgressCard me={me} mine={mine} group={group} className="lg:col-span-4" />
         <div className="lg:col-span-8">
-          <TeamCard me={me} members={members} views={views} />
+          <TeamCard me={me} members={members} />
         </div>
       </div>
       <Card className="p-5 md:p-6">
@@ -157,7 +157,7 @@ function overdueText(list: TaskView[], today: string) {
   return `${n} ${word} aus vergangenen Lerntagen ${verb} noch offen.`;
 }
 
-function TeamCard({ me, members, views }: { me: Member; members: Member[]; views: TaskView[] }) {
+function TeamCard({ me, members }: { me: Member; members: Member[] }) {
   const style = usePrefs((s) => s.progressStyle);
   const setPrefs = usePrefs((s) => s.set);
   const mobile = useIsMobile();
@@ -181,7 +181,7 @@ function TeamCard({ me, members, views }: { me: Member; members: Member[]; views
         }
       />
       {/* Immer alle aktiven Personen – auf dem Handy kompakter */}
-      <TeamProgressGrid members={members} views={views} meId={me.id} ringSize={mobile ? 62 : 64} className="mt-4" />
+      <TeamProgressGrid members={members} meId={me.id} ringSize={mobile ? 62 : 64} className="mt-4" />
     </Card>
   );
 }

@@ -16,7 +16,7 @@ const API = 'https://mock-project.supabase.co';
 const routes = [
   '#/', '#/lernplan', '#/lernplan?ansicht=tag', '#/lernplan?ansicht=woche', '#/lernplan?ansicht=monat', '#/lernplan?ansicht=liste', '#/lernplan?ansicht=timeline',
   '#/hausaufgaben', '#/faecher', `#/faecher/${db.modules[4].id}`, '#/team', `#/team/${db.members[0].id}`, '#/materialien',
-  '#/fokus', '#/analyse', '#/einstellungen', '#/einstellungen/benachrichtigungen', '#/papierkorb', '#/verlauf', '#/lernmodus',
+  '#/fokus', '#/analyse', '#/einstellungen', '#/einstellungen/darstellung', '#/einstellungen/personen', '#/einstellungen/faecher', '#/einstellungen/daten', '#/einstellungen/info', '#/einstellungen/benachrichtigungen', '#/papierkorb', '#/verlauf', '#/lernmodus',
 ];
 const sizes = [
   ['320 hoch', { width: 320, height: 640 }],
