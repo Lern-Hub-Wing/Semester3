@@ -75,7 +75,10 @@ Nichts davon berührt das bisherige Supabase-Projekt. **Führe kein SQL dieser A
 
 **Secrets**
 - `APP_SUPABASE_PROJECT_REF` = `<ref>` des **neuen** Projekts (der Workflow bricht ab, falls es die Referenz des bisherigen Projekts ist)
-- `SUPABASE_ACCESS_TOKEN` existiert bereits (gilt für alle eigenen Projekte)
+- `APP_SUPABASE_ACCESS_TOKEN` = Zugriffstoken aus dem Supabase-Konto, dem das **neue** Projekt gehört
+  (supabase.com → Account → Access Tokens → Generate new token). Nur nötig, wenn das neue Projekt in einem anderen
+  Konto bzw. einer anderen Organisation liegt als das bisherige; sonst wird der vorhandene `SUPABASE_ACCESS_TOKEN` genutzt.
+  Fehlermeldung ohne passende Rechte: `403 … does not have the necessary privileges`.
 
 Ohne diese Variablen zeigt `/app/` nur einen Einrichtungshinweis – die bisherige Seite ist davon nie betroffen.
 
