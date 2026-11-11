@@ -53,4 +53,4 @@ jobs:
           mkdir -p "$RUNNER_TEMP/app/supabase/functions"
           cp -r supabase-app/functions/* "$RUNNER_TEMP/app/supabase/functions/"
           cd "$RUNNER_TEMP/app"
-          supabase functions deploy admin-auth --remote="$APP_PROJECT_REF" --no-verify-jwt --yes
+          supabase functions deploy admin-auth --project-ref "$APP_PROJECT_REF" --no-verify-jwt --yes
