@@ -35,15 +35,24 @@ jobs:
       - uses: actions/checkout@v5
       - name: Secrets prüfen
         run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$APP_PROJECT_REF" ]; then
+          # Erlaubt sind die reine Projekt-ID (z. B. abcdefghijklmnopqrst) oder die Projekt-URL
+          norm() { printf '%s' "$1" | sed -E 's#^.*/project/##; s#^[[:space:]]*https?://##; s#\.supabase\.co.*$##; s#/.*$##' | tr -d '[:space:]'; }
+          APP_REF="$(norm "$APP_PROJECT_REF")"
+          OLD_REF="$(norm "$OLD_PROJECT_REF")"
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$APP_REF" ]; then
             echo "::error::SUPABASE_ACCESS_TOKEN und APP_SUPABASE_PROJECT_REF müssen als Repository-Secrets angelegt sein (docs/APP.md)."
             exit 1
           fi
-          # Schutz: niemals in das Projekt der bisherigen Seite bereitstellen
-          if [ "$APP_PROJECT_REF" = "$OLD_PROJECT_REF" ]; then
-            echo "::error::APP_SUPABASE_PROJECT_REF ist identisch mit dem Projekt der bisherigen Seite. Abbruch."
+          if ! printf '%s' "$APP_REF" | grep -Eq '^[a-z0-9]{20}$'; then
+            echo "::error::APP_SUPABASE_PROJECT_REF ist keine gültige Projekt-ID (20 Kleinbuchstaben/Ziffern, z. B. aus https://<ID>.supabase.co)."
             exit 1
           fi
+          # Schutz: niemals in das Projekt der bisherigen Seite bereitstellen
+          if [ "$APP_REF" = "$OLD_REF" ]; then
+            echo "::error::APP_SUPABASE_PROJECT_REF zeigt auf das Projekt der bisherigen Seite. Abbruch."
+            exit 1
+          fi
+          echo "APP_REF=$APP_REF" >> "$GITHUB_ENV"
       - uses: supabase/setup-cli@v3
         with:
           version: 3.0.0
@@ -53,4 +62,5 @@ jobs:
           mkdir -p "$RUNNER_TEMP/app/supabase/functions"
           cp -r supabase-app/functions/* "$RUNNER_TEMP/app/supabase/functions/"
           cd "$RUNNER_TEMP/app"
-          supabase functions deploy admin-auth --project-ref "$APP_PROJECT_REF" --no-verify-jwt --yes
+          # Supabase CLI 3: Zielprojekt über --remote (wie beim Push-Workflow der bisherigen Seite)
+          supabase functions deploy admin-auth --remote="$APP_REF" --no-verify-jwt --yes
