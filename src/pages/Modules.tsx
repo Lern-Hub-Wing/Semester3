@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { IS_APP } from '../lib/edition';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Archive, ArrowDown, ArrowLeft, ArrowUp, BookOpen, CalendarPlus, ChevronDown, GraduationCap, Layers, Palette, Pencil, Plus,
@@ -373,13 +374,15 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
               ))}
             </div>
           </Card>
-          <Card className="p-5">
-            <CardHeader title="Lernmaterialien" icon={<BookOpen />} />
-            <div className="mt-3">
-              <FileDrop target={{ module_id: mod.id, target_type: 'module', target_id: mod.id }} />
-              <AttachmentList targetType="module" targetId={mod.id} />
-            </div>
-          </Card>
+          {!IS_APP && (
+            <Card className="p-5">
+              <CardHeader title="Lernmaterialien" icon={<BookOpen />} />
+              <div className="mt-3">
+                <FileDrop target={{ module_id: mod.id, target_type: 'module', target_id: mod.id }} />
+                <AttachmentList targetType="module" targetId={mod.id} />
+              </div>
+            </Card>
+          )}
         </div>
       </div>
       <ModuleEditor value={editing ? mod : null} onClose={() => setEditing(false)} />

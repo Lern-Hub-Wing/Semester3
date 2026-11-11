@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Archive, ArrowDown, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users,
+  Archive, ArrowDown, Crown, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
@@ -32,8 +32,16 @@ import { ColorPicker } from '../components/ui/ColorPicker';
 import { AddMemberDialog, MemberColorEditor } from './Team';
 import { ModuleEditor } from './Modules';
 import { StatusPill } from '../components/layout/StatusPill';
+import { Row, Section } from '../components/ui/SettingsCard';
+import { IS_APP } from '../lib/edition';
+import { AccountSection, GroupSection, PlusSection } from '../app/AccountSettings';
+import { useAccount } from '../app/account';
+import { plusLabel } from '../app/api';
 
 const SECTIONS = {
+  konto: { title: 'Konto', render: () => <AccountSection /> },
+  gruppe: { title: 'Lerngruppe', render: () => <GroupSection /> },
+  plus: { title: 'Plus & Tarife', render: () => <PlusSection /> },
   darstellung: { title: 'Darstellung & Bedienung', render: () => <Appearance /> },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
@@ -41,7 +49,9 @@ const SECTIONS = {
   info: { title: 'Über StudySpace', render: () => <General /> },
 } as const;
 type SectionKey = keyof typeof SECTIONS;
-const isSection = (k: string | undefined): k is SectionKey => !!k && k in SECTIONS;
+/** Bisherige Seite: ohne Konto/Gruppe/Plus. App: ohne Personen (kommen per Einladung) und ohne Import. */
+const AVAILABLE: SectionKey[] = IS_APP ? ['konto', 'gruppe', 'plus', 'darstellung', 'faecher', 'info'] : ['darstellung', 'personen', 'faecher', 'daten', 'info'];
+const isSection = (k: string | undefined): k is SectionKey => !!k && (AVAILABLE as string[]).includes(k);
 
 /**
  * Einstellungen: ruhige Übersicht als gruppierte Liste; jede Kategorie ist
@@ -50,7 +60,7 @@ const isSection = (k: string | undefined): k is SectionKey => !!k && k in SECTIO
  */
 export function Settings({ section }: { section?: string }) {
   const wide = useMediaQuery('(min-width: 1024px)');
-  if (section === 'benachrichtigungen') return <NotificationSettings />;
+  if (section === 'benachrichtigungen' && !IS_APP) return <NotificationSettings />;
   const key = isSection(section) ? section : null;
 
   if (!wide) {
@@ -72,7 +82,7 @@ export function Settings({ section }: { section?: string }) {
     );
   }
 
-  const active = key ?? 'darstellung';
+  const active = key ?? (IS_APP ? 'konto' : 'darstellung');
   return (
     <div>
       <PageHeader title="Einstellungen" />
@@ -102,6 +112,47 @@ const PUSH_LABEL: Record<string, string> = {
 
 /** Übersicht aller Einstellungen als gruppierte Liste mit dem jeweils aktuellen Stand */
 function SettingsNav({ active }: { active?: SectionKey }) {
+  if (IS_APP) return <AppSettingsNav active={active} />;
+  return <SiteSettingsNav active={active} />;
+}
+
+/** App: Konto, Lerngruppe und Plus zuerst; keine Push-Anbindung, keine Personenverwaltung. */
+function AppSettingsNav({ active }: { active?: SectionKey }) {
+  const theme = usePrefs((s) => s.theme);
+  const modules = useModules();
+  const me = useAccount((s) => s.me);
+  const email = useAccount((s) => s.session?.user.email);
+  const group = me?.groups.find((g) => g.id === me.active_group_id);
+  const musicAvailable = useMusic((s) => s.available);
+  const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
+  const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
+  return (
+    <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
+      <ProfileCard />
+      <ListGroup title="Konto">
+        <ListRow icon={<UserRound />} tint="#6F7BF7" label="Konto" value={email} {...row('konto')} testId="settings-account" />
+        <ListRow icon={<Users />} tint="#2FA58B" label="Lerngruppe" value={group?.name} {...row('gruppe')} testId="settings-group" />
+        <ListRow icon={<Crown />} tint="#B57BF0" label="Plus & Tarife" value={me?.has_plus ? 'Plus' : group ? plusLabel(group) : 'Free'} {...row('plus')} testId="settings-plus" />
+      </ListGroup>
+      <ListGroup title="Dieses Gerät">
+        <ListRow icon={<Palette />} tint="#7C6FF0" label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
+      </ListGroup>
+      <ListGroup title="Lernen">
+        <ListRow icon={<BookOpen />} tint="#3D8BE0" label="Fächer" value={modules.length} {...row('faecher')} />
+        <ListRow icon={<Music2 />} tint="#E0559A" label="Musik-Bibliothek" value={musicAvailable === false ? 'nicht verfügbar' : `${tracks} Titel`} to="/musik" testId="settings-music" />
+      </ListGroup>
+      <ListGroup title="Daten">
+        <ListRow icon={<Trash2 />} tint="#E5484D" label="Papierkorb" to="/papierkorb" />
+        <ListRow icon={<History />} tint="#7A8499" label="Änderungsverlauf" to="/verlauf" />
+      </ListGroup>
+      <ListGroup>
+        <ListRow icon={<Info />} tint="#8E8E93" label="Über StudySpace" value={config.version} {...row('info')} />
+      </ListGroup>
+    </nav>
+  );
+}
+
+function SiteSettingsNav({ active }: { active?: SectionKey }) {
   const phase = usePush((s) => s.phase);
   const theme = usePrefs((s) => s.theme);
   const members = useAllMembers();
@@ -141,32 +192,6 @@ function SettingsNav({ active }: { active?: SectionKey }) {
         <ListRow icon={<Info />} tint="#8E8E93" label="Über StudySpace" value={config.version} {...row('info')} />
       </ListGroup>
     </nav>
-  );
-}
-
-/** Inhalt einer Kategorie: Überschrift steht bereits auf der Seite, hier nur Hinweis + Karte. */
-function Section({ children, hint, className = '' }: { title?: string; icon?: ReactNode; children: ReactNode; hint?: string; className?: string }) {
-  return (
-    <div className={className}>
-      <div className="settings-card">{children}</div>
-      {hint && <p className="list-group-footer">{hint}</p>}
-    </div>
-  );
-}
-
-/**
- * Eine Einstellung. `inline`: Bedienelement (z. B. Schalter) steht auch auf
- * dem Handy rechts neben der Beschriftung, sonst darunter in voller Breite.
- */
-function Row({ label, hint, children, inline }: { label: string; hint?: string; children: ReactNode; inline?: boolean }) {
-  return (
-    <div className={`flex gap-2 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 ${inline ? 'flex-row items-center justify-between gap-4' : 'flex-col sm:flex-row sm:items-center sm:justify-between'}`}>
-      <div className="min-w-0">
-        <p className="text-[14.5px] font-medium">{label}</p>
-        {hint && <p className="mt-0.5 text-[12.5px] leading-snug text-muted">{hint}</p>}
-      </div>
-      <div className="shrink-0">{children}</div>
-    </div>
   );
 }
 

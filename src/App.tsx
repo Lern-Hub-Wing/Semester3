@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { config } from './lib/config';
+import { IS_APP } from './lib/edition';
+import { AppGate, PlusBanner } from './app/AppGate';
+import { Splash } from './app/AuthScreen';
 import { EASE_OUT } from './lib/motion';
 import { matchPath, navigate, useLocation } from './lib/router';
 import { useAppearance } from './hooks/useAppearance';
@@ -77,7 +80,8 @@ function Routes({ me, path }: { me: Member; path: string }) {
   if ((p = matchPath('/team/:id', path))) return <MemberDetail id={p.id} me={me} />;
   // Prüfungen gehören seit 4.1 zu den Fächern – alte Links führen dorthin
   if (path === '/pruefungen') return <RedirectTo to="/faecher" />;
-  if (path === '/materialien') return <Materials />;
+  // Die App hat keine Dateien – alte Links führen zum Dashboard
+  if (path === '/materialien') return IS_APP ? <RedirectTo to="/" /> : <Materials />;
   if (path === '/einstellungen') return <Settings />;
   if ((p = matchPath('/einstellungen/:section', path))) return <Settings section={p.section} />;
   if (path === '/hausaufgaben') return <Homework me={me} />;
@@ -109,21 +113,26 @@ function Main() {
 
   useEffect(() => {
     startSync();
-    installResumePrompt();
+    // App: Lernprofil kommt aus dem Konto – keine Profilwahl, keine Push-Anbindung an das alte Projekt
+    if (!IS_APP) installResumePrompt();
     installSpotlight();
-    void initPush();
+    if (!IS_APP) void initPush();
   }, []);
 
   // Gewähltes Profil wurde deaktiviert oder existiert nicht mehr → zurück zur Auswahl
   useEffect(() => {
-    if (phase === 'ready' && activeId && (!me || !me.is_active)) select(null);
+    if (!IS_APP && phase === 'ready' && activeId && (!me || !me.is_active)) select(null);
   }, [phase, activeId, me, select]);
 
   return (
     <LayoutGroup>
       <AnimatePresence mode="wait">
         {!me || !me.is_active ? (
-          <ProfilePicker key="picker" />
+          IS_APP ? (
+            <Splash key="splash" />
+          ) : (
+            <ProfilePicker key="picker" />
+          )
         ) : path === '/lernmodus' ? (
           // Lernmodus: Vollbild ohne App-Rahmen
           <Suspense key="study" fallback={<div className="fixed inset-0 bg-[#0C1018]" />}>
@@ -131,6 +140,7 @@ function Main() {
           </Suspense>
         ) : (
           <AppShell key="app" inert={isFocus}>
+            {IS_APP && <PlusBanner />}
             <Suspense fallback={<PageSkeleton />}>
               {/* Unter dem Fokus bleibt die vorige Seite stehen */}
               <Routes me={me} path={isFocus ? returnPath() : path} />
@@ -156,15 +166,15 @@ function Main() {
       <MountainFlight />
       {me && <CelebrationWatcher />}
       {me && <FocusWatcher />}
-      {me && me.is_active && <PushOnboarding me={me} />}
-      {me && me.is_active && <PushMemberSwitch me={me} members={members} />}
+      {!IS_APP && me && me.is_active && <PushOnboarding me={me} />}
+      {!IS_APP && me && me.is_active && <PushMemberSwitch me={me} members={members} />}
       {me && <BadgeSync me={me} />}
       <EntryEditor />
       {me && <HomeworkEditor />}
       {me && <MiniPlayer />}
       <MoveTaskDialog />
       <SearchPalette />
-      <AttachmentPreview />
+      {!IS_APP && <AttachmentPreview />}
     </LayoutGroup>
   );
 }
@@ -173,7 +183,17 @@ export default function App() {
   const { reducedMotion } = useAppearance();
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'} transition={{ ease: EASE_OUT }}>
-      {config.isConfigured && !config.usesForbiddenKey ? <Main /> : <Setup />}
+      {config.isConfigured && !config.usesForbiddenKey ? (
+        IS_APP ? (
+          <AppGate>
+            <Main />
+          </AppGate>
+        ) : (
+          <Main />
+        )
+      ) : (
+        <Setup />
+      )}
       <Toasts />
     </MotionConfig>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, History, Music2, Search, Settings, Trash2, Users } from 'lucide-react';
+import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, History, Music2, Search, Settings, Trash2, Users, UsersRound } from 'lucide-react';
+import { IS_APP } from '../../lib/edition';
 import { Link, navigate, useLocation } from '../../lib/router';
 import { useAppName, useCurrentMember, useTaskViews } from '../../store/derived';
 import { useData } from '../../store/data';
@@ -102,7 +103,7 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
           <IconButton label="Suche öffnen" variant="glass" size="sm" className="!size-10 !rounded-full" onClick={() => setUI({ searchOpen: true })}>
             <Search className="size-[18px]" />
           </IconButton>
-          <BellButton />
+          {!IS_APP && <BellButton />}
           <ProfileMenu />
         </header>
         <main id="main" className="pb-tabbar mx-auto w-full max-w-[1360px] px-4 pt-2 md:px-6 lg:px-8">
@@ -219,7 +220,11 @@ function MoreSheet() {
         <ListGroup title="Lernen">
           <ListRow icon={<BookOpen />} tint="#7C6FF0" label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} />
           <ListRow icon={<Users />} tint="#2FA58B" label="Team" value={memberCount || undefined} onClick={go('/team')} />
-          <ListRow icon={<FileText />} tint="#3D8BE0" label="Materialien" onClick={go('/materialien')} />
+          {IS_APP ? (
+            <ListRow icon={<UsersRound />} tint="#3D8BE0" label="Lerngruppe" onClick={go('/einstellungen/gruppe')} testId="more-group" />
+          ) : (
+            <ListRow icon={<FileText />} tint="#3D8BE0" label="Materialien" onClick={go('/materialien')} />
+          )}
           <ListRow icon={<Music2 />} tint="#E0559A" label="Musik" value={tracks ? `${tracks} Titel` : undefined} onClick={go('/musik')} />
         </ListGroup>
 

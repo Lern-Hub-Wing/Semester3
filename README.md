@@ -22,6 +22,10 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 
 > **Wichtiger Hinweis zur Sicherheit:** StudySpace hat bewusst **keine Anmeldung**. Jede Person mit dem Link kann alle Inhalte sehen und bearbeiten. Die Auswahl „Wer lernt heute?“ ist **keine Identitätsprüfung** – Einträge wie „von Person 2 geändert“ sind nicht verifiziert. Ohne echte Authentifizierung gibt es **keinen verlässlichen Schutz gegen absichtliche Änderungen durch Dritte**, die den Link kennen. StudySpace ist deshalb **nicht für vertrauliche, personenbezogene oder sensible Dokumente** gedacht. Schutzmaßnahmen: Soft Delete (Papierkorb) statt Löschen, keine Löschrechte in der Datenbank, Rate Limits, Eingabeprüfungen, regelmäßige Exporte.
 
+> **Neue App mit Konten (`/app/`):** Die kommerzielle StudySpace-App mit Anmeldung (E-Mail, Google, Apple), beliebig vielen Lerngruppen,
+> Free/Plus und Admin-Bereich liegt unter `https://lern-hub-wing.github.io/Semester3/app/` – mit **eigenem** Supabase-Projekt und ohne Uploads.
+> Diese Seite hier bleibt unverändert. Einrichtung und Regeln: [docs/APP.md](docs/APP.md).
+
 ---
 
 ## Inhalt

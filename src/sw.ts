@@ -23,8 +23,18 @@ clientsClaim();
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+/**
+ * Die neue App liegt unter /…/app/ (eigener Service Worker, eigener Bereich).
+ * Der Service Worker der bisherigen Seite darf sie NIE mit seiner index.html
+ * beantworten – und die App liefert ihren Admin-Bereich (/app/admin/) selbst aus.
+ */
+const IS_APP_SCOPE = /\/app\/$/.test(new URL(self.registration.scope).pathname);
 // Alle App-Routen liefern index.html (Hash-Router); Hilfsseiten unter /einrichtung/ bleiben eigenständig
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/\/einrichtung\//] }));
+registerRoute(
+  new NavigationRoute(createHandlerBoundToURL('index.html'), {
+    denylist: IS_APP_SCOPE ? [/\/admin\//] : [/\/einrichtung\//, /\/app\//],
+  }),
+);
 
 // Hochgeladene Dateien haben eindeutige, unveränderliche Pfade.
 registerRoute(
@@ -89,7 +99,8 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const existing = windows.find((c) => c.url.startsWith(self.registration.scope));
+      // Fenster der neuen App (/app/) gehören nicht zur bisherigen Seite
+      const existing = windows.find((c) => c.url.startsWith(self.registration.scope) && (IS_APP_SCOPE || !new URL(c.url).pathname.includes('/app/')));
       if (existing) {
         await existing.focus().catch(() => undefined);
         existing.postMessage({ type: 'studyspace:navigate', hash });

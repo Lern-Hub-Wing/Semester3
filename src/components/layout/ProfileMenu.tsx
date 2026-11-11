@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { spring } from '../../lib/motion';
 import { PresenceDiv } from '../ui/PresenceDiv';
-import { ArrowLeftRight, Settings, UserRoundPen } from 'lucide-react';
+import { ArrowLeftRight, LogOut, Settings, UserRound, UserRoundPen, UsersRound } from 'lucide-react';
+import { IS_APP } from '../../lib/edition';
+import { signOut } from '../../app/account';
 import { navigate } from '../../lib/router';
 import { useSession } from '../../store/session';
 import { useActiveMembers, useCurrentMember } from '../../store/derived';
@@ -65,12 +67,12 @@ export function ProfileMenu() {
               <Avatar name={me.name} color={me.color} size={40} ring />
               <div className="min-w-0">
                 <p className="truncate font-semibold">{me.name}</p>
-                <p className="text-xs text-muted">Aktives Lernprofil</p>
+                <p className="text-xs text-muted">{IS_APP ? 'Angemeldet' : 'Aktives Lernprofil'}</p>
               </div>
             </div>
             <div className="my-1 h-px bg-[var(--ss-line)]" />
-            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-faint">Person wechseln</p>
-            {members
+            {!IS_APP && <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-faint">Person wechseln</p>}
+            {!IS_APP && members
               .filter((m) => m.id !== me.id)
               .map((m) => (
                 <button
@@ -88,12 +90,20 @@ export function ProfileMenu() {
                   <span className="truncate">{m.name}</span>
                 </button>
               ))}
-            <div className="my-1 h-px bg-[var(--ss-line)]" />
-            {[
-              { label: 'Zur Personenauswahl', icon: ArrowLeftRight, run: () => select(null) },
-              { label: 'Profil bearbeiten', icon: UserRoundPen, run: () => navigate(`/team/${me.id}`) },
-              { label: 'Einstellungen', icon: Settings, run: () => navigate('/einstellungen') },
-            ].map((item) => (
+            {!IS_APP && <div className="my-1 h-px bg-[var(--ss-line)]" />}
+            {(IS_APP
+              ? [
+                  { label: 'Konto', icon: UserRound, run: () => navigate('/einstellungen/konto') },
+                  { label: 'Lerngruppe', icon: UsersRound, run: () => navigate('/einstellungen/gruppe') },
+                  { label: 'Einstellungen', icon: Settings, run: () => navigate('/einstellungen') },
+                  { label: 'Abmelden', icon: LogOut, run: () => void signOut() },
+                ]
+              : [
+                  { label: 'Zur Personenauswahl', icon: ArrowLeftRight, run: () => select(null) },
+                  { label: 'Profil bearbeiten', icon: UserRoundPen, run: () => navigate(`/team/${me.id}`) },
+                  { label: 'Einstellungen', icon: Settings, run: () => navigate('/einstellungen') },
+                ]
+            ).map((item) => (
               <button
                 key={item.label}
                 role="menuitem"

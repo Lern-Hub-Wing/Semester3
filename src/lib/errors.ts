@@ -1,4 +1,11 @@
 /** Übersetzt technische Fehler in verständliche Meldungen. */
+import { IS_APP } from './edition';
+
+/** Regeln der App (Plus, Kontingente, Gruppen): die Datenbank liefert schon verständliche Texte. */
+const APP_HINTS = new Set([
+  'plus_required', 'quota_active', 'quota_daily', 'member_limit', 'group_limit', 'invalid_code', 'owner_cannot_leave',
+  'confirm', 'no_group', 'cross_group', 'group_immutable', 'admin_required',
+]);
 
 export class ConflictError extends Error {
   constructor(message = 'Der Inhalt wurde inzwischen auf einem anderen Gerät geändert.') {
@@ -30,6 +37,12 @@ export function describeError(err: unknown): string {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return new OfflineError().message;
   if (/Failed to fetch|NetworkError|Load failed|fetch failed/i.test(msg)) {
     return 'Keine Verbindung zur Datenbank – die Änderung wurde nicht gespeichert.';
+  }
+  if (IS_APP) {
+    if (e.hint && APP_HINTS.has(e.hint) && msg) return msg;
+    if (e.code === 'PGRST301' || /JWT expired/i.test(msg)) return 'Deine Anmeldung ist abgelaufen. Bitte neu anmelden.';
+    if (/row-level security|permission denied/i.test(msg) || e.code === '42501') return 'Das ist in deiner Lerngruppe nicht erlaubt.';
+    if (e.code === 'P0001' && msg) return msg;
   }
   switch (e.hint) {
     case 'rate_limit':

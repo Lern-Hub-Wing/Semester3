@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { IS_APP } from '../lib/edition';
 import { ArrowDown, ArrowUp, FileText, Plus, Trash2, X } from 'lucide-react';
 import { LIMITS } from '../lib/config';
 import { checkFile, formatBytes } from '../lib/files';
@@ -342,6 +343,8 @@ export function EntryEditor() {
           )}
         </FieldWrap>
 
+        {/* Die App hat keine Datei-Uploads */}
+        {!IS_APP && (
         <FieldWrap label="Dateien (optional)">
           {() =>
             entry ? (
@@ -370,6 +373,7 @@ export function EntryEditor() {
             )
           }
         </FieldWrap>
+        )}
         <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>
       )}

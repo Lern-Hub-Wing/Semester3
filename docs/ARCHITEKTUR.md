@@ -237,3 +237,14 @@ Diese Punkte lassen sich nur mit einem echten Supabase-Projekt prüfen:
 - [ ] Prüfungstermin verschieben → Erinnerungen folgen dem neuen Termin.
 
 Automatisch geprüft werden (siehe README → Tests): Tests A, B, D, E, F, G, H, I, K, L, M sowie Datenbankrechte, Trigger und der Fehler-/Rücksprungfall.
+
+## Neue App mit Konten und Gruppen (`/app/`, siehe [APP.md](APP.md))
+
+- **Eine Codebasis, zwei Ausgaben:** `VITE_EDITION=app` schaltet `src/app/*` ein (Anmeldung, Gruppen, Tarife) und blendet Uploads,
+  Materialien, Profilwahl und die Push-Anbindung des alten Projekts aus. Die bisherige Seite wird ohne diesen Schalter gebaut und bleibt identisch.
+- **Datenbank:** eigenes Supabase-Projekt. `supabase-app/app_schema.sql` = gemeinsame Migrationen (ohne Storage) + `supabase-app/migrations/*`
+  (Mandantenfähigkeit über `group_id`, RLS über `app.active_group()`, Tarife in `entitlements`, Admin-Funktionen mit `aal2`).
+- **Ablauf im Client:** `AppGate` → Anmeldung → Gruppe → gewohnte Oberfläche. Das Lernprofil (`members`) gehört zum Konto; der
+  Zwischenspeicher ist je Konto und Gruppe getrennt und wird beim Abmelden gelöscht. Gruppenwechsel lädt die App neu.
+- **Admin:** `admin/index.html` + `src/admin/*`, eigener Supabase-Client (Sitzung nur im Tab), Anmeldung „Luke“ über die Edge Function
+  `admin-auth`, danach TOTP. Alle Rechte prüft die Datenbank.

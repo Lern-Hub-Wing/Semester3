@@ -8,6 +8,11 @@
 #   VITE_SUPABASE_PUBLISHABLE_KEY  der Publishable Key (sb_publishable_…) – NIEMALS den Secret Key!
 #   VITE_MAX_UPLOAD_MB             optional, Standard 10
 #   VITE_VAPID_PUBLIC_KEY          optional, öffentlicher VAPID-Schlüssel für Push (README, Schritt 12)
+#
+# Neue App unter /app/ (EIGENES Supabase-Projekt, siehe docs/APP.md):
+#   VITE_APP_SUPABASE_URL              URL des App-Projekts
+#   VITE_APP_SUPABASE_PUBLISHABLE_KEY  Publishable Key des App-Projekts
+# Fehlen sie, zeigt /app/ einen Einrichtungshinweis – die bisherige Seite bleibt unberührt.
 name: Test & Deploy
 
 on:
@@ -50,7 +55,7 @@ jobs:
         # bei Netzwerkproblemen wird bis zu dreimal neu versucht.
         run: |
           for i in 1 2 3; do
-            npx --yes deno@2.5.6 check supabase/functions/push-api/index.ts supabase/functions/push-scheduler/index.ts && exit 0
+            npx --yes deno@2.5.6 check supabase/functions/push-api/index.ts supabase/functions/push-scheduler/index.ts supabase-app/functions/admin-auth/index.ts && exit 0
             echo "Versuch $i fehlgeschlagen – neuer Versuch in 10 s"; sleep 10
           done
           exit 1
@@ -60,6 +65,14 @@ jobs:
         run: npm run test:db
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: App-Datenbankschema aktuell?
+        run: node scripts/build-app-schema.mjs --check
+      - name: App-Datenbanktests (Gruppen-Trennung, Tarife, Admin, parallele Beitritte)
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -c 'create database app_test'
+          npm run test:db:app
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_test
       - name: Browser installieren
         run: |
           npm install --no-save playwright@1.64.1
@@ -68,6 +81,10 @@ jobs:
         run: |
           npm run build:e2e
           npm run test:e2e
+      - name: Browsertests der neuen App und des Admin-Bereichs
+        run: |
+          npm run build:e2e:app
+          npm run test:e2e:app
 
   deploy:
     name: Deploy to GitHub Pages
@@ -106,9 +123,17 @@ jobs:
           if [ -z "$URL" ]; then
             echo "::warning::VITE_SUPABASE_URL ist nicht gesetzt – die Seite zeigt den Einrichtungsbildschirm. Siehe README, Schritt 9."
           fi
+      - name: Build der neuen App (/app/, eigenes Supabase-Projekt)
+        run: npm run build:app
+        env:
+          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/app/
+          VITE_SUPABASE_URL: ${{ vars.VITE_APP_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_APP_SUPABASE_PUBLISHABLE_KEY }}
       - name: SPA-Fallback und .nojekyll
         run: |
           cp dist/index.html dist/404.html
+          # Die App liegt als eigener Bereich neben der bisherigen Seite
+          cp -r dist-app dist/app
           touch dist/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

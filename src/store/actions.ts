@@ -16,6 +16,7 @@ import type {
 } from '../lib/types';
 import { buildStoragePath, checkFile, sniffMatches } from '../lib/files';
 import { config } from '../lib/config';
+import { IS_APP } from '../lib/edition';
 import { useData } from './data';
 import { write, type WriteResult } from './engine';
 import { getActiveMemberId } from './session';
@@ -437,6 +438,8 @@ export interface UploadTarget {
 }
 
 export async function uploadFile(file: File, target: UploadTarget): Promise<boolean> {
+  // Sicherheitsnetz: die App lädt nie Dateien hoch (Server sperrt es ebenfalls)
+  if (IS_APP) return false;
   const check = checkFile(file);
   if (!check.ok) {
     toast.error(check.reason);
@@ -497,7 +500,7 @@ export async function setSetting(key: SettingKey, value: unknown) {
     key,
     optimistic: current ? { ...current, value } : { key, value, version: 0, updated_at: t, changed_by: actor() },
     run: async () => {
-      const { data, error } = await sb().from('app_settings').upsert({ key, value, changed_by: actor() }, { onConflict: 'key' }).select().single();
+      const { data, error } = await sb().from('app_settings').upsert({ key, value, changed_by: actor() }, { onConflict: IS_APP ? 'group_id,key' : 'key' }).select().single();
       if (error) throw error;
       return data as RowByTable['app_settings'];
     },
