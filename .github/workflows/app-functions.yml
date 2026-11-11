@@ -4,7 +4,9 @@
 # oder manuell: Actions → „App: Edge Functions bereitstellen“ → Run workflow.
 #
 # Benötigte Repository-SECRETS:
-#   SUPABASE_ACCESS_TOKEN      persönlicher Zugriffstoken (gilt für alle eigenen Projekte)
+#   APP_SUPABASE_ACCESS_TOKEN  Zugriffstoken des Supabase-Kontos, dem das NEUE Projekt gehört
+#                              (optional – sonst wird SUPABASE_ACCESS_TOKEN verwendet; das klappt
+#                              nur, wenn beide Projekte im selben Konto/derselben Organisation liegen)
 #   APP_SUPABASE_PROJECT_REF   Projekt-Referenz des NEUEN App-Projekts (NICHT die der bisherigen Seite)
 name: 'App: Edge Functions bereitstellen'
 
@@ -28,7 +30,8 @@ jobs:
     name: admin-auth
     runs-on: ubuntu-latest
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Eigener Token für das App-Projekt hat Vorrang (bisheriger Push-Workflow bleibt unberührt)
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.APP_SUPABASE_ACCESS_TOKEN || secrets.SUPABASE_ACCESS_TOKEN }}
       APP_PROJECT_REF: ${{ secrets.APP_SUPABASE_PROJECT_REF }}
       OLD_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
@@ -63,4 +66,7 @@ jobs:
           cp -r supabase-app/functions/* "$RUNNER_TEMP/app/supabase/functions/"
           cd "$RUNNER_TEMP/app"
           # Supabase CLI 3: Zielprojekt über --remote (wie beim Push-Workflow der bisherigen Seite)
-          supabase functions deploy admin-auth --remote="$APP_REF" --no-verify-jwt --yes
+          if ! supabase functions deploy admin-auth --remote="$APP_REF" --no-verify-jwt --yes; then
+            echo "::error::Bereitstellung abgelehnt. Bei „403 … necessary privileges“: Zugriffstoken stammt aus einem Konto ohne Rechte am App-Projekt. Im Konto des App-Projekts unter supabase.com → Account → Access Tokens einen Token erzeugen und als Secret APP_SUPABASE_ACCESS_TOKEN speichern (docs/APP.md, Schritt 6)."
+            exit 1
+          fi
