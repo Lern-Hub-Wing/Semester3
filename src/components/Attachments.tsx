@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react';
+import { IS_APP } from '../lib/edition';
 import { motion } from 'motion/react';
 import { Download, ExternalLink, FileText, ImageIcon, Trash2, Upload } from 'lucide-react';
 import type { Attachment, AttachmentTarget } from '../lib/types';
@@ -21,7 +22,13 @@ export function useAttachments(filter: (a: Attachment) => boolean, deps: unknown
 }
 
 /** Uploadbereich: Drag & Drop am Desktop, großer Button auf dem Smartphone. */
-export function FileDrop({ target, disabled, onUploaded }: { target: UploadTarget | null; disabled?: boolean; onUploaded?: () => void }) {
+export function FileDrop(props: { target: UploadTarget | null; disabled?: boolean; onUploaded?: () => void }) {
+  // Die App hat keine Datei-Uploads
+  if (IS_APP) return null;
+  return <FileDropInner {...props} />;
+}
+
+function FileDropInner({ target, disabled, onUploaded }: { target: UploadTarget | null; disabled?: boolean; onUploaded?: () => void }) {
   const mobile = useIsMobile();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -101,7 +108,12 @@ export function FileDrop({ target, disabled, onUploaded }: { target: UploadTarge
 }
 
 /** Liste der Anhänge eines Ziels (Modul, Thema, Lerntag oder Aufgabe). */
-export function AttachmentList({ targetType, targetId, compact }: { targetType: AttachmentTarget; targetId: string; compact?: boolean }) {
+export function AttachmentList(props: { targetType: AttachmentTarget; targetId: string; compact?: boolean }) {
+  if (IS_APP) return null;
+  return <AttachmentListInner {...props} />;
+}
+
+function AttachmentListInner({ targetType, targetId, compact }: { targetType: AttachmentTarget; targetId: string; compact?: boolean }) {
   const items = useAttachments((a) => a.target_type === targetType && a.target_id === targetId, [targetType, targetId]);
   if (!items.length) return null;
   return (

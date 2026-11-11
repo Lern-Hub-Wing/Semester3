@@ -8,8 +8,16 @@ import { applyHomeworkChange, loadHomework } from './homework';
 import { applyMusicChange, loadMusic } from './music';
 import { applyFocusChange } from './focus';
 
-const CACHE_KEY = 'studyspace.cache.v1';
+import { IS_APP } from '../lib/edition';
+
+/** Zwischenspeicher; die App setzt einen eigenen Schlüssel je Konto und Gruppe. */
+let CACHE_KEY = 'studyspace.cache.v1';
+export function setCacheKey(key: string) {
+  CACHE_KEY = key;
+}
 const PAGE = 1000;
+/** In der App gibt es keine Dateien – die Tabelle ist dort gesperrt. */
+const SYNC_TABLES: TableName[] = IS_APP ? TABLES.filter((t) => t !== 'attachments') : TABLES;
 
 const ORDER: Record<TableName, string[]> = {
   members: ['id'],
@@ -48,8 +56,8 @@ export function resync(): Promise<void> {
       // Hausaufgaben unabhängig laden – ihr Fehlen (Migration 005) stört den Rest nicht
       void loadHomework();
       void loadMusic();
-      const results = await Promise.all(TABLES.map((t) => fetchTable(t)));
-      TABLES.forEach((t, i) => replaceTable(t, results[i] as RowByTable[typeof t][]));
+      const results = await Promise.all(SYNC_TABLES.map((t) => fetchTable(t)));
+      SYNC_TABLES.forEach((t, i) => replaceTable(t, results[i] as RowByTable[typeof t][]));
       useData.setState({ phase: 'ready', fromCache: false, error: null, lastSyncAt: Date.now() });
       saveCacheSoon();
     } catch (err) {

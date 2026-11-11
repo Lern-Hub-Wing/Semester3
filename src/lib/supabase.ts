@@ -1,17 +1,22 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from './config';
+import { IS_APP } from './edition';
+import { authStorage } from '../app/authStorage';
 
 let client: SupabaseClient | null = null;
 
 /**
  * Supabase-Client mit dem öffentlichen Publishable Key.
- * Es gibt keine Anmeldung – Sitzungen werden weder angelegt noch gespeichert.
+ * Bisherige Seite: keine Anmeldung – Sitzungen werden weder angelegt noch gespeichert.
+ * Neue App: echte Konten (Supabase Auth, PKCE), Sitzung wird automatisch erneuert.
  */
 export function getSupabase(): SupabaseClient {
   if (!config.isConfigured) throw new Error('Supabase ist nicht konfiguriert.');
   if (!client) {
     client = createClient(config.supabaseUrl, config.supabaseKey, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      auth: IS_APP
+        ? { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce', storage: authStorage, storageKey: 'studyspace-app-auth' }
+        : { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       realtime: { params: { eventsPerSecond: 20 } },
       global: { headers: { 'x-application-name': 'studyspace' } },
     });

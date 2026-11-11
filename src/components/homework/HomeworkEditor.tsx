@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { IS_APP } from '../../lib/edition';
 import { ArrowRight, CalendarRange, Plus, RefreshCw, X } from 'lucide-react';
 import { distributeUnits, replanUnits, suggestedUnits, unitTitle, workWindow, type Priority, type ReplanChange } from '../../lib/homework';
 import { formatISODate, instantToZoned } from '../../lib/time';
@@ -290,7 +291,7 @@ function EditorBody({ id, onClose }: { id?: UUID; onClose: () => void }) {
                     Unteraufgabe
                   </Button>
                 </div>
-                {id && me && (
+                {!IS_APP && id && me && (
                   <div>
                     <p className="mb-1.5 text-[13px] font-medium text-muted">Anhänge</p>
                     <AttachmentList targetType="homework" targetId={id} compact />

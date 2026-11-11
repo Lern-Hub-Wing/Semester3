@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_MAX_UPLOAD_MB?: string;
   readonly VITE_BASE_PATH?: string;
   readonly VITE_VAPID_PUBLIC_KEY?: string;
+  /** „app“ = neue App mit Konten (eigenes Supabase-Projekt) */
+  readonly VITE_EDITION?: string;
 }
 
 interface ImportMeta {

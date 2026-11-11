@@ -1,3 +1,4 @@
+import { IS_APP } from '../../lib/edition';
 import { BookOpen, CalendarDays, ChartLine, Ellipsis, FileText, House, Music2, NotebookPen, Settings, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
@@ -10,7 +11,7 @@ export interface NavItem {
   short?: string;
 }
 
-export const NAV: NavItem[] = [
+const ALL_NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', short: 'Home', icon: House, group: 'main' },
   { to: '/fokus', label: 'Fokus', icon: Timer, group: 'main' },
   { to: '/lernplan', label: 'Lernplan', short: 'Plan', icon: CalendarDays, group: 'main' },
@@ -22,6 +23,9 @@ export const NAV: NavItem[] = [
   { to: '/musik', label: 'Musik', icon: Music2, group: 'main' },
   { to: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: Settings, group: 'tools' },
 ];
+
+/** In der App gibt es keine Dateien (keine Materialien-Seite). */
+export const NAV: NavItem[] = IS_APP ? ALL_NAV.filter((n) => n.to !== '/materialien') : ALL_NAV;
 
 export const MOBILE_NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: House },

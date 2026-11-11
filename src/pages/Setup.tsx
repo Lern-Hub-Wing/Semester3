@@ -1,5 +1,6 @@
 import { Database, ShieldAlert } from 'lucide-react';
 import { config } from '../lib/config';
+import { IS_APP } from '../lib/edition';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
 
@@ -28,7 +29,13 @@ export function Setup() {
             <div className="flex flex-col gap-2">
               <p>Es ist noch keine Datenbank verbunden. StudySpace speichert alle Daten zentral in Supabase.</p>
               <ol className="list-decimal space-y-1 pl-5">
-                <li>Supabase-Projekt anlegen und die SQL-Dateien aus <code>supabase/</code> ausführen.</li>
+                {IS_APP ? (
+                  <li>
+                    Ein <strong>eigenes</strong> Supabase-Projekt für die App anlegen und <code>supabase-app/app_schema.sql</code> ausführen (siehe <code>docs/APP.md</code>).
+                  </li>
+                ) : (
+                  <li>Supabase-Projekt anlegen und die SQL-Dateien aus <code>supabase/</code> ausführen.</li>
+                )}
                 <li>
                   <code>VITE_SUPABASE_URL</code> und <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> setzen (lokal in <code>.env.local</code>, für GitHub Pages als
                   Repository-Variablen).

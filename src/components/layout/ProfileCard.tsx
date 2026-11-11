@@ -1,5 +1,8 @@
 import { useEffect, useMemo } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, UserRound } from 'lucide-react';
+import { IS_APP } from '../../lib/edition';
+import { navigate } from '../../lib/router';
+import { useAccount } from '../../app/account';
 import { formatFocusDuration, teamFocusWeek } from '../../lib/focusWeek';
 import { useCurrentMember, useProgress } from '../../store/derived';
 import { loadFocusSessions, useFocus } from '../../store/focus';
@@ -20,6 +23,7 @@ export function ProfileCard({ onSwitch }: { onSwitch?: () => void }) {
   const sessions = useFocus((s) => s.sessions);
   const focusAvailable = useFocus((s) => s.available);
   const today = useToday();
+  const groupName = useAccount((s) => s.me?.groups.find((g) => g.id === s.me?.active_group_id)?.name);
   useEffect(() => {
     void loadFocusSessions();
   }, []);
@@ -33,18 +37,33 @@ export function ProfileCard({ onSwitch }: { onSwitch?: () => void }) {
         <Avatar name={me.name} color={me.color} size={48} ring />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[17px] font-semibold leading-tight">{me.name}</p>
-          <p className="mt-0.5 text-[12.5px] text-muted">lernt gerade</p>
+          <p className="mt-0.5 truncate text-[12.5px] text-muted">{IS_APP ? (groupName ?? 'Lerngruppe') : 'lernt gerade'}</p>
         </div>
-        <Button
-          size="sm"
-          icon={<ArrowLeftRight className="size-4" />}
-          onClick={() => {
-            onSwitch?.();
-            select(null);
-          }}
-        >
-          Wechseln
-        </Button>
+        {IS_APP ? (
+          // App: Konto statt Profilwechsel (das Lernprofil gehört zum Konto)
+          <Button
+            size="sm"
+            icon={<UserRound className="size-4" />}
+            onClick={() => {
+              onSwitch?.();
+              navigate('/einstellungen/konto');
+            }}
+            data-testid="profile-account"
+          >
+            Konto
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            icon={<ArrowLeftRight className="size-4" />}
+            onClick={() => {
+              onSwitch?.();
+              select(null);
+            }}
+          >
+            Wechseln
+          </Button>
+        )}
       </div>
       <div className={`mt-3 grid gap-2 ${focusAvailable === false ? 'grid-cols-1' : 'grid-cols-2'}`}>
         <div className="profile-stat">

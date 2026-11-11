@@ -17,6 +17,8 @@ function normalizeBase(raw: string | undefined): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const base = normalizeBase(env.VITE_BASE_PATH);
+  // „app“: neue kommerzielle App (eigener Ordner dist-app, Admin-Seite, eigener PWA-Bereich)
+  const isApp = (process.env.VITE_EDITION ?? env.VITE_EDITION) === 'app';
 
   return {
     base,
@@ -37,7 +39,7 @@ export default defineConfig(({ mode }) => {
         includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'icons/badge-96.png', 'splash/*.png'],
         manifest: {
           id: base,
-          name: 'StudySpace',
+          name: isApp ? 'StudySpace App' : 'StudySpace',
           short_name: 'StudySpace',
           description: 'Gemeinsam lernen. Gemeinsam Fortschritte machen. Gemeinsam 100 Prozent erreichen.',
           lang: 'de',
@@ -61,7 +63,7 @@ export default defineConfig(({ mode }) => {
         },
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
-          globIgnores: ['splash/**', 'einrichtung/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
+          globIgnores: ['splash/**', 'einrichtung/**', 'admin/**', 'assets/admin-*', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
         },
       }),
     ],
@@ -69,7 +71,10 @@ export default defineConfig(({ mode }) => {
       target: 'es2022',
       sourcemap: false,
       chunkSizeWarningLimit: 700,
+      outDir: isApp ? 'dist-app' : 'dist',
       rollupOptions: {
+        // Die App hat zusätzlich den Admin-Bereich unter /app/admin/
+        input: isApp ? { main: 'index.html', admin: 'admin/index.html' } : undefined,
         output: {
           // Stabile Vendor-Chunks: ändern sich selten und bleiben im Browser-Cache.
           manualChunks(id: string) {
