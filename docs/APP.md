@@ -36,7 +36,8 @@ Nichts davon berührt das bisherige Supabase-Projekt. **Führe kein SQL dieser A
 
 ### 3. Anmeldung (Authentication) konfigurieren
 > **E-Mails:** Vorlagen mit Logo und deutschem Text liegen in [`supabase-app/email-templates/`](../supabase-app/email-templates/README.md)
-> (Authentication → Emails → Templates). Ihre Links funktionieren auch auf einem anderen Gerät als dem, auf dem man sich registriert hat.
+> (Authentication → Emails → Templates). Supabase erlaubt das Bearbeiten nur mit **eigenem SMTP-Server** – kostenlos z. B. über Brevo
+> oder Gmail, kein Pro nötig; die Anleitung steht dort. Die Links der Vorlagen funktionieren auch auf einem anderen Gerät.
 
 **Authentication → URL Configuration**
 - **Site URL:** `https://lern-hub-wing.github.io/Semester3/app/`
