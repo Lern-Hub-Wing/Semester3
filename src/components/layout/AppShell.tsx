@@ -160,6 +160,7 @@ function SideLink({ item, active }: { item: (typeof NAV)[number]; active: boolea
       aria-current={active ? 'page' : undefined}
       onClick={() => haptic('tap')}
       title={item.label}
+      data-tour={`nav-${item.to.replace(/^\//, '') || 'home'}`}
       className={`nav-item group relative flex flex-col items-center gap-1 rounded-[12px] px-1 py-2.5 text-[10.5px] font-medium lg:flex-row lg:gap-3 lg:px-3 lg:py-[9px] lg:text-[14.5px] ${
         active ? 'text-ink' : 'text-muted hover:text-ink'
       }`}

@@ -28,6 +28,8 @@ export function createAppMock() {
     profiles: new Map(), // user_id -> { active_group_id }
     refresh: new Map(), // refresh_token -> { sub, aal }
     adminSetupPossible: true,
+    betaEnabled: true,
+    betaPurchases: [],
     requests: [],
     settings: { google: false, apple: false },
   };
@@ -36,9 +38,29 @@ export function createAppMock() {
     const g = state.profiles.get(uid)?.active_group_id;
     return g && state.memberships.some((m) => m.group_id === g && m.user_id === uid && !m.left_at) ? g : null;
   };
+  // Tarife wie in 0003_plans.sql: Lerngruppe braucht Gruppenpass, Lernbereich Solo/Test/Gruppe
+  const GROUP_PLANS = ['group_monthly', 'group_semester', 'plus_grant', 'plus_monthly', 'semester_pass'];
+  const PRICES = { solo_monthly: 249, solo_semester: 1199, group_monthly: 499, group_semester: 2499 };
+  const activeEnts = (u) => (u?.ents ?? []).filter((e) => !e.ends_at || new Date(e.ends_at) > new Date());
+  const level = (u) => {
+    const a = activeEnts(u);
+    if (a.some((e) => GROUP_PLANS.includes(e.plan))) return 'group';
+    return a.length ? 'solo' : null;
+  };
   const groupHasPlus = (gid) => {
     const g = state.groups.find((x) => x.id === gid);
-    return !!g && !!user(g.owner)?.plus;
+    if (!g) return false;
+    const l = level(user(g.owner));
+    return g.kind === 'solo' ? !!l : l === 'group';
+  };
+  const ensureSolo = (uid) => {
+    let g = state.groups.find((x) => x.owner === uid && x.kind === 'solo');
+    if (!g) {
+      g = { id: randomUUID(), name: 'Mein Lernbereich', owner: uid, code: code(), kind: 'solo' };
+      state.groups.push(g);
+    }
+    attach(g.id, uid, 'owner', null);
+    return g.id;
   };
   const code = () => Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
   const session = (u, aal = 'aal1') => {
@@ -71,21 +93,34 @@ export function createAppMock() {
   const me = (uid) => {
     const u = user(uid);
     const gid = activeGroup(uid);
+    const best = activeEnts(u).sort((a, b) => Number(GROUP_PLANS.includes(b.plan)) - Number(GROUP_PLANS.includes(a.plan)) || Number(a.plan === 'trial') - Number(b.plan === 'trial'))[0];
+    const trial = (u.ents ?? []).find((e) => e.plan === 'trial');
     return {
+      level: level(u),
+      plan: best?.plan ?? null,
+      plan_source: best?.source ?? null,
+      plan_id: best?.id ?? null,
+      plan_until: best?.ends_at ?? null,
+      plus_until: best?.ends_at ?? null,
+      auto_renew: !!best?.auto_renew,
+      trial_used: !!trial,
+      trial_ends_at: trial?.ends_at ?? null,
+      beta_purchases: state.betaEnabled,
+      tutorial_done: !!u.tutorial_done,
       user_id: uid,
       status: u.status,
       session_ok: true,
       display_name: u.name,
       active_group_id: gid,
       member_id: state.memberships.find((m) => m.group_id === gid && m.user_id === uid)?.member_id ?? null,
-      has_plus: !!u.plus,
+      has_plus: level(u) === 'group',
       plus_until: null,
       is_admin: !!u.admin,
       groups: state.memberships
         .filter((m) => m.user_id === uid && !m.left_at)
         .map((m) => {
           const g = state.groups.find((x) => x.id === m.group_id);
-          return { id: g.id, name: g.name, role: m.role, is_owner: g.owner === uid, has_plus: groupHasPlus(g.id), plus_until: null, members: state.memberships.filter((x) => x.group_id === g.id && !x.left_at).length, invite_code: m.role === 'owner' ? g.code : null };
+          return { id: g.id, name: g.name, kind: g.kind, role: m.role, is_owner: g.owner === uid, has_plus: groupHasPlus(g.id), plus_until: null, members: state.memberships.filter((x) => x.group_id === g.id && !x.left_at).length, invite_code: m.role === 'owner' && g.kind === 'team' ? g.code : null };
         }),
     };
   };
@@ -100,19 +135,47 @@ export function createAppMock() {
       const n = (t) => state.tables[t].filter((r) => r.group_id === g && !r.deleted_at).length;
       return { homework: n('homework'), homework_max: 50, study_entries: n('study_entries'), study_entries_max: 100, members: state.memberships.filter((m) => m.group_id === g && !m.left_at).length, members_max: 8, documents_max: 0 };
     },
+    app_start_trial: (uid) => {
+      const u = user(uid);
+      u.ents ??= [];
+      if (!u.ents.some((e) => e.plan === 'trial')) u.ents.push({ id: randomUUID(), plan: 'trial', source: 'trial', ends_at: new Date(Date.now() + 14 * 864e5).toISOString() });
+      return ensureSolo(uid);
+    },
+    app_open_solo: (uid, _a, route) => {
+      if (!level(user(uid)) && !state.groups.some((g) => g.owner === uid && g.kind === 'solo')) return err(route, 400, 'Für einen eigenen Lernbereich die Testphase starten oder Solo wählen.', 'plus_required');
+      return ensureSolo(uid);
+    },
+    app_beta_purchase: (uid, a, route) => {
+      if (!state.betaEnabled) return err(route, 400, 'Käufe sind gerade nicht möglich.', 'beta_closed');
+      if (!PRICES[a.p_plan]) return err(route, 400, 'Unbekannter Tarif');
+      const u = user(uid);
+      u.ents ??= [];
+      const months = a.p_plan.endsWith('semester') ? 6 : 1;
+      const e = { id: randomUUID(), plan: a.p_plan, source: 'beta', auto_renew: months === 1, ends_at: new Date(Date.now() + months * 30 * 864e5).toISOString() };
+      u.ents.push(e);
+      state.betaPurchases.push({ user: uid, plan: a.p_plan, cents: PRICES[a.p_plan] });
+      return { entitlement_id: e.id, ends_at: e.ends_at, group_id: a.p_plan.startsWith('solo') ? ensureSolo(uid) : null };
+    },
+    app_beta_cancel: (uid, a) => {
+      const e = (user(uid).ents ?? []).find((x) => x.id === a.p_entitlement);
+      if (e) e.auto_renew = false;
+      return null;
+    },
+    app_tutorial_done: (uid) => ((user(uid).tutorial_done = true), null),
+    admin_set_config: (uid, a) => ((state.betaEnabled = a.p_value === true), null),
     app_create_group: (uid, a, route) => {
-      if (!user(uid).plus) return err(route, 400, 'Zum Erstellen einer Lerngruppe wird Plus benötigt.', 'plus_required');
-      const g = { id: randomUUID(), name: a.p_name, owner: uid, code: code() };
+      if (level(user(uid)) !== 'group') return err(route, 400, 'Zum Erstellen einer Lerngruppe wird ein Gruppenpass benötigt.', 'plus_required');
+      const g = { id: randomUUID(), name: a.p_name, owner: uid, code: code(), kind: 'team' };
       state.groups.push(g);
       attach(g.id, uid, 'owner', a.p_display_name);
       state.tables.app_settings.push({ group_id: g.id, key: 'app_name', value: a.p_name, version: 1, updated_at: now(), changed_by: null });
       return g.id;
     },
     app_join_group: (uid, a, route) => {
-      const g = state.groups.find((x) => x.code === String(a.p_code).toUpperCase());
+      const g = state.groups.find((x) => x.code === String(a.p_code).toUpperCase() && x.kind === 'team');
       if (!g) return err(route, 400, 'Einladungscode ungültig.', 'invalid_code');
       if (state.memberships.some((m) => m.group_id === g.id && m.user_id === uid && !m.left_at)) return (state.profiles.set(uid, { active_group_id: g.id }), g.id);
-      if (!groupHasPlus(g.id)) return err(route, 400, 'Diese Lerngruppe hat derzeit keinen aktiven Plus-Zugang.', 'plus_required');
+      if (!groupHasPlus(g.id)) return err(route, 400, 'Diese Lerngruppe hat derzeit keinen aktiven Gruppenpass.', 'plus_required');
       if (state.memberships.filter((m) => m.group_id === g.id && !m.left_at).length >= 8) return err(route, 400, 'Diese Lerngruppe ist voll (höchstens 8 Mitglieder).', 'member_limit');
       attach(g.id, uid, 'member', a.p_display_name);
       return g.id;
@@ -144,8 +207,14 @@ export function createAppMock() {
       const users = state.users.filter((u) => !u.admin);
       return {
         users_total: users.length, users_active_7d: users.length, users_online_approx: 1, users_new_7d: users.length, users_new_30d: users.length, users_blocked: 0,
-        users_free: users.filter((u) => !u.plus).length, users_plus_member: 0, groups_total: state.groups.length, groups_plus: state.groups.length, trials_active: 0,
-        subscriptions_paid_active: 0, semester_passes_active: 0, grants_active: users.filter((u) => u.plus).length, expired_30d: 0, cancellations_30d: 0,
+        users_free: users.filter((u) => !level(u)).length, users_plus_member: 0, groups_total: state.groups.filter((g) => g.kind === 'team').length, groups_plus: state.groups.filter((g) => g.kind === 'team' && groupHasPlus(g.id)).length,
+        trials_active: users.filter((u) => activeEnts(u).some((e) => e.plan === 'trial')).length, trials_expired: 0, trials_converted: 0,
+        solo_spaces: state.groups.filter((g) => g.kind === 'solo').length, group_members_total: state.memberships.filter((m) => !m.left_at && state.groups.find((g) => g.id === m.group_id)?.kind === 'team').length,
+        paid_by_plan: { solo_monthly: 0, solo_semester: 0, group_monthly: 0, group_semester: 0 },
+        beta_by_plan: Object.fromEntries(Object.keys(PRICES).map((p) => [p, state.betaPurchases.filter((b) => b.plan === p).length])),
+        beta_purchases_enabled: state.betaEnabled, beta_active: state.betaPurchases.length, beta_mrr_cents: 0,
+        beta_simulated_cents: state.betaPurchases.reduce((a, b) => a + b.cents, 0), beta_cancellations: 0,
+        subscriptions_paid_active: 0, semester_passes_active: 0, grants_active: 0, expired_30d: 0, cancellations_30d: 0,
         revenue_cents_total: 0, revenue_cents_30d: 0, mrr_cents: 0, payments_connected: false,
         signups_by_day: Array.from({ length: 30 }, (_, i) => ({ day: new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10), count: i === 29 ? users.length : 0 })),
         db_time: now(),
@@ -153,7 +222,7 @@ export function createAppMock() {
     },
     admin_users: (uid, _a, route, aal) => {
       if (!user(uid)?.admin || aal !== 'aal2') return err(route, 403, 'Nur für Administratoren', 'admin_required', '42501');
-      return state.users.map((u) => ({ id: u.id, email: u.email, display_name: u.name, status: u.status, plan: u.plus ? 'plus_grant' : 'free', created_at: u.created_at, last_sign_in_at: now(), last_seen_at: now(), online: true, groups: [], is_admin: !!u.admin, total: state.users.length }));
+      return state.users.map((u) => ({ id: u.id, email: u.email, display_name: u.name, status: u.status, plan: activeEnts(u)[0]?.plan ?? 'free', created_at: u.created_at, last_sign_in_at: now(), last_seen_at: now(), online: true, groups: [], is_admin: !!u.admin, total: state.users.length }));
     },
     admin_audit_log: () => [],
   };
@@ -168,7 +237,7 @@ export function createAppMock() {
     if (p === '/settings') return ok(route, { external: { email: true, google: state.settings.google, apple: state.settings.apple }, disable_signup: false, mailer_autoconfirm: true });
     if (p === '/signup') {
       if (state.users.some((u) => u.email === body.email)) return ok(route, { code: 'user_already_exists', msg: 'User already registered', error_code: 'user_already_exists' }, 422);
-      const u = { id: randomUUID(), email: body.email, password: body.password, name: body.data?.display_name ?? null, plus: false, status: 'active', factors: [], created_at: now() };
+      const u = { id: randomUUID(), email: body.email, password: body.password, name: body.data?.display_name ?? null, ents: [], status: 'active', factors: [], created_at: now() };
       state.users.push(u);
       return ok(route, session(u));
     }
@@ -245,7 +314,10 @@ export function createAppMock() {
     if (req.method() === 'GET') return reply(rows.filter((r) => r.group_id === g));
     if (!g) return err(route, 403, 'Keine aktive Lerngruppe', 'no_group', '42501');
     if (req.method() === 'POST') {
-      if (!['task_completions', 'homework_completions', 'focus_sessions'].includes(name) && !groupHasPlus(g)) return err(route, 400, 'Der Plus-Zugang dieser Gruppe ist abgelaufen.', 'plus_required');
+      if (!['task_completions', 'homework_completions', 'focus_sessions'].includes(name) && !groupHasPlus(g)) {
+        const solo = state.groups.find((x) => x.id === g)?.kind === 'solo';
+        return err(route, 400, solo ? 'Deine 14-tägige Testphase ist beendet. Deine Inhalte bleiben sichtbar – mit StudySpace Solo kannst du wieder bearbeiten.' : 'Der Gruppenpass dieser Lerngruppe ist abgelaufen.', 'plus_required');
+      }
       const items = (Array.isArray(body) ? body : [body]).map((it) => ({ version: 1, created_at: now(), updated_at: now(), ...it, group_id: g }));
       const keyOf = (r) => (name === 'app_settings' ? `${r.group_id}:${r.key}` : name === 'task_completions' ? `${r.task_id}:${r.member_id}` : name === 'homework_completions' ? `${r.target_id}:${r.member_id}` : r.id);
       for (const it of items) {
@@ -278,7 +350,7 @@ export function createAppMock() {
     if (body.action === 'setup') {
       if (admin) return ok(route, { error: 'Der Admin-Zugang ist bereits eingerichtet.' }, 409);
       if (body.token !== 'test-setup-token-0123456789abcdef') return ok(route, { error: 'Einrichtungsschlüssel falsch.' }, 403);
-      state.users.push({ id: randomUUID(), email: 'luke.admin@studyspace-admin.invalid', password: body.password, name: 'Luke', admin: true, plus: false, status: 'active', factors: [], created_at: now() });
+      state.users.push({ id: randomUUID(), email: 'luke.admin@studyspace-admin.invalid', password: body.password, name: 'Luke', admin: true, ents: [], status: 'active', factors: [], created_at: now() });
       return ok(route, { ok: true, username: 'Luke' });
     }
     if (body.action === 'login') {

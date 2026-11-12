@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowLeft, KeyRound, LogOut, Mail, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, KeyRound, LogOut, Mail, ShieldAlert } from 'lucide-react';
+import { Segmented } from '../components/ui/Segmented';
 import { EASE_EMPH, EASE_OUT } from '../lib/motion';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
@@ -114,6 +115,7 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(urlError);
   const [info, setInfo] = useState<string | null>(null);
   const [providers, setProviders] = useState<AuthProviders | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     void loadProviders().then(setProviders);
@@ -159,10 +161,22 @@ export function AuthScreen() {
     return (
       <AuthFrame title="Fast geschafft" subtitle={<>Wir haben dir eine E-Mail an <strong>{email}</strong> geschickt.</>}>
         <div className="flex flex-col gap-4" data-testid="auth-check-mail">
-          <div className="flex items-start gap-3 text-[14px] text-muted">
-            <Mail className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
-            <p>Öffne den Link in der E-Mail, um dein Konto zu bestätigen. Danach bist du automatisch angemeldet.</p>
-          </div>
+          <motion.div
+            className="mx-auto grid size-16 place-items-center rounded-[20px] text-white"
+            style={{ background: 'linear-gradient(135deg, #8B7BFF, #5E5CE6)' }}
+            initial={{ scale: 0.6, rotate: -10, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 14 }}
+            aria-hidden
+          >
+            <Mail className="size-8" />
+          </motion.div>
+          <ol className="flex flex-col gap-2 text-[14px] text-muted">
+            <li>1. Öffne die E-Mail von StudySpace – auch auf dem Handy oder einem anderen Gerät.</li>
+            <li>2. Tippe auf „E-Mail bestätigen“.</li>
+            <li>3. Fertig – du bist angemeldet und wählst, wie du lernen möchtest.</li>
+          </ol>
+          <p className="text-[12.5px] text-faint">Nichts angekommen? Schau auch im Spam-Ordner nach.</p>
           {error && <Notice tone="error">{error}</Notice>}
           {info && <Notice tone="success">{info}</Notice>}
           <Button
@@ -183,7 +197,7 @@ export function AuthScreen() {
       </AuthFrame>
     );
 
-  const title = mode === 'signup' ? 'Konto erstellen' : mode === 'reset' ? 'Passwort vergessen' : 'Willkommen zurück';
+  const title = mode === 'signup' ? 'Los geht’s' : mode === 'reset' ? 'Passwort vergessen' : 'Willkommen';
   const subtitle = invite
     ? 'Melde dich an oder erstelle ein kostenloses Konto, um der Lerngruppe beizutreten.'
     : mode === 'reset'
@@ -193,6 +207,19 @@ export function AuthScreen() {
   return (
     <AuthFrame title={title} subtitle={subtitle}>
       <form className="flex flex-col gap-3.5" onSubmit={submit} data-testid={`auth-${mode}`} noValidate>
+        {/* Klarer Wechsel statt kleiner Links: Anmelden oder neues Konto */}
+        {mode !== 'reset' && canSignUp && (
+          <Segmented
+            label="Anmelden oder registrieren"
+            value={mode === 'signup' ? 'signup' : 'signin'}
+            onChange={(m) => (setMode(m), setError(null), setInfo(null))}
+            options={[
+              { value: 'signin', label: 'Anmelden' },
+              { value: 'signup', label: 'Neues Konto' },
+            ]}
+            className="w-full"
+          />
+        )}
         {mode !== 'reset' && (showGoogle || showApple) && (
           <>
             <div className="flex flex-col gap-2.5">
@@ -215,22 +242,34 @@ export function AuthScreen() {
 
         <AnimatePresence initial={false}>
           {mode === 'signup' && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-              <TextField label="Dein Name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="name" required />
+            // Innenabstand, damit Rahmen und Fokusring beim Aufklappen nicht abgeschnitten werden
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="-mx-1.5 -mt-1.5 overflow-hidden px-1.5 pt-1.5">
+              <TextField label="Wie heißt du?" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="name" placeholder="Vorname" required />
             </motion.div>
           )}
         </AnimatePresence>
         <TextField label="E-Mail" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         {mode !== 'reset' && (
-          <TextField
-            label="Passwort"
-            type="password"
-            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            hint={mode === 'signup' ? 'Mindestens 10 Zeichen mit Buchstaben und Ziffern.' : undefined}
-            required
-          />
+          <div className="relative">
+            <TextField
+              label="Passwort"
+              type={showPw ? 'text' : 'password'}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              hint={mode === 'signup' ? (password && !passwordProblem(password) ? 'Passt.' : 'Mindestens 10 Zeichen mit Buchstaben und Ziffern.') : undefined}
+              className="[&_input]:pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? 'Passwort verbergen' : 'Passwort anzeigen'}
+              className="absolute right-1.5 top-[30px] grid size-9 place-items-center rounded-full text-muted hover:text-ink"
+            >
+              {showPw ? <EyeOff className="size-[18px]" aria-hidden /> : <Eye className="size-[18px]" aria-hidden />}
+            </button>
+          </div>
         )}
         {mode !== 'reset' && (
           <div className="flex items-center justify-between gap-3">
@@ -250,24 +289,17 @@ export function AuthScreen() {
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[13.5px]">
           {mode === 'signin' ? (
-            <>
-              <button type="button" className="min-h-11 font-medium text-muted hover:text-ink" onClick={() => (setMode('reset'), setError(null))}>
-                Passwort vergessen?
-              </button>
-              {canSignUp && (
-                <button type="button" className="min-h-11 font-semibold text-accent" onClick={() => (setMode('signup'), setError(null))} data-testid="auth-to-signup">
-                  Neues Konto
-                </button>
-              )}
-            </>
-          ) : (
-            <button type="button" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-muted hover:text-ink" onClick={() => (setMode('signin'), setError(null), setInfo(null))}>
-              <ArrowLeft className="size-4" aria-hidden /> {mode === 'signup' ? 'Ich habe schon ein Konto' : 'Zur Anmeldung'}
+            <button type="button" className="min-h-11 font-medium text-muted hover:text-ink" onClick={() => (setMode('reset'), setError(null))}>
+              Passwort vergessen?
             </button>
-          )}
+          ) : mode === 'reset' ? (
+            <button type="button" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-muted hover:text-ink" onClick={() => (setMode('signin'), setError(null), setInfo(null))}>
+              <ArrowLeft className="size-4" aria-hidden /> Zur Anmeldung
+            </button>
+          ) : null}
         </div>
         {mode === 'signup' && (
-          <p className="text-center text-[12px] leading-snug text-faint">Mit der Registrierung legst du ein kostenloses Konto an. Plus ist optional.</p>
+          <p className="text-center text-[12px] leading-snug text-faint">Kostenlos und ohne Zahlungsdaten. Danach bestätigst du kurz deine E-Mail-Adresse.</p>
         )}
       </form>
     </AuthFrame>

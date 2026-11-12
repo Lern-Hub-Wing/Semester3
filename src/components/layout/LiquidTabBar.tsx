@@ -20,6 +20,8 @@ const TabLink = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorEle
       href={more ? MORE : href}
       role={more ? 'button' : undefined}
       aria-haspopup={more ? 'dialog' : undefined}
+      // Marker für die Einführung (z. B. „nav-lernplan“, „nav-mehr“)
+      data-tour={more ? 'nav-mehr' : `nav-${(href ?? '').replace(/^#\/?/, '') || 'home'}`}
       {...rest}
       onClick={(e: MouseEvent<HTMLAnchorElement>) => {
         onClick?.(e);

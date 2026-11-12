@@ -36,12 +36,12 @@ import { Row, Section } from '../components/ui/SettingsCard';
 import { IS_APP } from '../lib/edition';
 import { AccountSection, GroupSection, PlusSection } from '../app/AccountSettings';
 import { useAccount } from '../app/account';
-import { plusLabel } from '../app/api';
+import { myPlanLabel } from '../app/api';
 
 const SECTIONS = {
   konto: { title: 'Konto', render: () => <AccountSection /> },
   gruppe: { title: 'Lerngruppe', render: () => <GroupSection /> },
-  plus: { title: 'Plus & Tarife', render: () => <PlusSection /> },
+  plus: { title: 'Tarif & Abo', render: () => <PlusSection /> },
   darstellung: { title: 'Darstellung & Bedienung', render: () => <Appearance /> },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
@@ -131,8 +131,8 @@ function AppSettingsNav({ active }: { active?: SectionKey }) {
       <ProfileCard />
       <ListGroup title="Konto">
         <ListRow icon={<UserRound />} tint="#6F7BF7" label="Konto" value={email} {...row('konto')} testId="settings-account" />
-        <ListRow icon={<Users />} tint="#2FA58B" label="Lerngruppe" value={group?.name} {...row('gruppe')} testId="settings-group" />
-        <ListRow icon={<Crown />} tint="#B57BF0" label="Plus & Tarife" value={me?.has_plus ? 'Plus' : group ? plusLabel(group) : 'Free'} {...row('plus')} testId="settings-plus" />
+        <ListRow icon={<Users />} tint="#2FA58B" label={group?.kind === 'solo' ? 'Lernbereich' : 'Lerngruppe'} value={group?.kind === 'solo' ? 'alleine' : group?.name} {...row('gruppe')} testId="settings-group" />
+        <ListRow icon={<Crown />} tint="#B57BF0" label="Tarif & Abo" value={me ? myPlanLabel(me) : undefined} {...row('plus')} testId="settings-plus" />
       </ListGroup>
       <ListGroup title="Dieses Gerät">
         <ListRow icon={<Palette />} tint="#7C6FF0" label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />

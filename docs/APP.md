@@ -35,6 +35,9 @@ Nichts davon berührt das bisherige Supabase-Projekt. **Führe kein SQL dieser A
    `supabase/migrations` (ohne Storage) und `supabase-app/migrations` erzeugt.)
 
 ### 3. Anmeldung (Authentication) konfigurieren
+> **E-Mails:** Vorlagen mit Logo und deutschem Text liegen in [`supabase-app/email-templates/`](../supabase-app/email-templates/README.md)
+> (Authentication → Emails → Templates). Ihre Links funktionieren auch auf einem anderen Gerät als dem, auf dem man sich registriert hat.
+
 **Authentication → URL Configuration**
 - **Site URL:** `https://lern-hub-wing.github.io/Semester3/app/`
 - **Redirect URLs:** `https://lern-hub-wing.github.io/Semester3/app/**` (für lokale Tests zusätzlich `http://localhost:5173/**`)
@@ -96,20 +99,50 @@ Ohne diese Variablen zeigt `/app/` nur einen Einrichtungshinweis – die bisheri
    verweigert die Datenbank jede Admin-Funktion.
 4. Optional danach `ADMIN_SETUP_TOKEN` wieder löschen.
 
-### 9. Plus zum Testen freischalten
-Admin-Bereich → **Benutzer** → Konto öffnen → „Plus kostenlos freischalten“ (Tage, bis Datum oder unbegrenzt). Diese
-Freischaltungen werden getrennt gezählt und **nie als Umsatz** gewertet. Mit Plus kann das Konto in der App eine Gruppe erstellen.
+### 9. Zugang zum Testen freischalten
+Admin-Bereich → **Benutzer** → Konto öffnen → „Kostenlos freischalten“ → **Gruppe** oder **Solo** (Tage, bis Datum oder unbegrenzt).
+Diese Freischaltungen werden getrennt gezählt und **nie als Umsatz** gewertet. Alternativ in der App einen Kauf simulieren (Beta).
+
+### 10. Gewinn-Simulator
+Admin-Bereich → **Finanzen**: Startbestand je Tarif (oder „Aktuelle Zahlen übernehmen“), Hochskalieren, Wachstum, Kündigungen,
+Anteil Gruppe/Semesterpass, Zahlungswege (Stripe/App Store/Google Play), Gebühren, USt, Fixkosten und Steuer-Schätzung.
+Ergebnis: Diagramm Brutto/Netto/Gewinn je Monat, Rechnung „von Brutto zu Gewinn“, Gewinnschwelle, Monatstabelle und CSV.
+Die Annahmen werden nur im Browser gespeichert.
+
+### Updates einspielen
+Bei neuen Versionen einfach `supabase-app/app_schema.sql` erneut im SQL Editor des **App**-Projekts ausführen – das Skript ist
+wiederholbar und lässt vorhandene Daten stehen.
 
 ---
 
 ## Regeln der App
 
-**Tarife:** Free (0 €) · Plus monatlich (4,99 €) · Semesterpass (19,99 € für 6 Monate, keine automatische Verlängerung).
-Bis ein Zahlungssystem angebunden ist, gibt es in der App **keinen Kaufknopf**; Plus entsteht nur serverseitig (Tabelle `entitlements`).
-Ein im Browser „behaupteter“ Kauf kann nichts freischalten – die Tabelle ist für Konten nicht beschreibbar.
+**Tarife** (Preise inkl. USt, identisch mit `app.plan_price_cents()` in der Datenbank)
+
+| Zugang | Preis | Inhalt |
+|---|---|---|
+| Free / Testversion | 0 € | 14 Tage voller Solo-Zugriff ohne Zahlungsdaten, danach **Nur-Lesen**; Beitritt zu bezahlten Gruppen bleibt kostenlos |
+| StudySpace Solo | 2,49 €/Monat · 11,99 € für 6 Monate | persönlicher Lernplan, Hausaufgaben, Prüfungen, Fokus, Statistik, Erinnerungen |
+| StudySpace Gruppe | 4,99 €/Monat · 24,99 € für 6 Monate | alles aus Solo + gemeinsamer Lernplan, Gruppenfortschritt, Ziele, bis zu 8 Lernende; nur eine Person bezahlt |
+
+Monatstarife verlängern sich, bis gekündigt wird; die 6-Monats-Pässe enden automatisch.
+
+**Erster Start:** Nach der Registrierung fragt die App „Wie möchtest du lernen?“ – *Einer Lerngruppe beitreten* (Code/Link, kostenlos),
+*Alleine lernen* (14 Tage gratis, legt den persönlichen Lernbereich an) oder *Eigene Lerngruppe erstellen* (Gruppenpass wählen).
+Danach startet einmalig die **Einführung** (Lichtkegel auf den echten Bedienelementen, „Überspringen“ oben links,
+erneut unter *Einstellungen → Tarif & Abo → Einführung*).
+
+**Nach der Testphase:** nichts wird gesperrt oder gelöscht. Alles bleibt sichtbar, ein ruhiger, für den Tag ausblendbarer
+Hinweis bietet Solo an. Nur neue Einträge und Änderungen lehnt die Datenbank mit einer freundlichen Meldung ab;
+Haken setzen und Fokuszeiten gehen weiter.
+
+**Beta-Käufe:** Solange kein Zahlungssystem angebunden ist, können Nutzer einen Kauf **simulieren**. Der Server legt den Zugang an
+(Quelle `beta`), der Admin-Bereich zeigt Beta-Käufe getrennt (Anzahl je Tarif, simulierter Betrag, simulierter MRR) – sie zählen
+**nie** als Umsatz. Admin → Übersicht → „Kauf simulieren in der App“ schaltet das ab. Monatliche Beta-Abos verlängern sich mit
+`pg_cron` täglich automatisch, bis sie in der App gekündigt werden.
 
 **Gruppen**
-- Erstellen nur mit eigenem Plus (max. 3 eigene Gruppen pro Konto). Beitreten per Link (`/app/#/beitreten/CODE`) oder 8-stelligem Code – kostenlos.
+- Erstellen nur mit Gruppenpass (max. 3 eigene Lerngruppen pro Konto). Der persönliche Lernbereich ist eine eigene „Gruppe“ nur für dich (ohne Einladung). Beitreten per Link (`/app/#/beitreten/CODE`) oder 8-stelligem Code – kostenlos.
 - **Max. 8 Mitglieder** inkl. Inhaber, serverseitig mit Zeilensperre (auch bei gleichzeitigen Beitritten getestet).
 - Geteilt: Fächer, Lernplan, Prüfungen, Hausaufgaben, Musik, Gruppeneinstellungen.
   Persönlich: eigene Haken/Fortschritt, Fokuszeiten (für die Gruppe sichtbar, aber nur selbst schreibbar), Konto.

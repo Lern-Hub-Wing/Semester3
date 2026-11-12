@@ -67,7 +67,7 @@ commit;
 begin;
 select ss_test.login('c0000000-0000-4000-8000-00000000000c');
 set local role authenticated;
-select ss_test.expect_error($$select public.app_create_group('Cara Gruppe')$$, 'Plus');
+select ss_test.expect_error($$select public.app_create_group('Cara Gruppe')$$, 'Gruppenpass');
 -- Ein im Browser behaupteter Kauf schaltet nichts frei
 select ss_test.expect_error($$insert into public.entitlements (user_id, plan, source) values ('c0000000-0000-4000-8000-00000000000c', 'plus_monthly', 'stripe')$$, 'permission denied');
 select ss_test.expect_error($$update public.profiles set status = 'active', sessions_valid_after = null where id = auth.uid()$$, 'permission denied');
@@ -257,7 +257,7 @@ begin
   reset role;
   perform ss_test.login('e0000000-0000-4000-8000-000000000007');
   set local role authenticated;
-  perform ss_test.expect_error(format('select public.app_join_group(%L)', code), 'keinen aktiven Plus');
+  perform ss_test.expect_error(format('select public.app_join_group(%L)', code), 'keinen aktiven Gruppenpass');
   reset role;
 end $$;
 
@@ -316,7 +316,7 @@ begin
   s := public.admin_stats();
   perform ss_test.assert((s ->> 'users_total')::int = 10, 'Admins zählen nicht als Nutzer');
   perform ss_test.assert((s ->> 'revenue_cents_total')::int = 0, 'kein erfundener Umsatz');
-  perform ss_test.assert((s ->> 'mrr_cents')::int = 0, 'MRR ohne laufende bezahlte Monatsabos = 0');
+  perform ss_test.assert((s ->> 'mrr_cents')::int = 333, 'MRR: nur bezahlter Semesterpass, auf 6 Monate verteilt (19,99 € / 6)');
   perform ss_test.assert((s ->> 'semester_passes_active')::int = 1, 'Semesterpass gezählt');
   perform ss_test.assert((s ->> 'grants_active')::int = 1, 'Freischaltung getrennt gezählt');
   perform ss_test.assert((s ->> 'payments_connected')::boolean = false, 'keine Zahlungen verbunden');

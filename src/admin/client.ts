@@ -63,6 +63,17 @@ export interface Stats {
   revenue_cents_30d: number;
   mrr_cents: number;
   payments_connected: boolean;
+  solo_spaces: number;
+  group_members_total: number;
+  trials_expired: number;
+  trials_converted: number;
+  paid_by_plan: Record<string, number>;
+  beta_by_plan: Record<string, number>;
+  beta_purchases_enabled: boolean;
+  beta_active: number;
+  beta_mrr_cents: number;
+  beta_simulated_cents: number;
+  beta_cancellations: number;
   signups_by_day: { day: string; count: number }[];
   db_time: string;
 }
@@ -109,13 +120,27 @@ export interface Entitlement {
 
 export const PLAN_LABEL: Record<string, string> = {
   free: 'Free',
-  plus_member: 'Plus über Gruppe',
-  plus_grant: 'Plus (Freischaltung)',
-  plus_monthly: 'Plus monatlich',
-  semester_pass: 'Semesterpass',
+  trial: 'Testphase',
+  trial_expired: 'Testphase beendet (nur lesen)',
+  plus_member: 'Mitglied einer bezahlten Gruppe',
+  solo_monthly: 'Solo monatlich',
+  solo_semester: 'Solo · 6 Monate',
+  group_monthly: 'Gruppe monatlich',
+  group_semester: 'Gruppe · 6 Monate',
+  solo_grant: 'Solo (Freischaltung)',
+  plus_grant: 'Gruppe (Freischaltung)',
+  plus_monthly: 'Gruppe monatlich (alt)',
+  semester_pass: 'Semesterpass (alt)',
 };
 
-export const SOURCE_LABEL: Record<string, string> = { admin: 'Admin (kostenlos)', stripe: 'Stripe', app_store: 'App Store', play_store: 'Google Play' };
+export const SOURCE_LABEL: Record<string, string> = {
+  admin: 'Admin (kostenlos)',
+  trial: 'Testphase',
+  beta: 'Beta – simulierter Kauf',
+  stripe: 'Stripe',
+  app_store: 'App Store',
+  play_store: 'Google Play',
+};
 
 export function fmtDate(v: string | null | undefined, time = false): string {
   if (!v) return '–';
