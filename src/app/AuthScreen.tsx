@@ -113,7 +113,7 @@ export function AuthScreen() {
   const [remember, setRememberState] = useState(getRemember());
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(urlError);
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(useAccount.getState().notice);
   const [providers, setProviders] = useState<AuthProviders | null>(null);
   const [showPw, setShowPw] = useState(false);
 

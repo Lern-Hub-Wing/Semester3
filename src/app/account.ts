@@ -20,6 +20,8 @@ interface AccountState {
   session: Session | null;
   me: Me | null;
   error: string | null;
+  /** freundlicher Hinweis auf der Anmeldeseite (z. B. „E-Mail bestätigt“) */
+  notice: string | null;
   /** Einladungscode aus einem geöffneten Link (bis zum Beitritt gemerkt) */
   pendingInvite: string | null;
 }
@@ -29,6 +31,7 @@ export const useAccount = create<AccountState>(() => ({
   session: null,
   me: null,
   error: null,
+  notice: null,
   pendingInvite: null,
 }));
 
@@ -158,6 +161,9 @@ export function initAccount() {
   if (urlError) useAccount.setState({ error: urlError });
   const sb = getSupabase();
   if (new URLSearchParams(window.location.search).has('token_hash')) verifying = true;
+  // Bestätigungslink aus der Standard-E-Mail von Supabase, aber auf einem anderen Gerät geöffnet:
+  // Die Adresse ist dann bereits bestätigt, nur die automatische Anmeldung klappt nicht.
+  const hadCode = new URLSearchParams(window.location.search).has('code');
 
   sb.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
     useAccount.setState({ session });
@@ -168,6 +174,10 @@ export function initAccount() {
     }
     if (!session) {
       if (verifying) return; // Link wird noch geprüft
+      if (hadCode && event === 'INITIAL_SESSION') {
+        cleanAuthParams();
+        useAccount.setState({ error: null, notice: 'Deine E-Mail-Adresse ist bestätigt. Melde dich jetzt mit deinem Passwort an.' });
+      }
       useAccount.setState({ phase: 'signedOut', me: null });
       return;
     }

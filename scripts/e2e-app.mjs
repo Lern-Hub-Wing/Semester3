@@ -224,9 +224,19 @@ try {
   });
   await check('Abmelden entfernt Sitzung und Zwischenspeicher', async () => {
     await b.goto(`${BASE}#/einstellungen/konto`);
-    await b.getByTestId('sign-out').click();
+    // Abmelden lädt die Seite neu – erst danach den Speicher prüfen (sonst wechselt der Kontext mitten im Prüfen)
+    await Promise.all([b.waitForEvent('load'), b.getByTestId('sign-out').click()]);
     await b.getByTestId('auth-signin').waitFor();
-    const left = await b.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('studyspace.app.cache.') || k.includes('auth-token') || k === 'studyspace-app-auth'));
+    /** @type {string[]} */
+    let left = [];
+    for (let i = 0; i < 5; i++) {
+      try {
+        left = await b.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('studyspace.app.cache.') || k.includes('auth-token') || k === 'studyspace-app-auth'));
+        break;
+      } catch {
+        await b.waitForLoadState('load');
+      }
+    }
     assert(left.length === 0, `übrig: ${left.join(', ')}`);
   });
   await check('Anmelden mit falschem Passwort → verständliche Meldung', async () => {
