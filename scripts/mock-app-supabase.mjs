@@ -30,6 +30,7 @@ export function createAppMock() {
     adminSetupPossible: true,
     betaEnabled: true,
     betaPurchases: [],
+    feedback: [],
     requests: [],
     settings: { google: false, apple: false },
   };
@@ -161,6 +162,11 @@ export function createAppMock() {
       if (e) e.auto_renew = false;
       return null;
     },
+    app_remove_member: (uid, a) => {
+      const m = state.memberships.find((x) => x.group_id === a.p_group && x.user_id === a.p_user && !x.left_at);
+      if (m) m.left_at = now();
+      return null;
+    },
     app_tutorial_done: (uid) => ((user(uid).tutorial_done = true), null),
     admin_set_config: (uid, a) => ((state.betaEnabled = a.p_value === true), null),
     app_create_group: (uid, a, route) => {
@@ -225,6 +231,9 @@ export function createAppMock() {
       return state.users.map((u) => ({ id: u.id, email: u.email, display_name: u.name, status: u.status, plan: activeEnts(u)[0]?.plan ?? 'free', created_at: u.created_at, last_sign_in_at: now(), last_seen_at: now(), online: true, groups: [], is_admin: !!u.admin, total: state.users.length }));
     },
     admin_audit_log: () => [],
+    app_send_feedback: (uid, a) => (state.feedback.push({ id: state.feedback.length + 1, created_at: now(), category: a.p_category, message: a.p_message, page: a.p_page, client: a.p_client, contact_ok: !!a.p_contact_ok, status: 'new', email: a.p_contact_ok ? user(uid).email : null, group_name: null }), null),
+    admin_feedback: () => state.feedback,
+    admin_feedback_status: (_u, a) => ((state.feedback.find((f) => f.id === a.p_id).status = a.p_status), null),
   };
 
   async function handleAuth(route) {

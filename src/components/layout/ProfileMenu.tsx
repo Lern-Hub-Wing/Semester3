@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { spring } from '../../lib/motion';
 import { PresenceDiv } from '../ui/PresenceDiv';
-import { ArrowLeftRight, LogOut, Settings, UserRound, UserRoundPen, UsersRound } from 'lucide-react';
+import { ArrowLeftRight, LifeBuoy, LogOut, Settings, UserRound, UserRoundPen, UsersRound } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
 import { signOut } from '../../app/account';
 import { navigate } from '../../lib/router';
@@ -96,6 +96,7 @@ export function ProfileMenu() {
                   { label: 'Konto', icon: UserRound, run: () => navigate('/einstellungen/konto') },
                   { label: 'Lerngruppe', icon: UsersRound, run: () => navigate('/einstellungen/gruppe') },
                   { label: 'Einstellungen', icon: Settings, run: () => navigate('/einstellungen') },
+                  { label: 'Hilfe & Feedback', icon: LifeBuoy, run: () => navigate('/hilfe') },
                   { label: 'Abmelden', icon: LogOut, run: () => void signOut() },
                 ]
               : [

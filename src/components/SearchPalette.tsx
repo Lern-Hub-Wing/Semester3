@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { IS_APP } from '../lib/edition';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { BookOpen, CalendarDays, FileText, Layers, ListChecks, Search } from 'lucide-react';
@@ -134,7 +135,7 @@ export function SearchPalette() {
                   }
                   if (e.key === 'Enter' && results[active]) choose(results[active]);
                 }}
-                placeholder="Module, Themen, Aufgaben, Materialien …"
+                placeholder={IS_APP ? 'Fächer, Themen, Aufgaben, Hausaufgaben …' : 'Module, Themen, Aufgaben, Materialien …'}
                 aria-label="Suchbegriff"
                 aria-controls="ss-search-results"
                 aria-activedescendant={results[active] ? `ss-r-${results[active].id}` : undefined}

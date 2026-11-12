@@ -110,6 +110,17 @@ Anteil Gruppe/Semesterpass, Zahlungswege (Stripe/App Store/Google Play), Gebühr
 Ergebnis: Diagramm Brutto/Netto/Gewinn je Monat, Rechnung „von Brutto zu Gewinn“, Gewinnschwelle, Monatstabelle und CSV.
 Die Annahmen werden nur im Browser gespeichert.
 
+### 11. Hilfe & Feedback, Datenexport
+- Nutzer erreichen **Hilfe & Feedback** über „Mehr“, das Profilmenü und die Einstellungen (häufige Fragen, Einführung, Feedback-Formular).
+  Nachrichten erscheinen im Admin-Bereich unter **Feedback** (mit E-Mail nur, wenn die Person einer Antwort zugestimmt hat; höchstens 10 pro Tag und Konto).
+- **Einstellungen → Daten exportieren** lädt alle Inhalte der aktiven Lerngruppe bzw. des Lernbereichs plus Kontoangaben als JSON herunter.
+
+### Navigation der App (Handy)
+Tab-Leiste: Home · Kalender · Aufgaben · **Team** (alleine lernen: **Statistik**) · Mehr. Fokus startet groß im Dashboard und steht oben unter „Mehr“.
+„Mehr“ enthält nur noch: Fokus, Lernmodus · Fächer & Prüfungen, Statistiken, Musik · Lerngruppe, Tarif & Abo, Einstellungen · Hilfe & Feedback, Papierkorb.
+Mitglieder sind echte Konten: Name und Farbe ändert jede Person nur für sich; der Inhaber lädt ein und kann Mitglieder entfernen.
+Benachrichtigungen (Push) sind in der App noch nicht angebunden und werden deshalb nirgends beworben.
+
 ### Updates einspielen
 Bei neuen Versionen einfach `supabase-app/app_schema.sql` erneut im SQL Editor des **App**-Projekts ausführen – das Skript ist
 wiederholbar und lässt vorhandene Daten stehen.

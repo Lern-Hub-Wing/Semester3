@@ -162,14 +162,13 @@ export function AuthScreen() {
       <AuthFrame title="Fast geschafft" subtitle={<>Wir haben dir eine E-Mail an <strong>{email}</strong> geschickt.</>}>
         <div className="flex flex-col gap-4" data-testid="auth-check-mail">
           <motion.div
-            className="mx-auto grid size-16 place-items-center rounded-[20px] text-white"
-            style={{ background: 'linear-gradient(135deg, #8B7BFF, #5E5CE6)' }}
+            className="icon-badge icon-badge--lg mx-auto"
             initial={{ scale: 0.6, rotate: -10, opacity: 0 }}
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 14 }}
             aria-hidden
           >
-            <Mail className="size-8" />
+            <Mail />
           </motion.div>
           <ol className="flex flex-col gap-2 text-[14px] text-muted">
             <li>1. Öffne die E-Mail von StudySpace – auch auf dem Handy oder einem anderen Gerät.</li>

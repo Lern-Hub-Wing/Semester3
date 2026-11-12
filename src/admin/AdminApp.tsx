@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
-  Ban, ChartColumn, Euro, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
+  Ban, ChartColumn, Euro, MessageSquare, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
 } from 'lucide-react';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
@@ -92,7 +92,7 @@ export function AdminApp() {
 
 // ---------------------------------------------------------------------
 
-type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'audit';
+type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'feedback' | 'audit';
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('overview');
@@ -120,6 +120,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             { value: 'finance', label: 'Finanzen', icon: <Euro className="size-4" /> },
             { value: 'users', label: 'Benutzer', icon: <Users className="size-4" /> },
             { value: 'groups', label: 'Gruppen', icon: <UsersRound className="size-4" /> },
+            { value: 'feedback', label: 'Feedback', icon: <MessageSquare className="size-4" /> },
             { value: 'audit', label: 'Protokoll', icon: <History className="size-4" /> },
           ]}
         />
@@ -127,6 +128,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         {tab === 'finance' && <FinanceTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'groups' && <GroupsTab />}
+        {tab === 'feedback' && <FeedbackTab />}
         {tab === 'audit' && <AuditTab />}
       </div>
     </div>
@@ -800,6 +802,60 @@ function GroupDetail({ id, onClose, onChanged }: { id: string; onClose: () => vo
       )}
       <ConfirmDialog c={confirm} onClose={() => setConfirm(null)} />
     </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Feedback aus der App
+// ---------------------------------------------------------------------
+
+const FEEDBACK_KIND: Record<string, string> = { bug: 'Fehler', idea: 'Idee', question: 'Frage', other: 'Sonstiges' };
+
+function FeedbackTab() {
+  type Row = { id: number; created_at: string; category: string; message: string; page: string | null; client: string | null; contact_ok: boolean; status: string; email: string | null; group_name: string | null };
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const load = useCallback(() => {
+    rpc<Row[]>('admin_feedback', { p_limit: 300 }).then(setRows, (e: Error) => toast.error(e.message));
+  }, []);
+  useEffect(load, [load]);
+  return (
+    <Card className="!p-0">
+      {!rows ? (
+        <p className="p-5 text-muted">Lädt …</p>
+      ) : rows.length === 0 ? (
+        <p className="p-5 text-muted">Noch kein Feedback.</p>
+      ) : (
+        <ul data-testid="admin-feedback">
+          {rows.map((r) => (
+            <li key={r.id} className={`flex flex-col gap-1.5 border-t border-line px-4 py-3 first:border-t-0 ${r.status === 'done' ? 'opacity-55' : ''}`}>
+              <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
+                <span className="rounded-full bg-[color-mix(in_srgb,var(--ss-accent)_14%,transparent)] px-2 py-0.5 font-semibold text-accent">{FEEDBACK_KIND[r.category] ?? r.category}</span>
+                <span className="num">{fmtDate(r.created_at, true)}</span>
+                {r.group_name && <span>· {r.group_name}</span>}
+                {r.page && <span>· {r.page}</span>}
+                <span className="ml-auto">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void rpc('admin_feedback_status', { p_id: r.id, p_status: r.status === 'done' ? 'new' : 'done' }).then(load, (e: Error) => toast.error(e.message))}
+                  >
+                    {r.status === 'done' ? 'Wieder offen' : 'Erledigt'}
+                  </Button>
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap text-[14px]">{r.message}</p>
+              {r.email ? (
+                <a className="text-[12.5px] font-medium text-accent" href={`mailto:${r.email}?subject=${encodeURIComponent('Dein Feedback zu StudySpace')}`}>
+                  Antworten an {r.email}
+                </a>
+              ) : (
+                <p className="text-[12px] text-faint">Keine Antwort per E-Mail gewünscht.</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

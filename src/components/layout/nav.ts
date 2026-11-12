@@ -35,6 +35,20 @@ export const MOBILE_NAV: NavItem[] = [
   { to: '#mehr', label: 'Mehr', icon: Ellipsis },
 ];
 
+/**
+ * App: Team bzw. Statistik (alleine lernen) gehört in die Tab-Leiste; der Fokus
+ * startet groß im Dashboard und steht ganz oben unter „Mehr“.
+ */
+export function appMobileNav(solo: boolean): NavItem[] {
+  return [
+    { to: '/', label: 'Home', icon: House },
+    { to: '/lernplan', label: 'Kalender', icon: CalendarDays },
+    { to: '/hausaufgaben', label: 'Aufgaben', icon: SquareCheckBig },
+    solo ? { to: '/analyse', label: 'Statistik', icon: ChartLine } : { to: '/team', label: 'Team', icon: Users },
+    { to: '#mehr', label: 'Mehr', icon: Ellipsis },
+  ];
+}
+
 export function isActive(path: string, to: string) {
   return to === '/' ? path === '/' : path === to || path.startsWith(`${to}/`);
 }

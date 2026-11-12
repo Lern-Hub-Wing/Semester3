@@ -42,7 +42,7 @@ export const TIERS = [
     price: '2,49 €',
     per: '/ Monat',
     alt: '11,99 € für 6 Monate',
-    points: ['Persönlicher Lernplan und Hausaufgaben', 'Prüfungen, Fokusmodus, Statistiken', 'Erinnerungen'],
+    points: ['Persönlicher Lernplan und Hausaufgaben', 'Prüfungen, Fokusmodus und Statistiken', 'Auf allen Geräten synchron'],
   },
   {
     id: 'group' as const,

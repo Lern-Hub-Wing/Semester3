@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Archive, ArrowDown, Crown, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users,
+  Archive, ArrowDown, Crown, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
@@ -37,6 +37,9 @@ import { IS_APP } from '../lib/edition';
 import { AccountSection, GroupSection, PlusSection } from '../app/AccountSettings';
 import { useAccount } from '../app/account';
 import { myPlanLabel } from '../app/api';
+import { AREA_TINT } from '../lib/tints';
+import { useTrashCount } from '../store/trash';
+import { exportMyData } from '../app/exportData';
 
 const SECTIONS = {
   konto: { title: 'Konto', render: () => <AccountSection /> },
@@ -45,12 +48,12 @@ const SECTIONS = {
   darstellung: { title: 'Darstellung & Bedienung', render: () => <Appearance /> },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
-  daten: { title: 'Sicherung & Import', render: () => <DataSection /> },
-  info: { title: 'Über StudySpace', render: () => <General /> },
+  daten: { title: IS_APP ? 'Daten exportieren' : 'Sicherung & Import', render: () => (IS_APP ? <AppDataSection /> : <DataSection />) },
+  info: { title: 'Über StudySpace', render: () => (IS_APP ? <AppGeneral /> : <General />) },
 } as const;
 type SectionKey = keyof typeof SECTIONS;
 /** Bisherige Seite: ohne Konto/Gruppe/Plus. App: ohne Personen (kommen per Einladung) und ohne Import. */
-const AVAILABLE: SectionKey[] = IS_APP ? ['konto', 'gruppe', 'plus', 'darstellung', 'faecher', 'info'] : ['darstellung', 'personen', 'faecher', 'daten', 'info'];
+const AVAILABLE: SectionKey[] = IS_APP ? ['konto', 'gruppe', 'plus', 'faecher', 'darstellung', 'daten', 'info'] : ['darstellung', 'personen', 'faecher', 'daten', 'info'];
 const isSection = (k: string | undefined): k is SectionKey => !!k && (AVAILABLE as string[]).includes(k);
 
 /**
@@ -123,30 +126,33 @@ function AppSettingsNav({ active }: { active?: SectionKey }) {
   const me = useAccount((s) => s.me);
   const email = useAccount((s) => s.session?.user.email);
   const group = me?.groups.find((g) => g.id === me.active_group_id);
-  const musicAvailable = useMusic((s) => s.available);
+  const trashCount = useTrashCount();
   const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
   const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
+  const solo = group?.kind === 'solo';
   return (
     <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
       <ProfileCard />
       <ListGroup title="Konto">
-        <ListRow icon={<UserRound />} tint="#6F7BF7" label="Konto" value={email} {...row('konto')} testId="settings-account" />
-        <ListRow icon={<Users />} tint="#2FA58B" label={group?.kind === 'solo' ? 'Lernbereich' : 'Lerngruppe'} value={group?.kind === 'solo' ? 'alleine' : group?.name} {...row('gruppe')} testId="settings-group" />
-        <ListRow icon={<Crown />} tint="#B57BF0" label="Tarif & Abo" value={me ? myPlanLabel(me) : undefined} {...row('plus')} testId="settings-plus" />
-      </ListGroup>
-      <ListGroup title="Dieses Gerät">
-        <ListRow icon={<Palette />} tint="#7C6FF0" label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
+        <ListRow icon={<UserRound />} tint={AREA_TINT.account} label="Konto" value={email} {...row('konto')} testId="settings-account" />
+        <ListRow icon={<Users />} tint={AREA_TINT.group} label={solo ? 'Lernbereich & Gruppen' : 'Lerngruppe'} value={solo ? undefined : group?.name} {...row('gruppe')} testId="settings-group" />
+        <ListRow icon={<Crown />} tint={AREA_TINT.plan_billing} label="Tarif & Abo" value={me ? myPlanLabel(me) : undefined} {...row('plus')} testId="settings-plus" />
       </ListGroup>
       <ListGroup title="Lernen">
-        <ListRow icon={<BookOpen />} tint="#3D8BE0" label="Fächer" value={modules.length} {...row('faecher')} />
-        <ListRow icon={<Music2 />} tint="#E0559A" label="Musik-Bibliothek" value={musicAvailable === false ? 'nicht verfügbar' : `${tracks} Titel`} to="/musik" testId="settings-music" />
+        <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer" value={modules.length} {...row('faecher')} />
+        <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik-Bibliothek" value={`${tracks} Titel`} to="/musik" testId="settings-music" />
+      </ListGroup>
+      <ListGroup title="Dieses Gerät">
+        <ListRow icon={<Palette />} tint={AREA_TINT.appearance} label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
       </ListGroup>
       <ListGroup title="Daten">
-        <ListRow icon={<Trash2 />} tint="#E5484D" label="Papierkorb" to="/papierkorb" />
-        <ListRow icon={<History />} tint="#7A8499" label="Änderungsverlauf" to="/verlauf" />
+        <ListRow icon={<Download />} tint={AREA_TINT.export} label="Daten exportieren" {...row('daten')} testId="settings-export" />
+        <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} to="/papierkorb" />
+        <ListRow icon={<History />} tint={AREA_TINT.history} label="Änderungsverlauf" to="/verlauf" />
       </ListGroup>
-      <ListGroup>
-        <ListRow icon={<Info />} tint="#8E8E93" label="Über StudySpace" value={config.version} {...row('info')} />
+      <ListGroup title="Hilfe">
+        <ListRow icon={<LifeBuoy />} tint={AREA_TINT.help} label="Hilfe & Feedback" to="/hilfe" testId="settings-help" />
+        <ListRow icon={<Info />} tint={AREA_TINT.info} label="Über StudySpace" value={config.version} {...row('info')} />
       </ListGroup>
     </nav>
   );
@@ -605,3 +611,63 @@ function ActionTile({ icon, title, text, onClick, busy }: { icon: ReactNode; tit
   );
 }
 
+/** App: Info ohne Technik – Konto-Sicherheit statt „öffentlicher Zugriff“. */
+function AppGeneral() {
+  const lastSyncAt = useData((s) => s.lastSyncAt);
+  return (
+    <Section title="Über StudySpace" icon={<Info />}>
+      <Row label="Version">
+        <span className="num text-sm text-muted">
+          {config.version}
+          {config.buildTime && ` · ${new Date(config.buildTime).toLocaleDateString('de-DE')}`}
+        </span>
+      </Row>
+      <Row label="Verbindung" hint={lastSyncAt ? `Zuletzt abgeglichen: ${new Date(lastSyncAt).toLocaleString('de-DE')}` : undefined}>
+        <div className="flex items-center gap-2">
+          <StatusPill />
+          <Button size="sm" variant="ghost" icon={<RotateCcw className="size-4" />} onClick={() => void resync().then(() => toast.success('Daten neu geladen'))}>
+            Neu laden
+          </Button>
+        </div>
+      </Row>
+      <div className="mt-2 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] p-4 text-xs leading-relaxed text-muted" data-testid="privacy-note">
+        <p className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
+          <ShieldCheck className="size-4" aria-hidden /> Deine Daten
+        </p>
+        Nur angemeldete Mitglieder deiner Lerngruppe sehen gemeinsame Inhalte – deinen eigenen Lernbereich siehst nur du. Jede Änderung im Verlauf
+        stammt von einem echten Konto. Gelöschtes liegt 30 Tage im Papierkorb. Unter „Daten exportieren“ lädst du alles herunter, unter „Konto“
+        kannst du dein Konto löschen.
+      </div>
+    </Section>
+  );
+}
+
+/** App: Datenexport (kein Import – Inhalte entstehen in der App). */
+function AppDataSection() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Section hint="Die Datei enthält alle Inhalte dieser Lerngruppe bzw. deines Lernbereichs, deine Haken und Fokuszeiten sowie deine Kontoangaben – lesbar als JSON.">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="export-section">
+        <div>
+          <p className="text-[14.5px] font-medium">Daten exportieren</p>
+          <p className="text-[12.5px] text-muted">Als Sicherung oder zum Mitnehmen.</p>
+        </div>
+        <Button
+          variant="primary"
+          icon={<Download className="size-4" />}
+          loading={busy}
+          data-testid="export-run"
+          onClick={() => {
+            setBusy(true);
+            exportMyData()
+              .then(() => toast.success('Export heruntergeladen'))
+              .catch(() => toast.error('Export fehlgeschlagen – bitte Verbindung prüfen.'))
+              .finally(() => setBusy(false));
+          }}
+        >
+          Herunterladen
+        </Button>
+      </div>
+    </Section>
+  );
+}
