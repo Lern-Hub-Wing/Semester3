@@ -78,34 +78,71 @@ try {
     assert((await a.getByRole('button', { name: /Mit Google/ }).count()) === 0, 'Google-Knopf ohne Konfiguration');
     assert((await a.getByRole('button', { name: /Mit Apple/ }).count()) === 0, 'Apple-Knopf ohne Konfiguration');
   });
-  await check('Registrierung prüft das Passwort', async () => {
-    await a.getByTestId('auth-to-signup').click();
-    await a.getByLabel('Dein Name').fill('Anna');
+  await check('Registrierung: klarer Wechsel, Name nicht abgeschnitten, Passwort prüfbar', async () => {
+    await a.getByRole('radio', { name: 'Neues Konto' }).click();
+    await a.getByTestId('auth-signup').waitFor();
+    await a.waitForTimeout(500);
+    // Rahmen des Namensfelds liegt vollständig im sichtbaren Bereich
+    const clip = await a.getByLabel('Wie heißt du?').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const box = el.closest('.overflow-hidden')?.getBoundingClientRect();
+      return box ? { left: r.left - box.left, right: box.right - r.right } : { left: 9, right: 9 };
+    });
+    assert(clip.left >= 2 && clip.right >= 2, `Namensfeld abgeschnitten: ${JSON.stringify(clip)}`);
+    await a.getByLabel('Wie heißt du?').fill('Anna');
     await a.getByLabel('E-Mail').fill('anna@example.com');
-    await a.getByLabel('Passwort').fill('kurz');
+    await a.getByLabel('Passwort', { exact: true }).fill('kurz');
+    await a.getByRole('button', { name: 'Passwort anzeigen' }).click();
+    assert((await a.getByLabel('Passwort', { exact: true }).getAttribute('type')) === 'text', 'Passwort sichtbar');
     await a.getByRole('button', { name: 'Konto erstellen' }).click();
-    await a.getByText('Mindestens 10 Zeichen.').waitFor();
+    await a.getByText('Mindestens 10 Zeichen.').first().waitFor();
+    await shot(a, '02-registrierung');
   });
-  await check('Registrierung → Gruppenauswahl; ohne Plus kein Erstellen', async () => {
-    await a.getByLabel('Passwort').fill('sicheresPasswort1');
+  await check('Erster Start: „Wie möchtest du lernen?“ mit drei Wegen', async () => {
+    await a.getByLabel('Passwort', { exact: true }).fill('sicheresPasswort1');
     await a.getByRole('button', { name: 'Konto erstellen' }).click();
-    await a.getByTestId('group-screen').waitFor();
-    await a.getByRole('radio', { name: 'Erstellen' }).or(a.getByRole('button', { name: 'Erstellen' })).first().click();
-    await a.getByTestId('plus-required').waitFor();
-    await shot(a, '02-gruppe-ohne-plus');
-    assert((await a.getByRole('button', { name: /kaufen|bezahlen|abonnieren/i }).count()) === 0, 'Kaufknopf ohne Zahlungssystem');
+    await a.getByTestId('welcome-screen').waitFor();
+    for (const id of ['join', 'solo', 'group']) await a.getByTestId(`welcome-${id}`).waitFor();
+    assert((await a.getByText('Wie möchtest du lernen?').count()) > 0, 'Frage sichtbar');
+    await a.waitForTimeout(900);
+    await shot(a, '03-willkommen');
   });
-  await check('Mit Plus (serverseitig) Gruppe erstellen → Dashboard', async () => {
-    mock.state.users.find((u) => u.email === 'anna@example.com').plus = true;
-    await a.reload();
-    await a.getByTestId('group-screen').waitFor();
-    await a.getByRole('radio', { name: 'Erstellen' }).or(a.getByRole('button', { name: 'Erstellen' })).first().click();
+  await check('Eigene Gruppe: Gruppenpass wählen → Kauf simulieren → Gruppe erstellen', async () => {
+    await a.getByTestId('welcome-group').click();
+    await a.getByTestId('checkout-group').waitFor();
+    for (const t of ['4,99 €', '24,99 €']) assert((await a.getByTestId('checkout-group').getByText(t, { exact: true }).count()) > 0, `Preis ${t}`);
+    await a.getByTestId('offer-group_monthly').click();
+    await shot(a, '04-gruppenpass');
+    await a.getByTestId('checkout-buy').click();
+    await a.getByTestId('group-panel').waitFor();
+    assert(mock.state.betaPurchases.some((b) => b.plan === 'group_monthly'), 'Beta-Kauf erfasst');
     await a.getByTestId('group-name').fill('Gruppe A');
     await a.getByTestId('group-create').click();
-    await a.getByTestId('header-greeting').or(a.locator('main')).first().waitFor({ timeout: 10000 });
-    await a.waitForFunction(() => !document.querySelector('[data-testid="group-screen"]'));
-    await a.waitForTimeout(1200);
-    await shot(a, '03-dashboard');
+    await a.waitForFunction(() => !document.querySelector('[data-testid="welcome-screen"]'), null, { timeout: 10000 });
+  });
+  await check('Einführung startet, hebt echte Elemente hervor, Überspringen oben links', async () => {
+    await a.getByTestId('tour').waitFor({ timeout: 8000 });
+    await a.getByTestId('tour-step-welcome').waitFor();
+    const skip = await a.getByTestId('tour-skip').boundingBox();
+    assert(skip && skip.x < 40 && skip.y < 60, `Überspringen nicht oben links: ${JSON.stringify(skip)}`);
+    await shot(a, '05-einfuehrung-start');
+    await a.getByTestId('tour-next').click();
+    await a.getByTestId('tour-step-subjects').waitFor();
+    await a.waitForTimeout(700);
+    await shot(a, '06-einfuehrung-faecher');
+    // bis zum Ende durchklicken
+    for (let i = 0; i < 12 && (await a.getByTestId('tour-next').count()); i++) {
+      await a.getByTestId('tour-next').click();
+      await a.waitForTimeout(250);
+    }
+    await a.getByTestId('tour-step-done').waitFor();
+    await shot(a, '07-einfuehrung-ende');
+    await a.getByTestId('tour-done').click();
+    await a.getByTestId('tour').waitFor({ state: 'detached' });
+    assert(mock.state.users.find((u) => u.email === 'anna@example.com').tutorial_done, 'Einführung gespeichert');
+    await a.reload();
+    await a.waitForTimeout(2500);
+    assert((await a.getByTestId('tour').count()) === 0, 'Einführung erscheint nicht erneut');
   });
   await check('Keine Materialien / Uploads in der Navigation', async () => {
     assert((await a.getByRole('link', { name: 'Materialien' }).count()) === 0, 'Materialien-Link vorhanden');
@@ -121,17 +158,26 @@ try {
     assert((await a.getByTestId('group-members').locator('li').count()) === 1, 'ein Mitglied');
     await shot(a, '04-einstellungen-gruppe');
   });
-  await check('Konto zeigt E-Mail, Plus-Seite zeigt Tarife ohne Kaufknopf', async () => {
+  await check('Konto zeigt E-Mail; Tarif & Abo mit Solo/Gruppe, Kündigen, Einführung erneut', async () => {
     await a.goto(`${BASE}#/einstellungen/konto`);
     assert((await a.getByTestId('account-email').innerText()) === 'anna@example.com', 'E-Mail');
     await a.goto(`${BASE}#/einstellungen/plus`);
-    await a.getByTestId('plans').waitFor();
-    for (const t of ['4,99 €', '19,99 €', '0 €']) assert((await a.getByText(t, { exact: true }).count()) > 0, `Preis ${t}`);
-    await shot(a, '05-plus');
+    await a.getByTestId('plus-section').waitFor();
+    assert((await a.getByTestId('own-plan').innerText()).includes('Gruppe monatlich'), 'eigener Tarif');
+    await a.getByTestId('tier-solo').click();
+    for (const t of ['2,49 €', '11,99 €']) assert((await a.getByTestId('checkout-solo').getByText(t, { exact: true }).count()) > 0, `Preis ${t}`);
+    await shot(a, '08-tarif');
+    await a.getByTestId('plan-cancel').click();
+    await a.getByRole('button', { name: 'Kündigen' }).last().click();
+    await a.waitForFunction(() => !document.querySelector('[data-testid="plan-cancel"]'));
+    await a.getByTestId('replay-tour').click();
+    await a.getByTestId('tour').waitFor();
+    await a.keyboard.press('Escape');
+    await a.getByTestId('tour').waitFor({ state: 'detached' });
   });
 
   console.log('App: Einladung per Link');
-  const group = mock.state.groups[0];
+  const group = mock.state.groups.find((g) => g.kind === 'team');
   const ctxB = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
   const b = watch(await ctxB.newPage());
   await check('Einladungslink → Anmeldung mit Hinweis', async () => {
@@ -139,18 +185,25 @@ try {
     await b.getByText('um der Lerngruppe beizutreten', { exact: false }).waitFor();
   });
   await check('Kostenlos registrieren → Einladung mit Vorschau → beitreten', async () => {
-    await b.getByTestId('auth-to-signup').click();
-    await b.getByLabel('Dein Name').fill('Ben');
+    await b.getByRole('radio', { name: 'Neues Konto' }).click();
+    await b.getByLabel('Wie heißt du?').fill('Ben');
     await b.getByLabel('E-Mail').fill('ben@example.com');
-    await b.getByLabel('Passwort').fill('nochSicherer22');
+    await b.getByLabel('Passwort', { exact: true }).fill('nochSicherer22');
     await b.getByRole('button', { name: 'Konto erstellen' }).click();
     await b.getByTestId('invite-preview').waitFor();
     assert((await b.getByTestId('invite-preview').innerText()).includes('Gruppe A'), 'Vorschau zeigt Gruppe');
     await b.waitForTimeout(1200);
     await shot(b, '06-einladung-handy');
     await b.getByTestId('join-submit').click();
-    await b.waitForFunction(() => !document.querySelector('[data-testid="group-screen"]'), null, { timeout: 10000 });
+    await b.waitForFunction(() => !document.querySelector('[data-testid="welcome-screen"]'), null, { timeout: 10000 });
     assert(mock.state.memberships.filter((m) => m.group_id === group.id).length === 2, 'zwei Mitglieder');
+    // Einführung auf dem Handy: Tab-Leiste wird hervorgehoben, Überspringen oben links
+    await b.getByTestId('tour').waitFor({ timeout: 8000 });
+    await b.getByTestId('tour-next').click();
+    await b.waitForTimeout(700);
+    await shot(b, '09-einfuehrung-handy');
+    await b.getByTestId('tour-skip').click();
+    await b.getByTestId('tour').waitFor({ state: 'detached' });
   });
   await check('Mitglied sieht keinen Einladungscode, kann austreten', async () => {
     await b.goto(`${BASE}#/einstellungen/gruppe`);
@@ -178,17 +231,46 @@ try {
   });
   await check('Anmelden mit falschem Passwort → verständliche Meldung', async () => {
     await b.getByLabel('E-Mail').fill('ben@example.com');
-    await b.getByLabel('Passwort').fill('falsch12345');
+    await b.getByLabel('Passwort', { exact: true }).fill('falsch12345');
     await b.getByRole('button', { name: 'Anmelden' }).click();
     await b.getByText('E-Mail oder Passwort ist falsch.').waitFor();
   });
   await check('„Angemeldet bleiben“ aus → Sitzung nur im Tab', async () => {
-    await b.getByLabel('Passwort').fill('nochSicherer22');
+    await b.getByLabel('Passwort', { exact: true }).fill('nochSicherer22');
     await b.getByRole('switch', { name: 'Angemeldet bleiben' }).click();
     await b.getByRole('button', { name: 'Anmelden' }).click();
     await b.waitForFunction(() => !document.querySelector('[data-testid="auth-signin"]'), null, { timeout: 10000 });
     const where = await b.evaluate(() => ({ local: !!localStorage.getItem('studyspace-app-auth'), session: !!sessionStorage.getItem('studyspace-app-auth') }));
     assert(!where.local && where.session, JSON.stringify(where));
+  });
+
+  console.log('App: Alleine lernen (Testphase → nur lesen)');
+  const ctxS = await context();
+  const so = watch(await ctxS.newPage());
+  await check('Alleine lernen: 14 Tage kostenlos ohne Zahlungsdaten', async () => {
+    await so.goto(BASE);
+    await so.getByRole('radio', { name: 'Neues Konto' }).click();
+    await so.getByLabel('Wie heißt du?').fill('Sam');
+    await so.getByLabel('E-Mail').fill('sam@example.com');
+    await so.getByLabel('Passwort', { exact: true }).fill('sicheresPasswort3');
+    await so.getByRole('button', { name: 'Konto erstellen' }).click();
+    await so.getByTestId('welcome-solo').click();
+    await so.getByTestId('trial-start').click();
+    await so.waitForFunction(() => !document.querySelector('[data-testid="welcome-screen"]'), null, { timeout: 10000 });
+    await so.getByTestId('tour').waitFor({ timeout: 8000 });
+    await so.getByTestId('tour-skip').click();
+    assert((await so.getByTestId('plus-banner').count()) === 0, 'kein Hinweis während der Testphase');
+    assert((await so.getByRole('link', { name: 'Team' }).count()) === 1, 'Navigation vorhanden');
+  });
+  await check('Nach Ablauf: ruhiger Nur-Lesen-Hinweis, ausblendbar', async () => {
+    const u = mock.state.users.find((x) => x.email === 'sam@example.com');
+    u.ents.find((e) => e.plan === 'trial').ends_at = new Date(Date.now() - 864e5).toISOString();
+    await so.reload();
+    await so.getByTestId('plus-banner').waitFor({ timeout: 10000 });
+    assert((await so.getByTestId('plus-banner').innerText()).includes('Testphase ist beendet'), 'Text');
+    await shot(so, '10-nur-lesen');
+    await so.getByRole('button', { name: 'Für heute ausblenden' }).click();
+    await so.getByTestId('plus-banner').waitFor({ state: 'detached' });
   });
 
   console.log('Admin-Bereich');
@@ -234,7 +316,32 @@ try {
     await c.getByTestId('revenue-none').waitFor();
     await shot(c, '08-admin-uebersicht');
     assert((await c.getByText('MRR', { exact: true }).count()) === 0, 'MRR angezeigt');
-    assert((await c.getByTestId('stat-users').innerText()).includes('2'), 'zwei Benutzer');
+    assert((await c.getByTestId('stat-users').innerText()).includes('3'), 'drei Benutzer');
+  });
+  await check('Beta-Käufe getrennt sichtbar und abschaltbar', async () => {
+    await c.getByText('Kauf simulieren in der App').waitFor();
+    await c.getByRole('switch', { name: 'Beta-Käufe erlauben' }).click();
+    await c.waitForFunction(() => true);
+    await c.waitForTimeout(500);
+    assert(mock.state.betaEnabled === false, 'Beta aus');
+    await c.getByRole('switch', { name: 'Beta-Käufe erlauben' }).click();
+    await c.waitForTimeout(500);
+    assert(mock.state.betaEnabled === true, 'Beta an');
+  });
+  await check('Finanzen: Gewinn-Simulator mit Diagramm, Skalierung und aktuellen Zahlen', async () => {
+    await c.getByRole('radio', { name: 'Finanzen' }).or(c.getByRole('button', { name: 'Finanzen' })).first().click();
+    await c.getByTestId('admin-finance').waitFor();
+    await c.getByRole('img', { name: 'Brutto, Netto und Gewinn je Monat' }).waitFor();
+    const before = await c.getByTestId('sim-profit').innerText();
+    await c.getByTestId('sim-from-current').click();
+    await c.getByLabel('Neue zahlende Abos pro Monat').fill('200');
+    await c.waitForTimeout(300);
+    assert((await c.getByTestId('sim-profit').innerText()) !== before, 'Simulation reagiert');
+    await c.getByRole('img', { name: 'Brutto, Netto und Gewinn je Monat' }).hover({ position: { x: 300, y: 120 } });
+    await c.waitForTimeout(200);
+    await shot(c, '11-admin-finanzen');
+    await c.getByTestId('sim-table-toggle').click();
+    assert((await c.locator('table tbody tr').count()) >= 12, 'Monatstabelle');
   });
   await check('Benutzerliste', async () => {
     await c.getByRole('radio', { name: 'Benutzer' }).or(c.getByRole('button', { name: 'Benutzer' })).first().click();

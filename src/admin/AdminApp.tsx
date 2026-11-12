@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
-  Ban, ChartColumn, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
+  Ban, ChartColumn, Euro, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
 } from 'lucide-react';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
@@ -12,6 +12,8 @@ import { Toasts } from '../components/ui/Toasts';
 import { toast } from '../store/toast';
 import { config } from '../lib/config';
 import { LoginScreen, MfaScreen, SetupScreen } from './AdminLogin';
+import { FinanceSimulator } from './Finance';
+import { Switch } from '../components/ui/Switch';
 import {
   adminAuth, adminDb, euro, fmtDate, PLAN_LABEL, rpc, SOURCE_LABEL, type AdminGroup, type AdminUser, type Entitlement, type Stats,
 } from './client';
@@ -90,7 +92,7 @@ export function AdminApp() {
 
 // ---------------------------------------------------------------------
 
-type Tab = 'overview' | 'users' | 'groups' | 'audit';
+type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'audit';
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('overview');
@@ -115,12 +117,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           className="mb-6 w-full md:w-auto"
           options={[
             { value: 'overview', label: 'Übersicht', icon: <ChartColumn className="size-4" /> },
+            { value: 'finance', label: 'Finanzen', icon: <Euro className="size-4" /> },
             { value: 'users', label: 'Benutzer', icon: <Users className="size-4" /> },
             { value: 'groups', label: 'Gruppen', icon: <UsersRound className="size-4" /> },
             { value: 'audit', label: 'Protokoll', icon: <History className="size-4" /> },
           ]}
         />
         {tab === 'overview' && <Overview />}
+        {tab === 'finance' && <FinanceTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'groups' && <GroupsTab />}
         {tab === 'audit' && <AuditTab />}
@@ -169,15 +173,16 @@ function Overview() {
         <Stat label="Free-Nutzer" value={s.users_free} />
         <Stat label="Plus über Gruppe" value={s.users_plus_member} />
         <Stat label="Gesperrt" value={s.users_blocked} />
-        <Stat label="Testphasen aktiv" value={s.trials_active} sub="keine Testphasen angeboten" />
+        <Stat label="Testphasen aktiv" value={s.trials_active} sub={`${s.trials_expired} beendet · ${s.trials_converted} gekauft`} testId="stat-trials" />
       </div>
 
       <SectionTitle>Gruppen & Tarife</SectionTitle>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Gruppen" value={s.groups_total} />
-        <Stat label="Plus-Gruppen" value={s.groups_plus} />
+        <Stat label="Lerngruppen" value={s.groups_total} sub={`${s.group_members_total} Mitglieder`} />
+        <Stat label="Mit Gruppenpass" value={s.groups_plus} />
+        <Stat label="Eigene Lernbereiche" value={s.solo_spaces} />
         <Stat label="Bezahlte Monatsabos" value={s.subscriptions_paid_active} />
-        <Stat label="Semesterpässe aktiv" value={s.semester_passes_active} />
+        <Stat label="Bezahlte 6-Monats-Pässe" value={s.semester_passes_active} />
         <Stat label="Admin-Freischaltungen" value={s.grants_active} sub="kostenlos – kein Umsatz" testId="stat-grants" />
         <Stat label="Abgelaufen (30 Tage)" value={s.expired_30d} />
         <Stat label="Kündigungen (30 Tage)" value={s.cancellations_30d} />
@@ -197,6 +202,9 @@ function Overview() {
           <Stat label="MRR" value={euro(s.mrr_cents)} sub="laufende bezahlte Monatsabos" />
         </div>
       )}
+
+      <SectionTitle>Beta-Käufe (simuliert)</SectionTitle>
+      <BetaCard s={s} onChanged={load} />
 
       <SectionTitle>Neue Benutzer pro Tag (30 Tage)</SectionTitle>
       <Card>
@@ -261,6 +269,59 @@ function SystemStatus({ dbTime, payments, onRefresh }: { dbTime: string; payment
       </Button>
     </Card>
   );
+}
+
+function BetaCard({ s, onChanged }: { s: Stats; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const plans = ['solo_monthly', 'solo_semester', 'group_monthly', 'group_semester'];
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[14.5px] font-semibold">Kauf simulieren in der App</p>
+          <p className="text-[12.5px] text-muted">Nutzer können Tarife ohne Zahlung „kaufen“. Zählt nie als Umsatz.</p>
+        </div>
+        <Switch
+          checked={s.beta_purchases_enabled}
+          disabled={busy}
+          label="Beta-Käufe erlauben"
+          onChange={(on) => {
+            setBusy(true);
+            rpc('admin_set_config', { p_key: 'beta_purchases', p_value: on })
+              .then(() => (toast.success(on ? 'Beta-Käufe eingeschaltet' : 'Beta-Käufe ausgeschaltet'), onChanged()), (e: Error) => toast.error(e.message))
+              .finally(() => setBusy(false));
+          }}
+        />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {plans.map((p) => (
+          <div key={p} className="rounded-2xl border border-line p-3">
+            <p className="text-[12px] text-muted">{PLAN_LABEL[p]}</p>
+            <p className="num text-[20px] font-semibold">{s.beta_by_plan?.[p] ?? 0}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-1 text-[13px] text-muted sm:grid-cols-3">
+        <p>
+          Simulierter Betrag gesamt: <strong className="num text-ink">{euro(s.beta_simulated_cents)}</strong>
+        </p>
+        <p>
+          Simulierter MRR: <strong className="num text-ink">{euro(s.beta_mrr_cents)}</strong>
+        </p>
+        <p>
+          Kündigungen (Beta): <strong className="num text-ink">{s.beta_cancellations}</strong>
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function FinanceTab() {
+  const [s, setS] = useState<Stats | null>(null);
+  useEffect(() => {
+    rpc<Stats>('admin_stats').then(setS, () => setS(null));
+  }, []);
+  return <FinanceSimulator stats={s} />;
 }
 
 // ---------------------------------------------------------------------
@@ -420,6 +481,7 @@ function GrantForm({ type, target, onDone }: { type: 'user' | 'group'; target: s
   const [days, setDays] = useState('30');
   const [until, setUntil] = useState('');
   const [note, setNote] = useState('');
+  const [plan, setPlan] = useState<'plus_grant' | 'solo_grant'>('plus_grant');
   const [busy, setBusy] = useState(false);
   const valid = mode === 'unlimited' || (mode === 'days' ? Number(days) >= 1 && Number(days) <= 3660 : !!until && new Date(until) > new Date());
   const submit = () => {
@@ -430,13 +492,26 @@ function GrantForm({ type, target, onDone }: { type: 'user' | 'group'; target: s
       p_days: mode === 'days' ? Number(days) : null,
       p_until: mode === 'until' ? new Date(`${until}T23:59:59`).toISOString() : null,
       p_note: note.trim() || null,
+      p_plan: type === 'group' ? 'plus_grant' : plan,
     })
       .then(() => (toast.success('Plus freigeschaltet'), onDone()), (e: Error) => toast.error(e.message))
       .finally(() => setBusy(false));
   };
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-line p-3.5" data-testid="grant-form">
-      <p className="text-[13px] font-semibold">Plus kostenlos freischalten {type === 'group' ? 'für die Gruppe' : 'für das Konto'}</p>
+      <p className="text-[13px] font-semibold">Kostenlos freischalten {type === 'group' ? '(Gruppenpass für diese Gruppe)' : 'für das Konto'}</p>
+      {type === 'user' && (
+        <Segmented
+          label="Tarif"
+          size="sm"
+          value={plan}
+          onChange={setPlan}
+          options={[
+            { value: 'plus_grant', label: 'Gruppe' },
+            { value: 'solo_grant', label: 'Solo' },
+          ]}
+        />
+      )}
       <Segmented
         label="Dauer"
         size="sm"

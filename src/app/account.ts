@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AuthChangeEvent, Provider, Session } from '@supabase/supabase-js';
+import type { AuthChangeEvent, EmailOtpType, Provider, Session } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
 import { config } from '../lib/config';
 import { describeError } from '../lib/errors';
@@ -108,6 +108,35 @@ export async function refreshMe(): Promise<Me | null> {
 }
 
 let started = false;
+/** Ein Link aus einer E-Mail wird gerade geprüft (nicht kurz die Anmeldung zeigen) */
+let verifying = false;
+/** Der geprüfte Link war „Passwort vergessen“ → danach neues Passwort festlegen */
+let recoveryPending = false;
+
+/**
+ * Links aus E-Mails (Bestätigen, Passwort vergessen, E-Mail ändern) enthalten
+ * `token_hash` und `type`. Anders als der PKCE-Code funktionieren sie auch auf
+ * einem anderen Gerät oder Browser als dem, auf dem man sich registriert hat.
+ */
+async function verifyEmailLink() {
+  const url = new URL(window.location.href);
+  const tokenHash = url.searchParams.get('token_hash');
+  const type = url.searchParams.get('type') as EmailOtpType | null;
+  if (!tokenHash || !type) return;
+  url.searchParams.delete('token_hash');
+  url.searchParams.delete('type');
+  window.history.replaceState(null, '', url.pathname + url.search + (url.hash || '#/'));
+  verifying = true;
+  recoveryPending = type === 'recovery';
+  const { error } = await getSupabase().auth.verifyOtp({ token_hash: tokenHash, type });
+  verifying = false;
+  if (error) {
+    recoveryPending = false;
+    useAccount.setState({ error: 'Der Link ist abgelaufen oder wurde schon verwendet. Bitte erneut anfordern.' });
+    if (useAccount.getState().phase === 'loading') useAccount.setState({ phase: 'signedOut' });
+  }
+}
+
 let presence: ReturnType<typeof setInterval> | null = null;
 
 function startPresence() {
@@ -128,14 +157,17 @@ export function initAccount() {
   const urlError = authErrorFromUrl();
   if (urlError) useAccount.setState({ error: urlError });
   const sb = getSupabase();
+  if (new URLSearchParams(window.location.search).has('token_hash')) verifying = true;
 
   sb.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
     useAccount.setState({ session });
-    if (event === 'PASSWORD_RECOVERY') {
+    if (event === 'PASSWORD_RECOVERY' || (recoveryPending && session)) {
+      recoveryPending = false;
       useAccount.setState({ phase: 'recovery' });
       return;
     }
     if (!session) {
+      if (verifying) return; // Link wird noch geprüft
       useAccount.setState({ phase: 'signedOut', me: null });
       return;
     }
@@ -149,6 +181,7 @@ export function initAccount() {
       }, 0);
     }
   });
+  void verifyEmailLink();
 }
 
 // ---------------------------------------------------------------------

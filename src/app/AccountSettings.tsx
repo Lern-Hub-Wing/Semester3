@@ -9,7 +9,10 @@ import { TextField } from '../components/ui/Field';
 import { Modal } from '../components/ui/Modal';
 import { Avatar } from '../components/ui/Avatar';
 import { Row, Section } from '../components/ui/SettingsCard';
-import { api, formatCode, GROUP_LIMITS, isValidCode, normalizeCode, passwordProblem, PLANS, plusLabel, type GroupMember, type Usage } from './api';
+import { api, daysLeft, formatCode, GROUP_LIMITS, isValidCode, myPlanLabel, normalizeCode, passwordProblem, PLAN_NAMES, plusLabel, type GroupMember, type Usage } from './api';
+import { PlanCheckout } from './PlanCheckout';
+import { startTour } from './Tour';
+import { Link } from '../lib/router';
 import { describeAuthError, inviteLink, refreshMe, reloadIntoGroup, signOut, updatePassword, useAccount } from './account';
 
 const sb = () => getSupabase();
@@ -228,6 +231,8 @@ export function GroupSection() {
 
   if (!me || !group) return null;
   const owner = group.is_owner;
+  const solo = group.kind === 'solo';
+  const hasSolo = me.groups.some((g) => g.kind === 'solo');
   const link = group.invite_code ? inviteLink(group.invite_code) : null;
   const others = me.groups.filter((g) => g.id !== group.id);
 
@@ -248,8 +253,8 @@ export function GroupSection() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="group-section">
-      <Section hint={owner ? 'Du verwaltest diese Gruppe.' : 'Lernplan, Prüfungen und Hausaufgaben teilt ihr; Fortschritt und Lernzeit bleiben persönlich.'}>
-        <Row label="Gruppe">
+      <Section hint={solo ? 'Dein persönlicher Lernbereich – nur du siehst ihn.' : owner ? 'Du verwaltest diese Gruppe.' : 'Lernplan, Prüfungen und Hausaufgaben teilt ihr; Fortschritt und Lernzeit bleiben persönlich.'}>
+        <Row label={solo ? 'Lernbereich' : 'Gruppe'}>
           {owner ? (
             <div className="flex items-center gap-2">
               <input className="field w-full sm:w-56" value={rename} maxLength={60} onChange={(e) => setRename(e.target.value)} aria-label="Gruppenname" />
@@ -267,14 +272,14 @@ export function GroupSection() {
             <span className="text-[14px] font-medium">{group.name}</span>
           )}
         </Row>
-        <Row label="Plus">
+        <Row label="Zugang">
           <span className={`inline-flex items-center gap-1.5 text-[14px] ${group.has_plus ? 'text-accent' : 'text-muted'}`} data-testid="group-plus">
             <Crown className="size-4" aria-hidden /> {plusLabel(group)}
           </span>
         </Row>
       </Section>
 
-      {owner && link && group.invite_code && (
+      {!solo && owner && link && group.invite_code && (
         <Section hint="Mit Link oder Code treten andere kostenlos bei – höchstens 8 Personen inklusive dir.">
           <div className="flex flex-col gap-3" data-testid="invite-card">
             <div>
@@ -300,6 +305,7 @@ export function GroupSection() {
         </Section>
       )}
 
+      {!solo && (
       <Section hint={`${members.length} von ${GROUP_LIMITS.members} Plätzen belegt.`}>
         <ul className="flex flex-col" data-testid="group-members">
           {members.map((m) => (
@@ -322,6 +328,7 @@ export function GroupSection() {
           ))}
         </ul>
       </Section>
+      )}
 
       {usage && (
         <Section hint="Grenzen je Lerngruppe. Gelöschte Einträge zählen nicht und werden nach 30 Tagen endgültig entfernt.">
@@ -336,7 +343,7 @@ export function GroupSection() {
 
       <Section>
         {others.map((g) => (
-          <Row key={g.id} label={g.name} hint={`${g.members}/8 · ${plusLabel(g)}`} inline>
+          <Row key={g.id} label={g.kind === 'solo' ? 'Mein Lernbereich' : g.name} hint={g.kind === 'solo' ? `alleine · ${plusLabel(g)}` : `${g.members}/8 · ${plusLabel(g)}`} inline>
             <Button size="sm" loading={busy === `switch-${g.id}`} onClick={() => void run(`switch-${g.id}`, async () => (await api.switchGroup(sb(), g.id), reloadIntoGroup()))}>
               Wechseln
             </Button>
@@ -355,8 +362,27 @@ export function GroupSection() {
             </Button>
           </div>
         </Row>
+        {!hasSolo && (me.level || !me.trial_used) && (
+          <Row label="Eigener Lernbereich" hint={me.level ? 'Alleine lernen – in deinem Tarif enthalten.' : '14 Tage kostenlos alleine lernen.'} inline>
+            <Button
+              size="sm"
+              loading={busy === 'solo'}
+              onClick={() => void run('solo', async () => (await (me.level ? api.openSolo(sb()) : api.startTrial(sb())), reloadIntoGroup()))}
+              data-testid="open-solo"
+            >
+              {me.level ? 'Öffnen' : 'Testen'}
+            </Button>
+          </Row>
+        )}
+        {!me.has_plus && (
+          <Row label="Eigene Lerngruppe" hint="Mit dem Gruppenpass lernst du mit bis zu sieben Freunden." inline>
+            <Link to="/einstellungen/plus" className="inline-flex h-9 items-center rounded-full px-3.5 text-[13px] font-medium glass mat-interactive">
+              Gruppenpass
+            </Link>
+          </Row>
+        )}
         {me.has_plus && (
-          <Row label="Neue Gruppe erstellen" hint="Mit deinem Plus-Zugang.">
+          <Row label="Neue Gruppe erstellen" hint="Mit deinem Gruppenpass.">
             <div className="flex items-center gap-2">
               <input className="field w-full sm:w-44" value={newGroup} maxLength={60} placeholder="Name" onChange={(e) => setNewGroup(e.target.value)} aria-label="Name der neuen Gruppe" />
               <Button size="sm" disabled={!newGroup.trim()} loading={busy === 'create'} onClick={() => void run('create', async () => (await api.createGroup(sb(), newGroup.trim()), reloadIntoGroup()))}>
@@ -369,7 +395,7 @@ export function GroupSection() {
 
       <Section>
         {owner ? (
-          <Row label="Gruppe löschen" hint="Löscht Lernplan, Prüfungen, Hausaufgaben und alle Haken dieser Gruppe endgültig.">
+          <Row label={solo ? 'Lernbereich löschen' : 'Gruppe löschen'} hint={solo ? 'Löscht deinen Lernplan, Prüfungen, Hausaufgaben und Haken endgültig.' : 'Löscht Lernplan, Prüfungen, Hausaufgaben und alle Haken dieser Gruppe endgültig.'}>
             <Button size="sm" variant="danger" icon={<Trash2 className="size-4" />} onClick={() => setConfirm('delete')}>
               Gruppe löschen
             </Button>
@@ -452,58 +478,83 @@ function UsageRow({ label, value, max }: { label: string; value: number; max: nu
 }
 
 // ---------------------------------------------------------------------
-// Plus & Tarife
+// Tarif & Abo
 // ---------------------------------------------------------------------
 
 export function PlusSection() {
   const me = useAccount((s) => s.me);
-  const group = me?.groups.find((g) => g.id === me.active_group_id);
-  const own = me?.has_plus ? plusLabel({ has_plus: true, plus_until: me.plus_until }) : 'Free';
+  const [tier, setTier] = useState<'solo' | 'group'>(me?.level === 'solo' || !me?.level ? 'solo' : 'group');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const { busy, run } = useAction();
+  if (!me) return null;
+  const group = me.groups.find((g) => g.id === me.active_group_id);
+  const trialDays = me.plan === 'trial' ? daysLeft(me.plan_until) : null;
+  const until = me.plan_until ? new Date(me.plan_until).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const isBeta = me.plan_source === 'beta';
+
   return (
     <div className="flex flex-col gap-5" data-testid="plus-section">
-      <Section hint="Plus wird nur vom Server freigeschaltet – nie allein durch die App.">
+      <Section hint="Zugänge schaltet nur der Server frei – nie allein die App.">
         <Row label="Dein Tarif" inline>
-          <span className={`inline-flex items-center gap-1.5 text-[14px] font-medium ${me?.has_plus ? 'text-accent' : ''}`} data-testid="own-plan">
-            {me?.has_plus && <Crown className="size-4" aria-hidden />}
-            {own}
+          <span className={`inline-flex items-center gap-1.5 text-[14px] font-medium ${me.level ? 'text-accent' : ''}`} data-testid="own-plan">
+            {me.level && <Crown className="size-4" aria-hidden />}
+            {myPlanLabel(me)}
           </span>
         </Row>
-        {group && (
-          <Row label={`Gruppe „${group.name}“`} inline>
+        {me.plan && me.plan !== 'trial' && (
+          <Row label={me.auto_renew ? 'Verlängert sich am' : 'Läuft bis'} inline>
+            <span className="text-[14px] text-muted">{until ?? 'unbegrenzt'}</span>
+          </Row>
+        )}
+        {trialDays !== null && (
+          <Row label="Testphase" hint="Danach bleibt alles sichtbar; zum Bearbeiten Solo oder Gruppe wählen." inline>
+            <span className="num text-[14px] text-muted">noch {trialDays} {trialDays === 1 ? 'Tag' : 'Tage'}</span>
+          </Row>
+        )}
+        {group && group.kind === 'team' && !group.is_owner && (
+          <Row label={`Gruppe „${group.name}“`} hint="Der Gruppenpass wird von der Person bezahlt, die die Gruppe verwaltet." inline>
             <span className="text-[14px] text-muted">{plusLabel(group)}</span>
+          </Row>
+        )}
+        {isBeta && me.auto_renew && me.plan_id && (
+          <Row label="Abo kündigen" hint="Der Zugang läuft bis zum Ende des Zeitraums weiter." inline>
+            <Button size="sm" variant="ghost" onClick={() => setCancelOpen(true)} data-testid="plan-cancel">
+              Kündigen
+            </Button>
           </Row>
         )}
       </Section>
 
-      <div className="grid gap-3 md:grid-cols-3" data-testid="plans">
-        {PLANS.map((p) => {
-          const current = p.id === 'free' ? !me?.has_plus : false;
-          return (
-            <div key={p.id} className={`settings-card flex flex-col gap-2 ${p.id === 'plus_monthly' ? 'ring-1 ring-[var(--ss-accent)]' : ''}`}>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[14px] font-semibold">{p.name}</p>
-                {current && <span className="rounded-full bg-[color-mix(in_srgb,var(--ss-accent)_14%,transparent)] px-2 py-0.5 text-[11px] font-semibold text-accent">Aktuell</span>}
-              </div>
-              <p>
-                <span className="num text-[26px] font-semibold">{p.price}</span> <span className="text-[12.5px] text-muted">{p.period}</span>
-              </p>
-              <ul className="flex flex-col gap-1.5 text-[13px] text-muted">
-                {p.points.map((t) => (
-                  <li key={t} className="flex gap-2">
-                    <Check className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="list-group-title !mb-0">{me.level ? 'Verlängern oder wechseln' : 'Tarif wählen'}</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5" role="tablist" aria-label="Tarif">
+          {(['solo', 'group'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tier === t}
+              onClick={() => setTier(t)}
+              data-testid={`tier-${t}`}
+              className={`rounded-[18px] border p-3 text-left transition-colors ${tier === t ? 'border-[var(--ss-accent)] bg-[color-mix(in_srgb,var(--ss-accent)_10%,transparent)]' : 'border-line'}`}
+            >
+              <p className="text-[14px] font-semibold">{t === 'solo' ? 'Solo' : 'Gruppe'}</p>
+              <p className="text-[12px] text-muted">{t === 'solo' ? 'ab 2,49 € / Monat' : 'ab 4,99 € / Monat · bis 8 Personen'}</p>
+            </button>
+          ))}
+        </div>
+        <div className="settings-card mt-3">
+          <PlanCheckout key={tier} tier={tier} onDone={(r) => (r.group_id || tier === 'group' ? reloadIntoGroup() : undefined)} />
+        </div>
+        <p className="list-group-footer">
+          Monatstarife verlängern sich monatlich, solange nicht gekündigt wird. Semesterpässe enden nach sechs Monaten automatisch.
+          {tier === 'group' && ' Nach dem Kauf erstellst du unter „Lerngruppe“ deine Gruppe.'}
+        </p>
       </div>
-      <p className="list-group-footer -mt-2">
-        Der Kauf direkt in der App (Web, iOS, Android) wird gerade vorbereitet. Bis dahin schaltet das StudySpace-Team Plus auf Anfrage frei.
-      </p>
 
-      <Section hint="Läuft Plus ab, bleiben alle Inhalte sichtbar. Neue Einträge und Änderungen sind dann erst nach einer Verlängerung wieder möglich; Haken setzen und Fokuszeiten funktionieren weiter. Neue Mitglieder können nicht beitreten.">
+      <Section hint="Läuft der Zugang ab, bleibt alles sichtbar. Neue Einträge und Änderungen sind dann erst nach einer Verlängerung wieder möglich; Haken setzen und Fokuszeiten funktionieren weiter.">
         <Row label="Mitglieder je Gruppe" inline>
           <span className="num text-[14px] text-muted">{GROUP_LIMITS.members}</span>
         </Row>
@@ -517,6 +568,36 @@ export function PlusSection() {
           <span className="text-[14px] text-muted">keine Uploads</span>
         </Row>
       </Section>
+
+      <Section>
+        <Row label="Einführung" hint="Die kurze Tour durch StudySpace noch einmal ansehen." inline>
+          <Button size="sm" onClick={() => startTour()} data-testid="replay-tour">
+            Ansehen
+          </Button>
+        </Row>
+      </Section>
+
+      <Modal
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title={`${PLAN_NAMES[me.plan ?? ''] ?? 'Abo'} kündigen?`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCancelOpen(false)}>
+              Behalten
+            </Button>
+            <Button
+              variant="danger"
+              loading={busy === 'cancel'}
+              onClick={() => void run('cancel', async () => (await api.betaCancel(sb(), me.plan_id!), await refreshMe(), setCancelOpen(false)), 'Gekündigt – läuft bis zum Ende des Zeitraums')}
+            >
+              Kündigen
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] text-muted">Du behältst den Zugang bis {until}. Danach bleibt alles sichtbar, nur Bearbeiten ist gesperrt.</p>
+      </Modal>
     </div>
   );
 }

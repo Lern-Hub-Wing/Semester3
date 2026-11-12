@@ -1,13 +1,13 @@
-import { useEffect, type ReactNode } from 'react';
-import { Crown } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Eye, X } from 'lucide-react';
 import { useSession } from '../store/session';
 import { setCacheKey } from '../store/sync';
 import { Link } from '../lib/router';
 import { cacheKeyFor, initAccount, refreshMe, signOut, useAccount } from './account';
 import { AuthFrame, AuthScreen, BlockedScreen, RecoveryScreen, Splash } from './AuthScreen';
 import { Button } from '../components/ui/Button';
-import { GroupScreen } from './GroupScreen';
-import { TutorialSlot } from './Tutorial';
+import { WelcomeScreen } from './WelcomeScreen';
+import { TourHost } from './Tour';
 
 /**
  * Tür zur App: erst anmelden, dann Lerngruppe – danach die gewohnte
@@ -54,34 +54,67 @@ export function AppGate({ children }: { children: ReactNode }) {
   if (!me) return <Splash />;
   if (me.status === 'blocked') return <BlockedScreen />;
   if (!me.session_ok) return <BlockedScreen revoked />;
-  if (!inGroup || showInvite) return <GroupScreen />;
+  if (!inGroup || showInvite) return <WelcomeScreen />;
   return (
     <>
       {children}
-      {/* Haken für eine spätere Einführung nach der ersten Anmeldung */}
-      <TutorialSlot me={me} />
+      {/* Geführte Einführung beim ersten Besuch (überspringbar) */}
+      <TourHost />
     </>
   );
 }
 
-/** Hinweis, wenn der Plus-Zugang der Gruppe abgelaufen ist (Inhalte nur lesbar). */
+/**
+ * Ruhiger Hinweis, wenn nur gelesen werden kann (Testphase vorbei oder
+ * Gruppenpass abgelaufen). Lässt sich für einen Tag ausblenden – keine
+ * ständigen Meldungen.
+ */
 export function PlusBanner() {
   const me = useAccount((s) => s.me);
   const group = me?.groups.find((g) => g.id === me.active_group_id);
-  if (!group || group.has_plus) return null;
+  const key = `studyspace.app.banner.${group?.id ?? ''}`;
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(key) === new Date().toDateString();
+    } catch {
+      return false;
+    }
+  });
+  if (!group || group.has_plus || hidden) return null;
+  const solo = group.kind === 'solo';
+  const text = solo
+    ? me?.trial_used && !me.plan
+      ? 'Deine Testphase ist beendet. Alles bleibt sichtbar – mit Solo kannst du wieder bearbeiten.'
+      : 'Dein Solo-Zugang ist abgelaufen. Alles bleibt sichtbar – zum Bearbeiten verlängern.'
+    : group.is_owner
+      ? 'Der Gruppenpass ist abgelaufen. Inhalte bleiben sichtbar, Änderungen sind nach einer Verlängerung wieder möglich.'
+      : 'Der Gruppenpass ist abgelaufen. Inhalte bleiben sichtbar; die Person, die die Gruppe verwaltet, kann ihn verlängern.';
   return (
-    <Link
-      to="/einstellungen/plus"
-      className="glass mb-4 flex items-center gap-3 rounded-[20px] px-4 py-3 text-[13.5px]"
-      data-testid="plus-banner"
-    >
-      <Crown className="size-5 shrink-0 text-accent" aria-hidden />
-      <span className="min-w-0 flex-1">
-        <strong className="font-semibold">Plus ist abgelaufen.</strong>{' '}
-        <span className="text-muted">
-          {group.is_owner ? 'Inhalte bleiben sichtbar, Änderungen sind erst mit Plus wieder möglich.' : 'Inhalte bleiben sichtbar. Die Person, die die Gruppe verwaltet, kann Plus erneuern.'}
-        </span>
+    <div className="glass mb-4 flex items-center gap-3 rounded-[20px] py-2.5 pl-4 pr-2 text-[13.5px]" data-testid="plus-banner">
+      <Eye className="size-5 shrink-0 text-accent" aria-hidden />
+      <span className="min-w-0 flex-1 leading-snug">
+        <strong className="font-semibold">Nur-Lesen-Modus.</strong> <span className="text-muted">{text}</span>
       </span>
-    </Link>
+      {(solo || group.is_owner) && (
+        <Link to="/einstellungen/plus" className="shrink-0 rounded-full bg-[var(--ss-accent)] px-3 py-1.5 text-[12.5px] font-semibold text-white">
+          {solo ? 'Solo wählen' : 'Verlängern'}
+        </Link>
+      )}
+      <button
+        type="button"
+        aria-label="Für heute ausblenden"
+        className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:text-ink"
+        onClick={() => {
+          try {
+            localStorage.setItem(key, new Date().toDateString());
+          } catch {
+            /* ignorieren */
+          }
+          setHidden(true);
+        }}
+      >
+        <X className="size-4" aria-hidden />
+      </button>
+    </div>
   );
 }

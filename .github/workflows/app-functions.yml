@@ -28,7 +28,7 @@ permissions:
 jobs:
   deploy:
     name: admin-auth
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # Eigener Token für das App-Projekt hat Vorrang (bisheriger Push-Workflow bleibt unberührt)
       SUPABASE_ACCESS_TOKEN: ${{ secrets.APP_SUPABASE_ACCESS_TOKEN || secrets.SUPABASE_ACCESS_TOKEN }}
