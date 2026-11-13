@@ -15,6 +15,8 @@ export interface PushPrefs {
   planChanges: boolean;
   groupSuccess: boolean;
   personalSuccess: boolean;
+  /** Neue Hausaufgaben anderer Personen – sofort */
+  homework: boolean;
   quietStart: string;
   quietEnd: string;
   /** Zahl offener Aufgaben am App-Symbol (wo unterstützt) */
@@ -32,13 +34,14 @@ export const DEFAULT_PREFS: PushPrefs = {
   planChanges: true,
   groupSuccess: true,
   personalSuccess: false,
+  homework: true,
   quietStart: '21:00',
   quietEnd: '08:00',
   badge: true,
 };
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const BOOL_KEYS = ['morning', 'evening', 'overdue', 'exams', 'planChanges', 'groupSuccess', 'personalSuccess', 'badge'] as const;
+const BOOL_KEYS = ['morning', 'evening', 'overdue', 'exams', 'planChanges', 'groupSuccess', 'personalSuccess', 'homework', 'badge'] as const;
 const TIME_KEYS = ['morningTime', 'eveningTime', 'overdueTime', 'quietStart', 'quietEnd'] as const;
 
 /** Übernimmt nur bekannte, gültige Felder; alles andere wird verworfen. */

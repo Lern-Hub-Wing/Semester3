@@ -165,6 +165,21 @@ export async function disablePush(): Promise<void> {
   setState({ phase: basePhase() ?? 'off', error: null, test: { state: 'idle' } });
 }
 
+/**
+ * Beim Abmelden (App): Mitteilungen auf diesem Gerät beenden, damit das
+ * nächste Konto hier nichts vom vorherigen bekommt. Ohne Rückfrage, still.
+ */
+export async function stopPushForSignOut(): Promise<void> {
+  if (!loadLocalDevice()) return;
+  try {
+    await pushApi('unregister');
+  } catch {
+    /* offline: Abo wird trotzdem lokal beendet */
+  }
+  await unsubscribe();
+  saveLocalDevice(null);
+}
+
 /** Für welches Lernprofil dieses Gerät Erinnerungen erhält */
 export async function setPushMember(memberId: string): Promise<boolean> {
   const local = loadLocalDevice();

@@ -8,6 +8,8 @@
  * keine verifizierte Identität.
  */
 import { config } from './config';
+import { IS_APP } from './edition';
+import { getSupabase } from './supabase';
 import { isIPhone, isStandalone } from './fullscreen';
 import { normalizePrefs, type PushPrefs } from '../../supabase/functions/_shared/prefs.ts';
 
@@ -146,17 +148,27 @@ export function keyMismatch(serverKey: string | undefined, appKey: string = vapi
   if (!serverKey || !appKey) return null;
   const norm = (k: string) => k.trim().replace(/=+$/, '');
   if (norm(serverKey) === norm(appKey)) return null;
+  if (IS_APP) return 'Die Schlüssel passen nicht zusammen: Der öffentliche VAPID-Schlüssel der App (GitHub) gehört nicht zu VAPID_PUBLIC_KEY im App-Projekt in Supabase (docs/APP.md, „Mitteilungen“).';
   return 'Die Schlüssel passen nicht zusammen: VITE_VAPID_PUBLIC_KEY in GitHub ist ein anderer als VAPID_PUBLIC_KEY in Supabase. Beide müssen aus demselben Schlüsselpaar stammen (README 12.3 und 12.6). Danach neu veröffentlichen und Benachrichtigungen aus- und wieder einschalten.';
 }
 
-/** Aufruf der Edge Function „push-api“ mit dem öffentlichen Publishable Key. */
+/**
+ * Aufruf der Edge Function „push-api“ (bisherige Seite, Gerätetoken) bzw.
+ * „app-push“ (App: zusätzlich die Anmeldung des Kontos als Bearer-Token).
+ */
 export async function pushApi<T = ServerStatus>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', apikey: config.supabaseKey };
-  // Ältere anon-Keys sind JWTs und dürfen zusätzlich als Bearer mitgehen
-  if (config.supabaseKey.split('.').length === 3) headers.Authorization = `Bearer ${config.supabaseKey}`;
+  if (IS_APP) {
+    const { data } = await getSupabase().auth.getSession();
+    if (!data.session) throw new PushApiError('Bitte erneut anmelden.', 401, 'unauthorized');
+    headers.Authorization = `Bearer ${data.session.access_token}`;
+  } else if (config.supabaseKey.split('.').length === 3) {
+    // Ältere anon-Keys sind JWTs und dürfen zusätzlich als Bearer mitgehen
+    headers.Authorization = `Bearer ${config.supabaseKey}`;
+  }
   let res: Response;
   try {
-    res = await fetch(`${config.supabaseUrl}/functions/v1/push-api`, {
+    res = await fetch(`${config.supabaseUrl}/functions/v1/${IS_APP ? 'app-push' : 'push-api'}`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ action, token: deviceToken(), ...payload }),

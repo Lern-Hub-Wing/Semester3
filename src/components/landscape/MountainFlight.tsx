@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { FlightStart } from '../../store/flight';
 import { endFlight, useFlight } from '../../store/flight';
 import { coverGeometry, peakGeometry, type ImgGeo } from './geometry';
 
@@ -15,7 +16,12 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
  * Animation), folgt der Berg einfach mit.
  */
 export function MountainFlight() {
-  const start = useFlight((s) => s.start);
+  const requested = useFlight((s) => s.start);
+  // Eigener Zustand: das Bild bleibt nach der Ankunft kurz stehen und blendet über das echte Fenster aus
+  const [start, setStart] = useState<FlightStart | null>(null);
+  useEffect(() => {
+    if (requested) setStart(requested);
+  }, [requested]);
   const box = useRef<HTMLDivElement>(null);
   const img = useRef<HTMLImageElement>(null);
   const shade = useRef<HTMLDivElement>(null);
@@ -46,22 +52,36 @@ export function MountainFlight() {
     };
     apply(from, fromImg, 40, 0);
 
-    const finish = (arrived: boolean) => {
+    const finish = async (arrived: boolean) => {
       if (done) return;
       done = true;
       cancelAnimationFrame(raf);
+      const hero = document.querySelector<HTMLElement>('[data-testid="dashboard-hero"]');
+      // Erst wenn das Bild im Fenster wirklich gezeichnet werden kann, umschalten – sonst blitzt das leere, dunkle Fenster auf
+      if (arrived && hero) {
+        const stage = hero.parentElement ?? hero;
+        const imgs = [...stage.querySelectorAll('img')];
+        await Promise.race([Promise.all(imgs.map((i) => i.decode().catch(() => undefined))), new Promise((r) => setTimeout(r, 220))]);
+      }
       endFlight(arrived);
+      // Weich ausblenden, während das echte Fenster (mit aufsteigendem Gipfel) darunter erscheint
+      const b = box.current;
+      if (b && arrived) {
+        b.style.transition = 'opacity 220ms ease-out';
+        requestAnimationFrame(() => (b.style.opacity = '0'));
+        setTimeout(() => setStart(null), 240);
+      } else setStart(null);
     };
 
     const frame = (now: number) => {
       const hero = document.querySelector<HTMLElement>('[data-testid="dashboard-hero"]');
       // Seite schon gewechselt (z. B. gleich auf einen Tab getippt) → Flug sofort beenden
       const onDashboard = ['', '#', '#/'].includes(window.location.hash);
-      if (!onDashboard || (t0 && !hero)) return finish(false);
+      if (!onDashboard || (t0 && !hero)) return void finish(false);
       if (!hero) {
         // Ziel noch nicht da (Seite lädt) – höchstens 2,5 s warten, sonst ausblenden
         if (!waited) waited = now;
-        if (now - waited > 2500) return finish(false);
+        if (now - waited > 2500) return void finish(false);
         raf = requestAnimationFrame(frame);
         return;
       }
@@ -83,7 +103,7 @@ export function MountainFlight() {
         lerp(40, 100, Math.min(1, e * 1.4)),
         e,
       );
-      if (t >= 1) return finish(true);
+      if (t >= 1) return void finish(true);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);

@@ -13,7 +13,7 @@ StudySpace ist eine gemeinsame Lernplattform für eine kleine Lerngruppe. Alle t
 - Semester-Timeline (Lernphasen + Prüfungen je Modul), Analyse aus echten Daten
 - **Fokus 2.0:** immersive Vollbildansicht mit Pomodoro-Runden (Kurz, Klassisch, Intensiv, Individuell, eigene Vorlagen), lange Pause nach N Runden, frei gestaltbarer Anzeige und Hintergrund; nur echte Fokuszeit zählt als Lernzeit
 - **Hausaufgaben** mit Abgabedatum, Unteraufgaben, Priorität, Anhängen, Erledigt-Status je Person und optionaler Verteilung von Arbeitseinheiten bis zum Vortag der Abgabe (Migration 005); im Lernplan als farbige Zeitraum-Leiste bis zur „Abgabe“
-- **Push-Benachrichtigungen** auf iPhone (als Home-Bildschirm-App), Android und Desktop – Morgenübersicht, offene und überfällige Aufgaben, Prüfungserinnerungen, Lernplan-Änderungen, gemeinsame Erfolge; mit Ruhezeiten und Testnachricht
+- **Push-Benachrichtigungen** auf iPhone (als Home-Bildschirm-App), Android und Desktop – Morgenübersicht, offene und überfällige Aufgaben, neue Hausaufgaben, Prüfungserinnerungen, Lernplan-Änderungen, gemeinsame Erfolge; mit Ruhezeiten und Testnachricht
 - **Fokus-Statistik:** Lernzeit heute und Verlauf der letzten 7 Tage direkt im Dashboard (nur echte, gespeicherte Fokuszeit)
 - **Lernzeit der Gruppe:** Team-Seite zeigt die Fokuszeit jeder Person in der aktuellen Kalenderwoche (Mo–So, Europe/Berlin) und die Gruppensumme; Sitzungen über Mitternacht oder die Wochengrenze werden anteilig gezählt
 - **Hausaufgaben zählen zum Fortschritt:** jede Hausaufgabe ist ein Posten wie eine Lernplan-Aufgabe; Arbeitseinheiten/Unteraufgaben zählen anteilig, nie doppelt – überall dieselbe Berechnung (Dashboard, Team, Fächer, Statistik, Timeline)
@@ -247,6 +247,7 @@ Android (Chrome/Edge) und Desktop (Chrome, Edge, Firefox, Safari auf macOS) funk
 | Offene Aufgaben | 18:00 | Heute ist noch etwas offen |
 | Überfällige Aufgaben | 09:00 | Aufgaben vergangener Tage offen; dieselben Aufgaben höchstens alle 3 Tage erneut; fällt mit der Morgenübersicht zusammen → zusammengefasst |
 | Prüfung | 7, 3 und 1 Tag vorher (17:00) und 2 Std. vor Beginn | Termin aus der Datenbank; nach einer Verschiebung neu berechnet; nie nach Beginn |
+| Neue Hausaufgabe | sofort (außerhalb der Ruhezeit, danach nachgeholt) | Jemand anderes trägt eine Hausaufgabe ein: „Luk hat eine Hausaufgabe hinzugefügt – „Blatt 3“ in Controlling – bis zum Do., 17. Dez.“ |
 | Lernplan aktualisiert | gesammelt nach 10 Min. Ruhe | Neue Aufgaben/Lerntage/Prüfungstermine von anderen Profilen |
 | Gemeinsam geschafft! 🎉 | sofort (außerhalb der Ruhezeit) | Gruppe erreicht 100 % eines Moduls – genau einmal pro Übergang |
 | Persönlicher Erfolg | sofort | Standard **aus**; ganzes Modul erledigt |

@@ -237,6 +237,76 @@ describe('E: Änderungen am Lernplan', () => {
   });
 });
 
+describe('H: Neue Hausaufgaben', () => {
+  const hwAct = (id: number, actor: string, minutesAgo: number, now: Date, hwId = 'hw1') => ({
+    id,
+    occurred_at: new Date(now.getTime() - minutesAgo * 60000).toISOString(),
+    actor_member_id: actor,
+    entity_type: 'homework',
+    entity_id: hwId,
+    action: 'created',
+  });
+  const hw = (id: string, title: string, due: string, module_id = CTRL) => ({ id, module_id, title, due_date: due, deleted_at: null });
+  const p = { morning: false, evening: false, overdue: false };
+
+  it('meldet eine neue Hausaufgabe sofort an die anderen – mit Name, Fach und Abgabe', () => {
+    const now = at(DAY, '15:00');
+    const snap = snapshot(now, { activity: [hwAct(5, A, 1, now)], homework: [hw('hw1', 'Übungsblatt 3', '2026-12-17')] });
+    const r = planNotifications(snap, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, p)]);
+    expect(r.notifications.map((n) => [n.kind, n.title, n.body, n.url])).toEqual([
+      ['homework', 'Luk hat eine Hausaufgabe hinzugefügt', '„Übungsblatt 3“ in Controlling – bis zum Do., 17. Dez.', '#/hausaufgaben'],
+    ]);
+    expect(r.notifications[0].dedupeKey).toBe('homework:hw1');
+    expect(r.cursors['dev-b']).toBe(5);
+  });
+
+  it('meldet die eigene Hausaufgabe nicht und nichts doppelt', () => {
+    const now = at(DAY, '15:00');
+    const snap = snapshot(now, { activity: [hwAct(5, A, 1, now)], homework: [hw('hw1', 'Übungsblatt 3', '2026-12-17')] });
+    expect(planNotifications(snap, [device({ plan_cursor: 4 }, p)]).notifications).toEqual([]);
+    const again = planNotifications(snap, [device({ id: 'dev-b', member_id: B, plan_cursor: 4, sent: new Set(['homework:hw1']) }, p)]);
+    expect(again.notifications).toEqual([]);
+  });
+
+  it('fasst mehrere zusammen und lässt sich abschalten', () => {
+    const now = at(DAY, '15:00');
+    const snap = snapshot(now, {
+      activity: [hwAct(5, A, 2, now, 'hw1'), hwAct(6, A, 1, now, 'hw2'), hwAct(7, A, 1, now, 'hw3')],
+      homework: [hw('hw1', 'Blatt 1', DAY), hw('hw2', 'Blatt 2', '2026-12-11', MATH), hw('hw3', 'Blatt 3', '2026-12-20')],
+    });
+    const r = planNotifications(snap, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, p)]);
+    expect(r.notifications.map((n) => [n.title, n.body])).toEqual([
+      ['Luk hat 3 Hausaufgaben hinzugefügt', '„Blatt 1“ bis heute, „Blatt 2“ bis morgen (Fr., 11. Dez.) und 1 weitere'],
+    ]);
+    expect(r.notifications[0].alsoKeys?.map((k) => k.key)).toEqual(['homework:hw2', 'homework:hw3']);
+    const off = planNotifications(snap, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, { ...p, homework: false })]);
+    expect(off.notifications).toEqual([]);
+    expect(off.cursors['dev-b']).toBe(7);
+  });
+
+  it('wartet die Ruhezeit ab, ohne die Mitteilung zu verlieren', () => {
+    const night = at(DAY, '22:30');
+    const snap = snapshot(night, { activity: [hwAct(5, A, 1, night), hwAct(6, A, 0, night, 'x')], homework: [hw('hw1', 'Übungsblatt 3', '2026-12-17')] });
+    const r = planNotifications(snap, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, p)]);
+    expect(r.notifications).toEqual([]);
+    expect(r.cursors['dev-b']).toBeUndefined(); // Cursor bleibt vor der Hausaufgabe stehen
+    const morning = at('2026-12-11', '08:05');
+    const r2 = planNotifications({ ...snap, now: morning }, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, p)]);
+    expect(r2.notifications.map((n) => n.kind)).toEqual(['homework']);
+    expect(r2.notifications[0].body).toContain('bis zum Do., 17. Dez.');
+  });
+
+  it('ignoriert gelöschte oder schon fällige Hausaufgaben und Geräte ohne Vergangenheit', () => {
+    const now = at(DAY, '15:00');
+    const gone = snapshot(now, { activity: [hwAct(5, A, 1, now)], homework: [{ ...hw('hw1', 'X', '2026-12-17'), deleted_at: now.toISOString() }] });
+    expect(planNotifications(gone, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, p)]).notifications).toEqual([]);
+    const past = snapshot(now, { activity: [hwAct(5, A, 1, now)], homework: [hw('hw1', 'X', '2026-12-09')] });
+    expect(planNotifications(past, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, p)]).notifications).toEqual([]);
+    const fresh = snapshot(now, { activity: [hwAct(5, A, 1, now)], homework: [hw('hw1', 'X', '2026-12-17')] });
+    expect(planNotifications(fresh, [device({ id: 'dev-b', member_id: B, plan_cursor: null }, p)]).notifications).toEqual([]);
+  });
+});
+
 describe('F/G: Erfolge', () => {
   const allDone = ['t1', 't2', 't3'].flatMap((t) => [A, B].map((m) => ({ task_id: t, member_id: m, is_completed: true })));
   const onlyCtrl = { entries: [snapshot(new Date()).entries[0]], tasks: snapshot(new Date()).tasks.slice(0, 3) };

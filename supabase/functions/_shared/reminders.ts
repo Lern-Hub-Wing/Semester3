@@ -13,8 +13,9 @@
  */
 import { addDays, berlinInstant, berlinParts, dayLabel, diffDays, formatDateShort } from './berlin.ts';
 import { inQuietHours, minutesToTime, timeToMinutes, type PushPrefs } from './prefs.ts';
+import { homeworkMessage, type NewHomework } from './homework.ts';
 
-export type Kind = 'morning' | 'evening' | 'overdue' | 'exam' | 'plan' | 'group' | 'personal' | 'test';
+export type Kind = 'morning' | 'evening' | 'overdue' | 'exam' | 'plan' | 'group' | 'personal' | 'homework' | 'test';
 
 export interface Snapshot {
   now: Date;
@@ -24,6 +25,8 @@ export interface Snapshot {
   entries: { id: string; module_id: string; study_date: string; deleted_at: string | null }[];
   tasks: { id: string; study_entry_id: string; deleted_at: string | null }[];
   completions: { task_id: string; member_id: string; is_completed: boolean }[];
+  /** Kürzlich angelegte Hausaufgaben (für die Mitteilung „neue Hausaufgabe“) */
+  homework?: { id: string; module_id: string; title: string; due_date: string; deleted_at: string | null }[];
   /** Änderungsverlauf ab dem kleinsten Geräte-Cursor (aufsteigend nach id) */
   activity: { id: number; occurred_at: string; actor_member_id: string | null; entity_type: string; entity_id: string; action: string }[];
   /** Gespeicherter Zustand des Schedulers (push_state) */
@@ -82,6 +85,8 @@ const PLAN_DEBOUNCE_MS = 10 * 60 * 1000;
 const OVERDUE_REPEAT_DAYS = 3;
 /** Erfolgsmeldungen höchstens so lange nach dem Erreichen des Ziels nachholen (z. B. nach Ruhezeit) */
 const SUCCESS_WINDOW_MS = 24 * 3600 * 1000;
+/** Neue Hausaufgaben höchstens so lange nachmelden (z. B. nach der Ruhezeit) */
+const HOMEWORK_WINDOW_MS = 36 * 3600 * 1000;
 
 interface TaskInfo {
   id: string;
@@ -149,6 +154,8 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
   const entries = new Map(snap.entries.map((e) => [e.id, e]));
   const activeMembers = snap.members.filter((m) => m.is_active);
   const memberIds = new Set(activeMembers.map((m) => m.id));
+  const memberName = new Map(snap.members.map((m) => [m.id, m.name]));
+  const homeworkById = new Map((snap.homework ?? []).map((h) => [h.id, h]));
 
   // Aktive Aufgaben = nicht gelöscht, Lerntag nicht gelöscht, Modul nicht archiviert (wie in der App)
   const tasks: TaskInfo[] = [];
@@ -224,8 +231,11 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
       return true;
     };
 
+    // ---------------- H: Neue Hausaufgaben – sofort an alle anderen (ohne Sammelpause)
+    const hold = newHomework(dev, memberId, quietNow);
+
     // ---------------- Änderungen am Lernplan (Cursor auch ohne Profil weiterführen)
-    planChanges(dev, memberId, quietNow);
+    planChanges(dev, memberId, quietNow, hold);
 
     if (!memberId) continue;
     const mine = forMember(memberId);
@@ -409,8 +419,50 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
       }
     }
 
+    /**
+     * Neue Hausaufgaben anderer Personen. Gibt während der Ruhezeit die
+     * kleinste noch ausstehende Verlaufs-ID zurück, damit der Cursor nicht
+     * darüber hinwegläuft (die Mitteilung kommt dann nach der Ruhezeit).
+     */
+    function newHomework(d: DeviceInfo, member: string | null, quiet: boolean): number | null {
+      if (d.plan_cursor === null || !d.prefs.homework) return null;
+      const items: NewHomework[] = [];
+      const ids: number[] = [];
+      for (const r of snap.activity) {
+        if (r.id <= d.plan_cursor || r.entity_type !== 'homework' || r.action !== 'created') continue;
+        if (member && r.actor_member_id === member) continue; // eigene Hausaufgaben nicht melden
+        if (nowMs - Date.parse(r.occurred_at) > HOMEWORK_WINDOW_MS) continue;
+        const hw = homeworkById.get(r.entity_id);
+        if (!hw || hw.deleted_at || hw.due_date < today) continue; // inzwischen gelöscht oder schon vorbei
+        if (d.sent.has(`homework:${hw.id}`) || items.some((i) => i.id === hw.id)) continue;
+        items.push({ id: hw.id, title: hw.title, moduleName: modules.get(hw.module_id)?.name ?? null, dueDate: hw.due_date, actorName: r.actor_member_id ? (memberName.get(r.actor_member_id) ?? null) : null });
+        ids.push(r.id);
+      }
+      if (items.length === 0) return null;
+      if (quiet) return Math.min(...ids);
+      const msg = homeworkMessage(items, today);
+      const [first, ...rest] = items;
+      push(
+        {
+          kind: 'homework',
+          dedupeKey: `homework:${first.id}`,
+          title: msg.title,
+          body: msg.body,
+          url: '#/hausaufgaben',
+          ttl: 24 * 3600,
+          urgency: 'normal',
+          // Eigenes Thema je Hausaufgabe: mehrere Mitteilungen ersetzen sich nicht gegenseitig
+          topic: `hw${first.id.replace(/-/g, '').slice(0, 30)}`,
+          meta: { homeworkIds: items.map((i) => i.id) },
+          alsoKeys: rest.map((i) => ({ key: `homework:${i.id}`, kind: 'homework' as const })),
+        },
+        member ? forMember(member).todayOpen.length + forMember(member).overdue.length : null,
+      );
+      return null;
+    }
+
     // Innere Hilfsfunktion: E – Änderungen am gemeinsamen Lernplan
-    function planChanges(d: DeviceInfo, member: string | null, quiet: boolean) {
+    function planChanges(d: DeviceInfo, member: string | null, quiet: boolean, holdAt: number | null) {
       if (d.plan_cursor === null) {
         cursors[d.id] = maxActivityId; // Neues Gerät: keine Vergangenheit nachliefern
         return;
@@ -418,7 +470,9 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
       const rows = snap.activity.filter((r) => r.id > d.plan_cursor!);
       if (rows.length === 0) return;
       const relevant = rows.filter((r) => isRelevantChange(r) && (!member || r.actor_member_id !== member));
-      const latestId = rows[rows.length - 1].id;
+      // Ausstehende Hausaufgaben-Mitteilung (Ruhezeit): Cursor davor anhalten
+      const latestId = holdAt === null ? rows[rows.length - 1].id : Math.min(rows[rows.length - 1].id, holdAt - 1);
+      if (latestId <= d.plan_cursor) return;
       if (!d.prefs.planChanges || relevant.length === 0) {
         cursors[d.id] = latestId;
         return;

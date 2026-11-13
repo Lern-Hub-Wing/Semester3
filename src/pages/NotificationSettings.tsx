@@ -2,11 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  NotebookPen,
   AlarmClock, ArrowLeft, Bell, BellOff, BellRing, CalendarClock, CircleAlert, CircleCheck, GraduationCap, LoaderCircle, Moon, PartyPopper, RefreshCw, Send, ShieldCheck, Smartphone, Sparkles, Sunrise, Trophy,
 } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { pushEnvironment, type PushPrefs } from '../lib/push';
 import { Link } from '../lib/router';
+import { IS_APP } from '../lib/edition';
 import { spring } from '../lib/motion';
 import { formatInstant } from '../lib/time';
 import { useNow } from '../hooks/useNow';
@@ -49,7 +51,7 @@ export function NotificationSettings() {
         </div>
         <div className="flex flex-col gap-[var(--gap-grid)] lg:col-span-5">
           <TestCard phase={phase} />
-          {phase === 'on' && <DeviceProfile me={me} />}
+          {phase === 'on' && !IS_APP && <DeviceProfile me={me} />}
           <Preview />
           <About />
         </div>
@@ -60,13 +62,28 @@ export function NotificationSettings() {
 
 const STATUS: Record<PushPhase, { icon: ReactNode; tint: string; title: string; text: (name: string) => string }> = {
   loading: { icon: <LoaderCircle className="animate-spin" />, tint: 'var(--ss-text-2)', title: 'Status wird geprüft …', text: () => 'Einen Moment.' },
-  on: { icon: <BellRing />, tint: 'var(--ss-success)', title: 'Benachrichtigungen sind aktiviert', text: (n) => `Dieses Gerät empfängt Erinnerungen für ${n}.` },
-  off: { icon: <BellOff />, tint: 'var(--ss-accent)', title: 'Benachrichtigungen sind deaktiviert', text: () => 'Aktiviere Erinnerungen, damit du keine Prüfungen und Lernaufgaben verpasst.' },
+  on: {
+    icon: <BellRing />,
+    tint: 'var(--ss-success)',
+    title: 'Benachrichtigungen sind aktiviert',
+    text: (n) => (IS_APP ? 'Du erfährst sofort, wenn jemand aus deiner Gruppe eine Hausaufgabe einträgt – auch wenn StudySpace geschlossen ist.' : `Dieses Gerät empfängt Erinnerungen für ${n}.`),
+  },
+  off: {
+    icon: <BellOff />,
+    tint: 'var(--ss-accent)',
+    title: 'Benachrichtigungen sind deaktiviert',
+    text: () => (IS_APP ? 'Schalte sie ein, um neue Hausaufgaben deiner Gruppe sofort auf diesem Gerät zu sehen.' : 'Aktiviere Erinnerungen, damit du keine Prüfungen und Lernaufgaben verpasst.'),
+  },
   working: { icon: <LoaderCircle className="animate-spin" />, tint: 'var(--ss-accent)', title: 'Wird eingerichtet …', text: () => 'Bitte bestätige ggf. die Anfrage deines Geräts.' },
   denied: { icon: <BellOff />, tint: 'var(--ss-warn)', title: 'Berechtigung verweigert', text: () => 'Dein Gerät blockiert Benachrichtigungen von StudySpace. So erlaubst du sie wieder:' },
   'needs-install': { icon: <Smartphone />, tint: 'var(--ss-accent)', title: 'Zuerst zum Home-Bildschirm hinzufügen', text: () => 'Auf iPhone und iPad funktionieren Benachrichtigungen nur, wenn StudySpace vom Home-Bildschirm gestartet wird (ab iOS 16.4).' },
   unsupported: { icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Nicht unterstützt', text: () => 'Dieser Browser unterstützt keine Web-Push-Benachrichtigungen. Aktuelle Versionen von Safari, Chrome, Edge und Firefox können es.' },
-  'not-configured': { icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Server noch nicht eingerichtet', text: () => 'Für Push-Benachrichtigungen fehlen noch VAPID-Schlüssel und Edge Functions (README, Schritt 12). Die App funktioniert ansonsten normal.' },
+  'not-configured': {
+    icon: <CircleAlert />,
+    tint: 'var(--ss-warn)',
+    title: 'Server noch nicht eingerichtet',
+    text: () => (IS_APP ? 'Mitteilungen sind für diese App noch nicht eingerichtet. Alles andere funktioniert normal.' : 'Für Push-Benachrichtigungen fehlen noch VAPID-Schlüssel und Edge Functions (README, Schritt 12). Die App funktioniert ansonsten normal.'),
+  },
 };
 
 /** Läuft die Zeitsteuerung (Cron)? Ohne sie gibt es nur Testnachrichten, keine geplanten Erinnerungen. */
@@ -88,8 +105,18 @@ function SchedulerStatus() {
       <span>
         {at
           ? `Die Zeitsteuerung lief zuletzt vor ${Math.round(ageMin)} Minuten – geplante Erinnerungen kommen gerade nicht an.`
-          : 'Geplante Erinnerungen sind noch nicht eingerichtet – nur Testnachrichten funktionieren.'}{' '}
-        Dafür in Supabase <code>supabase/cron.sql</code> ausführen (README, Schritt 12.5).
+          : IS_APP
+            ? 'Der automatische Versand ist noch nicht eingerichtet – nur Testnachrichten funktionieren.'
+            : 'Geplante Erinnerungen sind noch nicht eingerichtet – nur Testnachrichten funktionieren.'}{' '}
+        {IS_APP ? (
+          <>
+            Dafür im App-Projekt <code>supabase-app/push_setup.sql</code> ausführen (docs/APP.md).
+          </>
+        ) : (
+          <>
+            Dafür in Supabase <code>supabase/cron.sql</code> ausführen (README, Schritt 12.5).
+          </>
+        )}
       </span>
     </p>
   );
@@ -144,7 +171,9 @@ function StatusHero({ me, phase }: { me: Member; phase: PushPhase }) {
         </Button>
       )}
       {phase === 'not-configured' && (
-        <p className="mt-4 text-[13px] text-faint">Hinweis für die Einrichtung: GitHub-Variable <code>VITE_VAPID_PUBLIC_KEY</code> setzen und neu veröffentlichen.</p>
+        <p className="mt-4 text-[13px] text-faint">
+          Hinweis für die Einrichtung: GitHub-Variable <code>{IS_APP ? 'VITE_APP_VAPID_PUBLIC_KEY' : 'VITE_VAPID_PUBLIC_KEY'}</code> setzen und neu veröffentlichen.
+        </p>
       )}
       {phase === 'on' && <SchedulerStatus />}
       {error && (phase === 'on' || phase === 'off') && (
@@ -212,16 +241,19 @@ function Row({ icon, tint, title, hint, children }: { icon: ReactNode; tint: str
 function Categories() {
   const prefs = usePush((s) => s.prefs);
   const toggle = (key: keyof PushPrefs) => (v: boolean) => void updatePushPrefs({ [key]: v });
-  const items: { key: keyof PushPrefs; icon: ReactNode; tint: string; title: string; hint: string }[] = [
+  const all: { key: keyof PushPrefs; icon: ReactNode; tint: string; title: string; hint: string }[] = [
     { key: 'morning', icon: <Sunrise />, tint: '#F4B9A0', title: 'Morgendliche Lernübersicht', hint: `Um ${prefs.morningTime} Uhr, wenn heute Aufgaben geplant sind` },
     { key: 'evening', icon: <AlarmClock />, tint: 'var(--ss-accent)', title: 'Offene Aufgaben', hint: `Um ${prefs.eveningTime} Uhr, nur wenn noch etwas offen ist` },
     { key: 'overdue', icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Überfällige Aufgaben', hint: `Um ${prefs.overdueTime} Uhr – nicht täglich dieselben` },
     { key: 'exams', icon: <GraduationCap />, tint: '#E8CB9D', title: 'Prüfungserinnerungen', hint: '7, 3 und 1 Tag vorher sowie 2 Stunden vor Beginn' },
+    { key: 'homework', icon: <NotebookPen />, tint: '#F2C4DA', title: 'Neue Hausaufgaben', hint: 'Sofort, wenn jemand aus der Gruppe eine Hausaufgabe einträgt' },
     { key: 'planChanges', icon: <CalendarClock />, tint: '#A6DED7', title: 'Änderungen am Lernplan', hint: 'Neue Aufgaben, verschobene Lerntage, Prüfungstermine – gesammelt' },
     { key: 'groupSuccess', icon: <PartyPopper />, tint: '#CBB8F5', title: 'Gemeinsame Erfolge', hint: 'Wenn die Gruppe ein Modul zu 100 % geschafft hat' },
     { key: 'personalSuccess', icon: <Trophy />, tint: '#C3D7AD', title: 'Persönliche Erfolge', hint: 'Wenn du alle Aufgaben eines Moduls erledigt hast' },
     { key: 'badge', icon: <Sparkles />, tint: '#B4D3F2', title: 'Zahl am App-Symbol', hint: 'Offene Aufgaben als Badge (wo unterstützt)' },
   ];
+  // Die App verschickt (noch) nur „neue Hausaufgabe“
+  const items = IS_APP ? all.filter((it) => it.key === 'homework') : all;
   return (
     <Card className="p-5 md:p-6">
       <CardHeader title="Worüber informiert werden?" icon={<Bell />} />
@@ -271,18 +303,26 @@ function Times() {
   };
   return (
     <Card className="p-5 md:p-6">
-      <CardHeader title="Uhrzeiten & Ruhezeit" subtitle="Europe/Berlin, inklusive Zeitumstellung" icon={<Moon />} />
+      <CardHeader title={IS_APP ? 'Ruhezeit' : 'Uhrzeiten & Ruhezeit'} subtitle="Europe/Berlin, inklusive Zeitumstellung" icon={<Moon />} />
       <div className="mt-3">
-        <TimeField label="Morgenübersicht" note="nur wenn heute etwas geplant ist" value={prefs.morningTime} onChange={set('morningTime')} warn={shifted(prefs.morningTime)} />
-        <TimeField label="Erinnerung an Offenes" note="nur wenn heute noch Aufgaben offen sind" value={prefs.eveningTime} onChange={set('eveningTime')} warn={shifted(prefs.eveningTime)} />
-        <TimeField label="Überfällige Aufgaben" note="nur wenn etwas überfällig ist" value={prefs.overdueTime} onChange={set('overdueTime')} warn={shifted(prefs.overdueTime)} />
+        {!IS_APP && (
+          <>
+            <TimeField label="Morgenübersicht" note="nur wenn heute etwas geplant ist" value={prefs.morningTime} onChange={set('morningTime')} warn={shifted(prefs.morningTime)} />
+            <TimeField label="Erinnerung an Offenes" note="nur wenn heute noch Aufgaben offen sind" value={prefs.eveningTime} onChange={set('eveningTime')} warn={shifted(prefs.eveningTime)} />
+            <TimeField label="Überfällige Aufgaben" note="nur wenn etwas überfällig ist" value={prefs.overdueTime} onChange={set('overdueTime')} warn={shifted(prefs.overdueTime)} />
+          </>
+        )}
         <TimeField label="Ruhezeit ab" value={prefs.quietStart} onChange={set('quietStart')} />
         <TimeField label="Ruhezeit bis" value={prefs.quietEnd} onChange={set('quietEnd')} />
       </div>
+      {IS_APP ? (
+        <p className="mt-3 text-[12.5px] leading-relaxed text-muted">In der Ruhezeit bleibt dein Gerät still. Neue Hausaufgaben aus dieser Zeit kommen gesammelt, sobald sie endet.</p>
+      ) : (
       <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
         In der Ruhezeit kommen keine normalen Erinnerungen: Abends werden sie auf 15 Minuten vor Beginn der Ruhezeit vorgezogen, morgens auf ihr Ende verschoben. Die Zeitsteuerung prüft alle 5 Minuten –
         eine Nachricht kann also bis zu 5 Minuten später kommen. Prüfungserinnerungen kommen bei frühen Terminen zum letzten erlaubten Zeitpunkt.
       </p>
+      )}
     </Card>
   );
 }
@@ -378,7 +418,11 @@ function Preview() {
     <Card className="p-5 md:p-6">
       <CardHeader title="So sieht es aus" icon={<BellRing />} />
       <div className="mt-4">
-        <LockScreenPreview title="Dein Lernplan für heute" body="Heute stehen 4 Aufgaben in Thermodynamik an. Du schaffst das!" when="Jetzt" />
+        {IS_APP ? (
+          <LockScreenPreview title="Luk hat eine Hausaufgabe hinzugefügt" body="„Übungsblatt 3“ in Thermodynamik – bis zum Do., 17. Dez." when="Jetzt" />
+        ) : (
+          <LockScreenPreview title="Dein Lernplan für heute" body="Heute stehen 4 Aufgaben in Thermodynamik an. Du schaffst das!" when="Jetzt" />
+        )}
       </div>
     </Card>
   );
@@ -389,7 +433,11 @@ function About() {
     <Card className="p-5 md:p-6">
       <CardHeader title="Gut zu wissen" icon={<ShieldCheck />} />
       <ul className="mt-3 flex list-disc flex-col gap-1.5 pl-5 text-[13px] leading-relaxed text-muted">
-        <li>Es gibt keine Anmeldung: Die Zuordnung „Gerät → Person“ ist eine Gerätepräferenz und keine geprüfte Identität.</li>
+        <li>
+          {IS_APP
+            ? 'Mitteilungen gehören zu deinem Konto und gelten für alle deine Lerngruppen. Beim Abmelden werden sie auf diesem Gerät beendet.'
+            : 'Es gibt keine Anmeldung: Die Zuordnung „Gerät → Person“ ist eine Gerätepräferenz und keine geprüfte Identität.'}
+        </li>
         <li>Erinnerungen werden vom Server verschickt – StudySpace muss dafür nicht geöffnet sein.</li>
         <li>Adresse und Schlüssel deines Abos sind öffentlich nicht auslesbar; nur der Server kann damit senden.</li>
         <li>iPhone/iPad: ab iOS/iPadOS 16.4, nur als Web-App vom Home-Bildschirm.</li>

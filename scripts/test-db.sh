@@ -51,7 +51,14 @@ run_all() {
     echo "→ $(basename "$f")"
     psql "$url" -v ON_ERROR_STOP=1 -q -X -f "$f" > /dev/null
   done
-  [[ -n "${APP_MODE:-}" ]] && concurrency_test "$url"
+  if [[ -n "${APP_MODE:-}" ]]; then
+    concurrency_test "$url"
+    echo "→ push_setup.sql (mit Nachbau von Vault/pg_net/pg_cron)"
+    psql "$url" -v ON_ERROR_STOP=1 -q -X -f "$ROOT/supabase-app/tests/push_setup_stubs.sql" > /dev/null
+    sed '/create extension/d' "$ROOT/supabase-app/push_setup.sql" | psql "$url" -v ON_ERROR_STOP=1 -q -X > /dev/null
+    sed '/create extension/d' "$ROOT/supabase-app/push_setup.sql" | psql "$url" -v ON_ERROR_STOP=1 -q -X > /dev/null
+    psql "$url" -v ON_ERROR_STOP=1 -q -X -f "$ROOT/supabase-app/tests/push_setup_test.sql" > /dev/null
+  fi
   psql "$url" -X -q -t -c "select 'ALLE DATENBANKTESTS BESTANDEN'"
 }
 

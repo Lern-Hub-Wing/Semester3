@@ -12,6 +12,7 @@
 # Neue App unter /app/ (EIGENES Supabase-Projekt, siehe docs/APP.md):
 #   VITE_APP_SUPABASE_URL              URL des App-Projekts
 #   VITE_APP_SUPABASE_PUBLISHABLE_KEY  Publishable Key des App-Projekts
+#   VITE_APP_VAPID_PUBLIC_KEY          optional; sonst gilt VITE_VAPID_PUBLIC_KEY (gleiches Schlüsselpaar)
 # Fehlen sie, zeigt /app/ einen Einrichtungshinweis – die bisherige Seite bleibt unberührt.
 name: Test & Deploy
 
@@ -67,6 +68,8 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: App-Datenbankschema aktuell?
         run: node scripts/build-app-schema.mjs --check
+      - name: App-Funktionen aktuell?
+        run: node scripts/build-app-functions.mjs --check
       - name: App-Datenbanktests (Gruppen-Trennung, Tarife, Admin, parallele Beitritte)
         run: |
           psql "postgresql://postgres:postgres@localhost:5432/postgres" -c 'create database app_test'
@@ -129,6 +132,8 @@ jobs:
           VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/app/
           VITE_SUPABASE_URL: ${{ vars.VITE_APP_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_APP_SUPABASE_PUBLISHABLE_KEY }}
+          # Öffentlicher VAPID-Schlüssel der App – ohne eigene Variable derselbe wie bei der bisherigen Seite
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_APP_VAPID_PUBLIC_KEY || vars.VITE_VAPID_PUBLIC_KEY }}
       - name: SPA-Fallback und .nojekyll
         run: |
           cp dist/index.html dist/404.html

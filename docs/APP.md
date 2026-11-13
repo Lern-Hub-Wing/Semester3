@@ -115,11 +115,35 @@ Die Annahmen werden nur im Browser gespeichert.
   Nachrichten erscheinen im Admin-Bereich unter **Feedback** (mit E-Mail nur, wenn die Person einer Antwort zugestimmt hat; höchstens 10 pro Tag und Konto).
 - **Einstellungen → Daten exportieren** lädt alle Inhalte der aktiven Lerngruppe bzw. des Lernbereichs plus Kontoangaben als JSON herunter.
 
+### 12. Mitteilungen „neue Hausaufgabe“ (Push, auch bei geschlossener App)
+Sobald jemand eine Hausaufgabe einträgt, bekommen **alle anderen** der Lerngruppe auf ihren eingeschalteten Geräten sofort:
+> **Luk hat eine Hausaufgabe hinzugefügt** – „Übungsblatt 3“ in Controlling – bis zum Do., 17. Dez.
+
+Nie an die Person selbst, nicht in der Ruhezeit (kommt danach), jede Hausaufgabe nur einmal je Gerät. Geräte gehören dem **Konto**
+(gelten für alle seine Gruppen) und werden beim Abmelden beendet. iPhone/iPad: nur als Web-App vom Home-Bildschirm (ab iOS 16.4).
+
+Einmalige Einrichtung (alles im **App**-Projekt, nichts im bisherigen):
+1. **VAPID-Schlüssel:** Am einfachsten **dasselbe Schlüsselpaar wie bei der bisherigen Seite** verwenden. Im App-Projekt unter
+   **Edge Functions → Secrets** anlegen: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (gleiche Werte wie im bisherigen Projekt).
+   Den privaten Schlüssel nie in GitHub, Chat oder Code einfügen. Ein neues Paar erzeugt `/Semester3/einrichtung/vapid.html`;
+   dann zusätzlich die GitHub-Variable `VITE_APP_VAPID_PUBLIC_KEY` = öffentlicher Schlüssel setzen
+   (ohne diese Variable nutzt die App automatisch `VITE_VAPID_PUBLIC_KEY`).
+2. Ebenfalls dort: `APP_PUSH_SECRET` = langer Zufallswert (z. B. `openssl rand -base64 32`, mindestens 24 Zeichen).
+3. `supabase-app/app_schema.sql` **erneut** im SQL Editor des App-Projekts ausführen (fügt Migration 0005 hinzu).
+4. Funktion **app-push** bereitstellen: GitHub → Actions → „App: Edge Functions bereitstellen“ → Run workflow
+   (läuft nach dem Zusammenführen automatisch, wenn `APP_SUPABASE_ACCESS_TOKEN` gesetzt ist).
+   Ohne Token: Supabase → Edge Functions → **Deploy a new function** → Name `app-push` → Inhalt von
+   `supabase-app/functions/app-push/index.ts` vollständig einfügen → **Verify JWT aus** (die Funktion prüft die Anmeldung selbst).
+5. `supabase-app/push_setup.sql` öffnen, `<APP-PROJEKT-REF>` und `<APP-PUSH-SECRET>` (gleicher Wert wie Schritt 2) ersetzen und im
+   SQL Editor des App-Projekts ausführen. Danach löst jede neue Hausaufgabe sofort den Versand aus; zusätzlich prüft ein Cron-Job alle 5 Minuten.
+6. Testen: App → Einstellungen → **Benachrichtigungen** → einschalten → „Testbenachrichtigung senden“. Steht dort
+   „Automatischer Versand aktiv“, läuft auch Schritt 5.
+
 ### Navigation der App (Handy)
 Tab-Leiste: Home · Kalender · Aufgaben · **Team** (alleine lernen: **Statistik**) · Mehr. Fokus startet groß im Dashboard und steht oben unter „Mehr“.
 „Mehr“ enthält nur noch: Fokus, Lernmodus · Fächer & Prüfungen, Statistiken, Musik · Lerngruppe, Tarif & Abo, Einstellungen · Hilfe & Feedback, Papierkorb.
 Mitglieder sind echte Konten: Name und Farbe ändert jede Person nur für sich; der Inhaber lädt ein und kann Mitglieder entfernen.
-Benachrichtigungen (Push) sind in der App noch nicht angebunden und werden deshalb nirgends beworben.
+Mitteilungen werden nicht beworben: Wer sie möchte, schaltet sie unter **Einstellungen → Benachrichtigungen** ein (Abschnitt 12).
 
 ### Updates einspielen
 Bei neuen Versionen einfach `supabase-app/app_schema.sql` erneut im SQL Editor des **App**-Projekts ausführen – das Skript ist
@@ -206,6 +230,9 @@ npm run build:e2e:app && npm run test:e2e:app   # Browsertests App + Admin (nach
 ```
 ```bash
 npm run app:schema         # supabase-app/app_schema.sql neu erzeugen
+```
+```bash
+npm run app:functions      # supabase-app/functions/app-push/index.ts aus supabase-app/functions-src/ erzeugen
 ```
 Lokal starten: `.env.local` mit `VITE_EDITION=app`, `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` des **App-Projekts**, dann `npm run dev`.
 

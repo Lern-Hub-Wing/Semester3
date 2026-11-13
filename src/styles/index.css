@@ -1919,6 +1919,15 @@ select.field:hover {
     radial-gradient(70% 60% at 50% 55%, rgba(14, 12, 38, 0.22), transparent 70%);
 }
 /* Ankunft: Countdown-Text blendet ein, der Gipfel steigt aus dem Fenster */
+/* Panorama blendet nach dem Laden weich ein (statt eines leeren dunklen Fensters) */
+.peak-stage .landscape img,
+.peak-stage .peak-pop img {
+  transition: opacity 360ms var(--ease-out);
+}
+.peak-stage:not(.peak-stage--ready) .landscape img,
+.peak-stage:not(.peak-stage--ready) .peak-pop img {
+  opacity: 0;
+}
 .peak-stage--arrive .on-photo {
   animation: ss-arrive-text 520ms var(--ease-out) both;
 }

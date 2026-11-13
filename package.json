@@ -16,10 +16,11 @@
     "build:e2e": "VITE_SUPABASE_URL=https://mock-project.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_e2e_only_not_a_real_key_000 VITE_BASE_PATH=/Semester3/ VITE_VAPID_PUBLIC_KEY=BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA vite build",
     "test:e2e": "node scripts/e2e.mjs",
     "build:app": "VITE_EDITION=app vite build",
-    "build:e2e:app": "VITE_EDITION=app VITE_SUPABASE_URL=https://mock-project.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_e2e_only_not_a_real_key_000 VITE_BASE_PATH=/Semester3/app/ vite build",
+    "build:e2e:app": "VITE_EDITION=app VITE_VAPID_PUBLIC_KEY=BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA VITE_SUPABASE_URL=https://mock-project.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_e2e_only_not_a_real_key_000 VITE_BASE_PATH=/Semester3/app/ vite build",
     "test:e2e:app": "node scripts/e2e-app.mjs",
     "test:db:app": "bash scripts/test-db.sh --app",
     "app:schema": "node scripts/build-app-schema.mjs",
+    "app:functions": "node scripts/build-app-functions.mjs",
     "test:overflow": "node scripts/check-overflow.mjs"
   },
   "dependencies": {

@@ -63,7 +63,7 @@ const isSection = (k: string | undefined): k is SectionKey => !!k && (AVAILABLE 
  */
 export function Settings({ section }: { section?: string }) {
   const wide = useMediaQuery('(min-width: 1024px)');
-  if (section === 'benachrichtigungen' && !IS_APP) return <NotificationSettings />;
+  if (section === 'benachrichtigungen') return <NotificationSettings />;
   const key = isSection(section) ? section : null;
 
   if (!wide) {
@@ -130,6 +130,10 @@ function AppSettingsNav({ active }: { active?: SectionKey }) {
   const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
   const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
   const solo = group?.kind === 'solo';
+  const phase = usePush((s) => s.phase);
+  useEffect(() => {
+    void initPush();
+  }, []);
   return (
     <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
       <ProfileCard />
@@ -143,6 +147,14 @@ function AppSettingsNav({ active }: { active?: SectionKey }) {
         <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik-Bibliothek" value={`${tracks} Titel`} to="/musik" testId="settings-music" />
       </ListGroup>
       <ListGroup title="Dieses Gerät">
+        <ListRow
+          icon={phase === 'on' ? <BellRing /> : <Bell />}
+          tint={phase === 'on' ? TINT.teal : AREA_TINT.notifications}
+          label="Benachrichtigungen"
+          value={PUSH_LABEL[phase]}
+          to="/einstellungen/benachrichtigungen"
+          testId="settings-push"
+        />
         <ListRow icon={<Palette />} tint={AREA_TINT.appearance} label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
       </ListGroup>
       <ListGroup title="Daten">

@@ -175,6 +175,16 @@ try {
     await a.keyboard.press('Escape');
     await a.getByTestId('tour').waitFor({ state: 'detached' });
   });
+  await check('Mitteilungen: in den Einstellungen erreichbar, nur „Neue Hausaufgaben“ als Thema', async () => {
+    await a.goto(`${BASE}#/einstellungen`);
+    await a.getByTestId('settings-push').first().click();
+    await a.waitForFunction(() => location.hash === '#/einstellungen/benachrichtigungen');
+    await a.getByRole('heading', { name: 'Benachrichtigungen', level: 1 }).waitFor();
+    assert((await a.getByText('Luk hat eine Hausaufgabe hinzugefügt').count()) > 0, 'Vorschau „neue Hausaufgabe“');
+    assert((await a.getByText('Morgendliche Lernübersicht').count()) === 0, 'keine Themen der bisherigen Seite');
+    assert((await a.getByText('Für wen?').count()) === 0, 'keine Profilauswahl');
+    await shot(a, '09-mitteilungen');
+  });
 
   console.log('App: Einladung per Link');
   const group = mock.state.groups.find((g) => g.kind === 'team');

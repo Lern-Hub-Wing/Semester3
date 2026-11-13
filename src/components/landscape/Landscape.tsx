@@ -47,6 +47,8 @@ export function PeakStage({
 }: { pop: number; className?: string; hidden?: boolean; arriving?: boolean; children: ReactNode } & Omit<HTMLAttributes<HTMLElement>, 'hidden'>) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  // Bild erst zeigen, wenn es geladen ist – kein leeres, dunkles Fenster beim Start
+  const [ready, setReady] = useState(false);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -70,13 +72,15 @@ export function PeakStage({
         alt=""
         decoding="async"
         draggable={false}
+        ref={file === 'mountains' ? (el) => void (el?.complete && el.naturalWidth > 0 && !ready && setReady(true)) : undefined}
+        onLoad={file === 'mountains' ? () => setReady(true) : undefined}
         className="absolute max-w-none select-none"
         style={{ left: geo.left, top: y + geo.top, width: geo.width, height: geo.height }}
       />
     );
 
   return (
-    <div className={`peak-stage relative ${arriving ? 'peak-stage--arrive' : ''}`} style={{ marginTop: pop, visibility: hidden ? 'hidden' : undefined }}>
+    <div className={`peak-stage relative ${ready ? 'peak-stage--ready' : ''} ${arriving ? 'peak-stage--arrive' : ''}`} style={{ marginTop: pop, visibility: hidden ? 'hidden' : undefined }}>
       <section ref={ref} {...rest} data-pop={pop} className={`photo-stage ${className}`}>
         <div className="landscape" aria-hidden>
           {img('mountains', -pop)}
