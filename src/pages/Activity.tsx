@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { IS_APP } from '../lib/edition';
 import { History, RotateCcw, ShieldAlert } from 'lucide-react';
 import type { ActivityEntry } from '../lib/types';
 import { getSupabase } from '../lib/supabase';
@@ -13,7 +14,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 
 const ENTITY: Record<string, string> = {
-  members: 'Person',
+  members: IS_APP ? 'Mitglied' : 'Person',
   modules: 'Modul',
   module_topics: 'Thema',
   exams: 'Prüfung',
@@ -70,10 +71,13 @@ export function Activity() {
           </Button>
         }
       />
-      <p className="mb-4 flex items-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-4 py-3 text-xs text-muted">
-        <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-        Die angezeigte Person ist das zum Zeitpunkt aktive Lernprofil. Da es keine Anmeldung gibt, ist diese Angabe nicht verifiziert.
-      </p>
+      {/* App: jede Änderung stammt von einem angemeldeten Konto – der Hinweis gilt nur für die bisherige Seite */}
+      {!IS_APP && (
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-4 py-3 text-xs text-muted">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          Die angezeigte Person ist das zum Zeitpunkt aktive Lernprofil. Da es keine Anmeldung gibt, ist diese Angabe nicht verifiziert.
+        </p>
+      )}
       {error && <p className="mb-4 text-sm text-danger">{error}</p>}
       {rows === null ? (
         <div className="flex flex-col gap-2">

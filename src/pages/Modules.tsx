@@ -367,7 +367,7 @@ export function ModuleDetail({ id, me }: { id: string; me: Member }) {
             )}
           </Card>
           <Card className="p-5">
-            <CardHeader title="Fortschritt aller Personen" subtitle={group.pct === null ? 'Noch keine Aufgaben' : `Gruppe: ${group.pct}%`} icon={<Layers />} />
+            <CardHeader title={IS_APP ? 'Fortschritt aller Mitglieder' : 'Fortschritt aller Personen'} subtitle={group.pct === null ? 'Noch keine Aufgaben' : `Gruppe: ${group.pct}%`} icon={<Layers />} />
             <div className="mt-3 flex flex-col gap-1">
               {members.map((m) => (
                 <MemberProgress key={m.id} member={m} ratio={progress.member(m.id, scope)} forceStyle="bar" highlight={m.id === me.id} onClick={() => navigate(`/team/${m.id}`)} />

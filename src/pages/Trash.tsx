@@ -5,6 +5,7 @@ import { formatISODate, formatInstant } from '../lib/time';
 import { useData } from '../store/data';
 import { restoreAttachment, restoreEntry, restoreExam, restoreModule, restoreTask, restoreTopic } from '../store/actions';
 import { useHomework, updateHomework } from '../store/homework';
+import { useTrashItems, type TrashKind } from '../store/trash';
 import { PageHeader } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -12,7 +13,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 
 interface Item {
   id: string;
-  kind: string;
+  kind: TrashKind;
   icon: ReactNode;
   title: string;
   meta: string;
@@ -20,60 +21,54 @@ interface Item {
   restore: () => Promise<boolean>;
 }
 
+const ICONS: Record<TrashKind, ReactNode> = {
+  Hausaufgabe: <NotebookPen />,
+  Aufgabe: <ListChecks />,
+  Lerntag: <CalendarDays />,
+  Datei: <FileText />,
+  Prüfung: <GraduationCap />,
+  Thema: <Layers />,
+  Modul: <BookOpen />,
+};
+
 /** Papierkorb: Nichts wird sofort endgültig gelöscht. Wiederherstellen behält alle Haken. */
 export function Trash() {
   const d = useData();
   const homework = useHomework((s) => s.homework);
-  const items = useMemo<Item[]>(() => {
-    const out: Item[] = [];
-    for (const h of Object.values(homework)) {
-      if (!h.deleted_at) continue;
-      out.push({
-        id: h.id, kind: 'Hausaufgabe', icon: <NotebookPen />, title: h.title,
-        meta: `${d.modules[h.module_id]?.name ?? ''} · Abgabe ${formatISODate(h.due_date, { day: 'numeric', month: 'short' })}`,
-        at: h.deleted_at, restore: () => updateHomework(h.id, { deleted_at: null }),
-      });
-    }
-    for (const t of Object.values(d.tasks)) {
-      if (!t.deleted_at) continue;
-      const e = d.study_entries[t.study_entry_id];
-      out.push({
-        id: t.id, kind: 'Aufgabe', icon: <ListChecks />, title: t.title,
-        meta: e ? `${e.title} · ${formatISODate(e.study_date, { day: 'numeric', month: 'short' })}` : '',
-        at: t.deleted_at, restore: () => restoreTask(t.id),
-      });
-    }
-    for (const e of Object.values(d.study_entries)) {
-      if (!e.deleted_at) continue;
-      const n = Object.values(d.tasks).filter((t) => t.study_entry_id === e.id && !t.deleted_at).length;
-      out.push({
-        id: e.id, kind: 'Lerntag', icon: <CalendarDays />, title: e.title,
-        meta: `${d.modules[e.module_id]?.name ?? ''} · ${formatISODate(e.study_date, { day: 'numeric', month: 'short' })} · ${n} Aufgaben`,
-        at: e.deleted_at, restore: () => restoreEntry(e.id),
-      });
-    }
-    for (const a of Object.values(d.attachments)) {
-      if (!a.deleted_at) continue;
-      out.push({ id: a.id, kind: 'Datei', icon: <FileText />, title: a.original_filename, meta: d.modules[a.module_id ?? '']?.name ?? '', at: a.deleted_at, restore: () => restoreAttachment(a.id) });
-    }
-    for (const x of Object.values(d.exams)) {
-      if (!x.deleted_at) continue;
-      out.push({
-        id: x.id, kind: 'Prüfung', icon: <GraduationCap />, title: d.modules[x.module_id]?.name ?? 'Prüfung',
-        meta: formatInstant(x.starts_at, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }, x.timezone),
-        at: x.deleted_at, restore: () => restoreExam(x.id),
-      });
-    }
-    for (const t of Object.values(d.module_topics)) {
-      if (!t.archived_at) continue;
-      out.push({ id: t.id, kind: 'Thema', icon: <Layers />, title: t.title, meta: d.modules[t.module_id]?.name ?? '', at: t.archived_at, restore: () => restoreTopic(t.id) });
-    }
-    for (const m of Object.values(d.modules)) {
-      if (!m.archived_at) continue;
-      out.push({ id: m.id, kind: 'Modul', icon: <BookOpen />, title: m.name, meta: 'Archiviertes Modul', at: m.archived_at, restore: () => restoreModule(m.id) });
-    }
-    return out.sort((a, b) => b.at.localeCompare(a.at));
-  }, [d, homework]);
+  // Gleiche Quelle wie der Zähler im Menü (store/trash.ts)
+  const trash = useTrashItems();
+  const items = useMemo<Item[]>(
+    () =>
+      trash.map((t) => {
+        const base = { id: t.id, kind: t.kind, icon: ICONS[t.kind], title: t.title, at: t.at };
+        switch (t.kind) {
+          case 'Hausaufgabe': {
+            const h = homework[t.id];
+            return { ...base, meta: `${d.modules[h.module_id]?.name ?? ''} · Abgabe ${formatISODate(h.due_date, { day: 'numeric', month: 'short' })}`, restore: () => updateHomework(h.id, { deleted_at: null }) };
+          }
+          case 'Aufgabe': {
+            const e = d.study_entries[d.tasks[t.id].study_entry_id];
+            return { ...base, meta: e ? `${e.title} · ${formatISODate(e.study_date, { day: 'numeric', month: 'short' })}` : '', restore: () => restoreTask(t.id) };
+          }
+          case 'Lerntag': {
+            const e = d.study_entries[t.id];
+            const n = Object.values(d.tasks).filter((x) => x.study_entry_id === e.id && !x.deleted_at).length;
+            return { ...base, meta: `${d.modules[e.module_id]?.name ?? ''} · ${formatISODate(e.study_date, { day: 'numeric', month: 'short' })} · ${n} Aufgaben`, restore: () => restoreEntry(e.id) };
+          }
+          case 'Datei':
+            return { ...base, meta: d.modules[d.attachments[t.id].module_id ?? '']?.name ?? '', restore: () => restoreAttachment(t.id) };
+          case 'Prüfung': {
+            const x = d.exams[t.id];
+            return { ...base, meta: formatInstant(x.starts_at, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }, x.timezone), restore: () => restoreExam(t.id) };
+          }
+          case 'Thema':
+            return { ...base, meta: d.modules[d.module_topics[t.id].module_id]?.name ?? '', restore: () => restoreTopic(t.id) };
+          default:
+            return { ...base, meta: 'Archiviertes Fach', restore: () => restoreModule(t.id) };
+        }
+      }),
+    [trash, d, homework],
+  );
 
   return (
     <div>

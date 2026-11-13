@@ -19,10 +19,12 @@ import type { Member } from '../../lib/types';
 
 /** Fokus-Knopf: zeigt die laufende Zeit, wenn gerade eine Session läuft */
 export function FocusButton({ className = '' }: { className?: string }) {
+  // data-tour: Ziel der Einführung, wenn „Fokus“ nicht in der Tab-Leiste steht
   const { running, started, rest } = useFocusLive();
   const label = running ? `Fokus läuft · ${formatClock(rest)}` : started ? 'Fokus fortsetzen' : 'Fokus starten';
   return (
     <button
+      data-tour="focus-start"
       type="button"
       onClick={() => {
         haptic('select');

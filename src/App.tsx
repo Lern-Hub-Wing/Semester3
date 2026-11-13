@@ -3,6 +3,7 @@ import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react
 import { config } from './lib/config';
 import { IS_APP } from './lib/edition';
 import { AppGate, PlusBanner } from './app/AppGate';
+import { useAccount } from './app/account';
 import { Splash } from './app/AuthScreen';
 import { EASE_OUT } from './lib/motion';
 import { matchPath, navigate, useLocation } from './lib/router';
@@ -42,6 +43,7 @@ const MemberDetail = lazy(() => import('./pages/Team').then((m) => ({ default: m
 const Materials = lazy(() => import('./pages/Materials').then((m) => ({ default: m.Materials })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash })));
+const HelpPage = lazy(() => import('./app/HelpPage').then((m) => ({ default: m.HelpPage })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 const loadFocus = () => import('./pages/Focus');
 const FocusLazy = lazy(() => loadFocus().then((m) => ({ default: m.Focus })));
@@ -71,7 +73,10 @@ function RedirectTo({ to }: { to: string }) {
 }
 
 function Routes({ me, path }: { me: Member; path: string }) {
+  const soloSpace = useAccount((s) => s.me?.groups.find((g) => g.id === s.me?.active_group_id)?.kind === 'solo');
   let p: Record<string, string> | null;
+  // Allein lernen: keine Team-Seite – Statistik ist dort die passende Übersicht
+  if (IS_APP && soloSpace && (path === '/team' || path.startsWith('/team/'))) return <RedirectTo to="/analyse" />;
   if (path === '/' || path === '') return <Dashboard me={me} />;
   if (path === '/lernplan') return <Plan me={me} />;
   if (path === '/faecher') return <Modules me={me} />;
@@ -89,6 +94,8 @@ function Routes({ me, path }: { me: Member; path: string }) {
   if (path === '/analyse') return <Analytics me={me} />;
   if (path === '/papierkorb') return <Trash />;
   if (path === '/verlauf') return <Activity />;
+  // Hilfe & Feedback gibt es nur in der App (Feedback landet im Admin-Bereich)
+  if (path === '/hilfe') return IS_APP ? <HelpPage /> : <RedirectTo to="/" />;
   return <Dashboard me={me} />;
 }
 

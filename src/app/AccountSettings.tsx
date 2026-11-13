@@ -7,6 +7,7 @@ import { resync } from '../store/sync';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/Field';
 import { Modal } from '../components/ui/Modal';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Avatar } from '../components/ui/Avatar';
 import { Row, Section } from '../components/ui/SettingsCard';
 import { api, daysLeft, formatCode, GROUP_LIMITS, isValidCode, myPlanLabel, normalizeCode, passwordProblem, PLAN_NAMES, plusLabel, type GroupMember, type Usage } from './api';
@@ -36,36 +37,16 @@ function useAction() {
   return { busy, run };
 }
 
-/** Bestätigung mit Eingabe (z. B. Gruppenname) für endgültige Aktionen. */
+/** Bestätigung mit Eingabe – nutzt den gemeinsamen ConfirmDialog. */
 function ConfirmTyped({
   open, onClose, title, text, expected, label, action, onConfirm, busy,
 }: {
   open: boolean; onClose: () => void; title: string; text: ReactNode; expected: string; label: string; action: string; onConfirm: (typed: string) => void; busy?: boolean;
 }) {
-  const [typed, setTyped] = useState('');
-  useEffect(() => setTyped(''), [open]);
-  const ok = typed.trim().toLowerCase() === expected.trim().toLowerCase();
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={title}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Abbrechen
-          </Button>
-          <Button variant="danger" disabled={!ok} loading={busy} onClick={() => onConfirm(typed.trim())} data-testid="confirm-typed">
-            {action}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-3 text-[14px]">
-        <div className="text-muted">{text}</div>
-        <TextField label={label} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={expected} autoComplete="off" />
-      </div>
-    </Modal>
+    <ConfirmDialog open={open} onClose={onClose} title={title} confirmLabel={action} onConfirm={onConfirm} typed={expected} typedLabel={label} busy={busy} testId="confirm-typed">
+      {text}
+    </ConfirmDialog>
   );
 }
 

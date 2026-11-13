@@ -1,4 +1,5 @@
 import { CalendarDays, ChevronRight, Ellipsis, Plus, Sparkles } from 'lucide-react';
+import { IS_APP } from '../../lib/edition';
 import type { Member } from '../../lib/types';
 import { groupBy, isDone, type Ratio, type TaskView } from '../../lib/progress';
 import { useProgress } from '../../store/derived';
@@ -80,7 +81,7 @@ export function TodayCard({ views, today, me, members, className = '', allEmpty 
           compact
           icon={<Sparkles />}
           title="Dein Lernplan ist noch leer"
-          text="Füge dein erstes Thema hinzu – mit Unteraufgaben, die jede Person für sich abhaken kann."
+          text={IS_APP ? 'Lege deinen ersten Lerntag an – mit Aufgaben zum Abhaken. In einer Gruppe hakt jedes Mitglied für sich ab.' : 'Füge dein erstes Thema hinzu – mit Unteraufgaben, die jede Person für sich abhaken kann.'}
           action={
             <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openEditor({ date: today })}>
               Ersten Lerntag anlegen

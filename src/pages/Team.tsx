@@ -28,6 +28,15 @@ import { Reveal } from '../components/ui/Reveal';
 import { EmptyState } from '../components/ui/EmptyState';
 import { TaskRow } from '../components/TaskRow';
 import { MemberProgress } from '../components/MemberProgress';
+import { IS_APP } from '../lib/edition';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { getSupabase } from '../lib/supabase';
+import { describeError } from '../lib/errors';
+import { toast } from '../store/toast';
+import { resync } from '../store/sync';
+import { api } from '../app/api';
+import { refreshMe } from '../app/account';
+import { reloadGroupRoles, useGroupRoles } from '../app/useGroupRoles';
 
 export function Team({ me }: { me: Member }) {
   const members = useActiveMembers();
@@ -37,6 +46,7 @@ export function Team({ me }: { me: Member }) {
   const style = usePrefs((s) => s.progressStyle);
   const setPrefs = usePrefs((s) => s.set);
   const [adding, setAdding] = useState(false);
+  const roles = useGroupRoles();
 
   const progress = useProgress();
   const mobile = useIsMobile();
@@ -70,9 +80,18 @@ export function Team({ me }: { me: Member }) {
                 { value: 'bar', label: 'Balken' },
               ]}
             />
-            <Button icon={<UserPlus className="size-4" />} onClick={() => setAdding(true)}>
-              Person
-            </Button>
+            {IS_APP ? (
+              // App: Mitglieder kommen per Einladung – nur der Inhaber lädt ein
+              roles.isOwner && (
+                <Button icon={<UserPlus className="size-4" />} onClick={() => navigate('/einstellungen/gruppe')} data-testid="team-invite">
+                  Einladen
+                </Button>
+              )
+            ) : (
+              <Button icon={<UserPlus className="size-4" />} onClick={() => setAdding(true)}>
+                Person
+              </Button>
+            )}
           </>
         }
       />
@@ -132,6 +151,9 @@ export function Team({ me }: { me: Member }) {
                   <div className="min-w-0">
                     <p className="truncate font-semibold">
                       {m.name} {m.id === me.id && <span className="text-xs font-normal text-muted">(du)</span>}
+                      {IS_APP && roles.byMember[m.id]?.role === 'owner' && (
+                        <span className="ml-1.5 rounded-full bg-[color-mix(in_srgb,var(--ss-accent)_14%,transparent)] px-2 py-0.5 align-middle text-[10.5px] font-semibold text-accent">Inhaber</span>
+                      )}
                     </p>
                     <p className="num text-xs text-muted">
                       {r.done} erledigt · {r.total - r.done} offen
@@ -162,7 +184,7 @@ export function Team({ me }: { me: Member }) {
         })}
       </ul>
 
-      {inactive.length > 0 && (
+      {!IS_APP && inactive.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-3 text-[15px] font-semibold text-muted">Deaktivierte Personen</h2>
           <ul className="flex flex-wrap gap-2">
@@ -260,10 +282,12 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
   useEffect(() => setName(member?.name ?? ''), [member?.name]);
 
   const progress = useProgress();
+  const roles = useGroupRoles();
+  const [removeOpen, setRemoveOpen] = useState(false);
   if (!member) {
     return (
       <Card>
-        <EmptyState icon={<Users className="size-6" />} title="Person nicht gefunden" action={<Link to="/team" className="text-sm font-medium text-accent">Zum Team</Link>} />
+        <EmptyState icon={<Users className="size-6" />} title={IS_APP ? 'Mitglied nicht gefunden' : 'Person nicht gefunden'} action={<Link to="/team" className="text-sm font-medium text-accent">Zum Team</Link>} />
       </Card>
     );
   }
@@ -275,10 +299,16 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
   const list = tab === 'offen' ? open : tab === 'erledigt' ? done : overdue;
   const viewingOther = member.id !== me.id;
 
+  // App: Name und Farbe ändert jede Person nur für sich selbst (Konto)
+  const role = roles.byMember[member.id];
+  const isSelf = !IS_APP || member.id === me.id;
+  const canRemove = IS_APP && roles.isOwner && role?.role === 'member' && member.id !== me.id;
   const saveName = () => {
     const n = name.trim();
-    if (n && n !== member.name) void updateMember(member.id, { name: n });
-    else setName(member.name);
+    if (n && n !== member.name) {
+      if (IS_APP) void api.setDisplayName(getSupabase(), n).then(() => (void refreshMe(), void resync()), (e) => toast.error(describeError(e)));
+      else void updateMember(member.id, { name: n });
+    } else setName(member.name);
   };
 
   return (
@@ -295,7 +325,8 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">Name</span>
               <input
-                className="mt-1 w-full rounded-xl bg-transparent text-[28px] font-semibold tracking-tight outline-none focus:bg-surface/60 md:text-[32px]"
+                readOnly={!isSelf}
+                className="mt-1 w-full rounded-xl bg-transparent text-[28px] font-semibold tracking-tight outline-none focus:bg-surface/60 read-only:focus:bg-transparent md:text-[32px]"
                 value={name}
                 maxLength={LIMITS.memberName}
                 onChange={(e) => setName(e.target.value)}
@@ -307,12 +338,24 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
             <p className="num mt-1 text-sm text-muted">
               {r.done} erledigt · {open.length} offen · {overdue.length} überfällig
             </p>
+            {IS_APP && role && (
+              <p className="mt-1 text-[12.5px] font-medium text-muted" data-testid="member-role">
+                {role.role === 'owner' ? 'Inhaber der Lerngruppe' : 'Mitglied'}
+              </p>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button icon={<Palette className="size-4" />} onClick={() => setColorOpen(true)}>
-                <span className="size-4 rounded-full" style={{ background: member.color }} aria-hidden />
-                Farbe ändern
-              </Button>
-              {member.is_active ? (
+              {isSelf && (
+                <Button icon={<Palette className="size-4" />} onClick={() => setColorOpen(true)}>
+                  <span className="size-4 rounded-full" style={{ background: member.color }} aria-hidden />
+                  Farbe ändern
+                </Button>
+              )}
+              {canRemove && (
+                <Button variant="ghost" icon={<UserMinus className="size-4" />} onClick={() => setRemoveOpen(true)} data-testid="member-remove">
+                  Aus der Gruppe entfernen
+                </Button>
+              )}
+              {IS_APP ? null : member.is_active ? (
                 <Button variant="ghost" icon={<UserMinus className="size-4" />} onClick={() => void setMemberActive(member.id, false)}>
                   Deaktivieren
                 </Button>
@@ -362,7 +405,9 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
           </div>
           {viewingOther && (
             <p className="mt-3 rounded-2xl bg-[color-mix(in_srgb,var(--ss-text)_4.5%,transparent)] px-3 py-2 text-xs text-muted">
-              Du siehst die Haken von {member.name}. Änderungen hier betreffen {member.name} – nicht dich.
+              {IS_APP
+                ? `Du siehst die Haken von ${member.name}. Abhaken kann nur ${member.name} selbst.`
+                : `Du siehst die Haken von ${member.name}. Änderungen hier betreffen ${member.name} – nicht dich.`}
             </p>
           )}
           {list.length === 0 ? (
@@ -375,6 +420,8 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
                   task={v.task}
                   member={member}
                   members={members}
+                  // App: Haken setzt jede Person nur für sich (die Datenbank erzwingt das ebenfalls)
+                  readOnly={IS_APP && viewingOther ? true : undefined}
                   dense
                   subtitle={`${relativeDayLabel(v.date, today)} · ${formatISODate(v.date, { day: 'numeric', month: 'short' })} · ${v.module.name}`}
                 />
@@ -387,6 +434,28 @@ export function MemberDetail({ id, me }: { id: string; me: Member }) {
       <Modal open={colorOpen} onClose={() => setColorOpen(false)} title={`Farbe von ${member.name}`} description="Wird sofort gespeichert und für alle sichtbar.">
         <MemberColorEditor member={member} />
       </Modal>
+      {canRemove && role && (
+        <ConfirmDialog
+          open={removeOpen}
+          onClose={() => setRemoveOpen(false)}
+          title={`${member.name} entfernen?`}
+          confirmLabel="Entfernen"
+          testId="member-remove-confirm"
+          onConfirm={() =>
+            void api
+              .removeMember(getSupabase(), roles.groupId!, role.userId)
+              .then(async () => {
+                toast.success(`${member.name} entfernt`);
+                setRemoveOpen(false);
+                await Promise.all([refreshMe(), reloadGroupRoles(), resync()]);
+                navigate('/team');
+              })
+              .catch((e) => toast.error(describeError(e)))
+          }
+        >
+          {member.name} sieht die Inhalte der Gruppe danach nicht mehr. Bisherige Haken bleiben als Verlauf erhalten.
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

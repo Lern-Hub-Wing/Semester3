@@ -2024,6 +2024,35 @@ select.field:hover {
     inset 0 0.5px 0 rgba(255, 255, 255, 0.35),
     0 1px 2px color-mix(in srgb, var(--row-tint) 35%, transparent);
 }
+/* Großes Symbol mit Farbverlauf (Einführung, Hilfe, Bestätigungen) – gleiche Formel wie list-row-icon */
+.icon-badge {
+  --badge-tint: var(--ss-accent);
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--badge-tint) 78%, white), var(--badge-tint));
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.35),
+    0 6px 16px -4px color-mix(in srgb, var(--badge-tint) 45%, transparent);
+}
+.icon-badge svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2;
+}
+.icon-badge--lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+}
+.icon-badge--lg svg {
+  width: 32px;
+  height: 32px;
+}
 .list-row-icon svg {
   width: 17px;
   height: 17px;

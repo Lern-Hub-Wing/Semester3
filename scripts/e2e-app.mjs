@@ -270,7 +270,9 @@ try {
     await so.getByTestId('tour').waitFor({ timeout: 8000 });
     await so.getByTestId('tour-skip').click();
     assert((await so.getByTestId('plus-banner').count()) === 0, 'kein Hinweis während der Testphase');
-    assert((await so.getByRole('link', { name: 'Team' }).count()) === 1, 'Navigation vorhanden');
+    // Alleine lernen: kein Team-Eintrag, dafür Statistik
+    assert((await so.getByRole('link', { name: 'Team' }).count()) === 0, 'Team bei alleine lernen');
+    assert((await so.getByRole('link', { name: 'Statistiken' }).count()) === 1, 'Statistik vorhanden');
   });
   await check('Nach Ablauf: ruhiger Nur-Lesen-Hinweis, ausblendbar', async () => {
     const u = mock.state.users.find((x) => x.email === 'sam@example.com');
@@ -281,6 +283,130 @@ try {
     await shot(so, '10-nur-lesen');
     await so.getByRole('button', { name: 'Für heute ausblenden' }).click();
     await so.getByTestId('plus-banner').waitFor({ state: 'detached' });
+  });
+
+  console.log('App: Navigation, Rollen, Texte (Handy)');
+  const ctxM = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const mo = watch(await ctxM.newPage());
+  const anna = mock.state.users.find((u) => u.email === 'anna@example.com');
+  const teamGroup = mock.state.groups.find((g) => g.kind === 'team');
+  await check('Tab-Leiste: Home, Kalender, Aufgaben, Team, Mehr', async () => {
+    await mo.goto(BASE);
+    await mo.getByLabel('E-Mail').fill('anna@example.com');
+    await mo.getByLabel('Passwort', { exact: true }).fill('sicheresPasswort1');
+    await mo.getByRole('button', { name: 'Anmelden' }).click();
+    await mo.locator('.tabbar [data-tour="nav-team"]').waitFor({ timeout: 10000 });
+    for (const t of ['nav-home', 'nav-lernplan', 'nav-hausaufgaben', 'nav-team', 'nav-mehr']) assert((await mo.locator(`.tabbar [data-tour="${t}"]`).count()) === 1, `${t} fehlt`);
+    assert((await mo.locator('.tabbar [data-tour="nav-fokus"]').count()) === 0, 'Fokus doppelt in der Tab-Leiste');
+    await shot(mo, '11b-tableiste');
+  });
+  await check('„Mehr“: jedes Ziel öffnet eine funktionierende Seite', async () => {
+    const targets = [
+      ['more-subjects', '#/faecher'], ['more-stats', '#/analyse'], ['more-music', '#/musik'], ['more-group', '#/einstellungen/gruppe'],
+      ['more-plan', '#/einstellungen/plus'], ['more-settings', '#/einstellungen'], ['more-help', '#/hilfe'], ['more-trash', '#/papierkorb'],
+    ];
+    for (const [id, hash] of targets) {
+      await mo.goto(`${BASE}#/`);
+      await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
+      await mo.getByTestId('more-sheet').waitFor();
+      await mo.getByTestId(id).click();
+      await mo.waitForFunction((h) => location.hash === h, hash, { timeout: 5000 });
+      await mo.locator('h1').first().waitFor({ timeout: 5000 });
+      assert((await mo.getByText('nicht gefunden').count()) === 0, `${id}: nicht gefunden`);
+    }
+    await mo.goto(`${BASE}#/`);
+    await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
+    await mo.waitForTimeout(500);
+    await shot(mo, '12-mehr');
+    assert((await mo.getByTestId('more-sheet').getByText('Änderungsverlauf').count()) === 0, 'Mehr ist nicht vereinfacht');
+  });
+  await check('Team: Inhaber lädt ein, Rollen sichtbar, fremdes Profil nicht bearbeitbar', async () => {
+    await mo.goto(`${BASE}#/team`);
+    await mo.getByTestId('team-invite').waitFor();
+    assert((await mo.getByRole('button', { name: 'Person', exact: true }).count()) === 0, '„Person hinzufügen“ in der App');
+    assert((await mo.getByText('Inhaber', { exact: true }).count()) >= 1, 'Inhaber-Kennzeichnung');
+    const ben = mock.state.memberships.find((m) => m.group_id === teamGroup.id && m.user_id !== anna.id && !m.left_at);
+    await mo.goto(`${BASE}#/team/${ben.member_id}`);
+    await mo.getByTestId('member-role').waitFor();
+    assert((await mo.getByRole('button', { name: /Farbe ändern/ }).count()) === 0, 'fremde Farbe änderbar');
+    assert((await mo.getByRole('button', { name: /Deaktivieren/ }).count()) === 0, 'Deaktivieren in der App');
+    assert((await mo.getByLabel('Name bearbeiten').getAttribute('readonly')) !== null, 'fremder Name änderbar');
+    await mo.getByTestId('member-remove').waitFor();
+    await shot(mo, '13-mitglied');
+  });
+  await check('Keine falschen Hinweise „keine Anmeldung“', async () => {
+    for (const path of ['#/einstellungen/info', '#/verlauf']) {
+      await mo.goto(`${BASE}${path}`);
+      await mo.locator('h1').first().waitFor();
+      await mo.waitForTimeout(300);
+      const text = await mo.locator('body').innerText();
+      assert(!/keine Anmeldung|Öffentlicher Zugriff|Lernprofil/.test(text), `${path}: veralteter Hinweis`);
+    }
+    await mo.goto(`${BASE}#/einstellungen/info`);
+    await mo.getByTestId('privacy-note').waitFor();
+  });
+  await check('Papierkorb-Zähler stimmt mit der Seite überein', async () => {
+    const t = mock.state.tables;
+    const at = new Date().toISOString();
+    t.study_entries.push({ id: 'e1000000-0000-4000-8000-000000000001', group_id: teamGroup.id, module_id: 'x', study_date: '2026-12-01', title: 'Gelöschter Lerntag', description: null, topic_id: null, sort_order: 1, deleted_at: at, version: 1, created_at: at, updated_at: at });
+    for (const n of [1, 2]) t.tasks.push({ id: `e2000000-0000-4000-8000-00000000000${n}`, group_id: teamGroup.id, study_entry_id: 'e1000000-0000-4000-8000-000000000001', title: `Aufgabe ${n}`, description: null, sort_order: n, deleted_at: at, version: 1, created_at: at, updated_at: at });
+    t.study_entries.push({ id: 'e1000000-0000-4000-8000-000000000002', group_id: teamGroup.id, module_id: 'x', study_date: '2026-12-02', title: 'Aktiver Lerntag', description: null, topic_id: null, sort_order: 2, deleted_at: null, version: 1, created_at: at, updated_at: at });
+    t.tasks.push({ id: 'e2000000-0000-4000-8000-000000000003', group_id: teamGroup.id, study_entry_id: 'e1000000-0000-4000-8000-000000000002', title: 'Einzeln gelöscht', description: null, sort_order: 1, deleted_at: at, version: 1, created_at: at, updated_at: at });
+    await mo.goto(`${BASE}#/`);
+    await mo.reload();
+    await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
+    const count = (await mo.getByTestId('more-trash').innerText()).replace(/\D/g, '');
+    await mo.getByTestId('more-trash').click();
+    await mo.waitForFunction(() => location.hash === '#/papierkorb');
+    await mo.getByText('Gelöschter Lerntag').waitFor();
+    const items = await mo.getByRole('button', { name: 'Wiederherstellen' }).count();
+    assert(count === '2' && items === 2, `Zähler ${count}, Seite ${items} (erwartet 2/2)`);
+  });
+  await check('Hilfe & Feedback: Fragen und Feedback senden', async () => {
+    await mo.goto(`${BASE}#/hilfe`);
+    await mo.getByTestId('help-page').waitFor();
+    await mo.getByTestId('feedback-message').fill('Die Tab-Leiste gefällt mir sehr gut.');
+    await mo.getByTestId('feedback-send').click();
+    await mo.getByTestId('feedback-sent').waitFor();
+    assert(mock.state.feedback.length === 1, 'Feedback gespeichert');
+    await shot(mo, '14-hilfe');
+  });
+  await check('Daten exportieren lädt eine Datei herunter', async () => {
+    await mo.goto(`${BASE}#/einstellungen/daten`);
+    const [download] = await Promise.all([mo.waitForEvent('download', { timeout: 8000 }), mo.getByTestId('export-run').click()]);
+    assert(/studyspace-.*\.json$/.test(download.suggestedFilename()), download.suggestedFilename());
+  });
+  await check('Kleine Smartphones (320 px) und Tablets: kein seitliches Überlaufen', async () => {
+    const pages = ['#/', '#/team', '#/hilfe', '#/einstellungen', '#/einstellungen/plus', '#/einstellungen/gruppe', '#/papierkorb', '#/faecher', '#/lernplan', '#/hausaufgaben'];
+    for (const [w, h] of [[320, 568], [768, 1024], [1024, 768]]) {
+      await mo.setViewportSize({ width: w, height: h });
+      for (const path of pages) {
+        await mo.goto(`${BASE}${path}`);
+        await mo.waitForTimeout(350);
+        const over = await mo.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        assert(over <= 1, `${w}px ${path}: ${over}px zu breit`);
+      }
+    }
+    await mo.setViewportSize({ width: 320, height: 568 });
+    await mo.goto(`${BASE}#/`);
+    await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
+    await mo.waitForTimeout(400);
+    const over = await mo.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert(over <= 1, `Mehr auf 320 px: ${over}px`);
+    await shot(mo, '15-mehr-320');
+    await mo.keyboard.press('Escape');
+    await mo.getByTestId('more-sheet').waitFor({ state: 'detached' });
+  });
+  await check('Inhaber entfernt ein Mitglied (mit Bestätigung)', async () => {
+    await mo.setViewportSize({ width: 390, height: 844 });
+    const ben = mock.state.memberships.find((m) => m.group_id === teamGroup.id && m.user_id !== anna.id && !m.left_at);
+    await mo.goto(`${BASE}#/team/${ben.member_id}`);
+    await mo.getByTestId('member-remove').click();
+    await mo.waitForTimeout(600);
+    await shot(mo, '16-entfernen');
+    await mo.getByTestId('member-remove-confirm').click({ timeout: 5000 });
+    await mo.waitForFunction(() => location.hash === '#/team');
+    assert(ben.left_at, 'Mitglied entfernt');
   });
 
   console.log('Admin-Bereich');
@@ -352,6 +478,10 @@ try {
     await shot(c, '11-admin-finanzen');
     await c.getByTestId('sim-table-toggle').click();
     assert((await c.locator('table tbody tr').count()) >= 12, 'Monatstabelle');
+  });
+  await check('Feedback kommt im Admin-Bereich an', async () => {
+    await c.getByRole('radio', { name: 'Feedback' }).or(c.getByRole('button', { name: 'Feedback' })).first().click();
+    await c.getByTestId('admin-feedback').getByText('Die Tab-Leiste gefällt mir sehr gut.').waitFor();
   });
   await check('Benutzerliste', async () => {
     await c.getByRole('radio', { name: 'Benutzer' }).or(c.getByRole('button', { name: 'Benutzer' })).first().click();

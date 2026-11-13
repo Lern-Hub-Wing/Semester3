@@ -106,23 +106,23 @@ function useSteps(): Step[] {
       },
       {
         id: 'focus',
-        targets: ['[data-tour="nav-fokus"]'],
+        targets: ['[data-tour="nav-fokus"]', '[data-tour="focus-start"]'],
         icon: <Timer />,
         title: 'Fokus-Modus',
         text: 'Pomodoro im Vollbild, mit Lofi, Regen oder Stille. Nur echte Fokuszeit zählt in deine Lernzeit.',
+        fallbackText: 'Mit „Fokus starten“ beginnt der Pomodoro-Timer im Vollbild – auch unter „Mehr“ zu finden. Nur echte Fokuszeit zählt in deine Lernzeit.',
       },
       team
         ? {
             id: 'team',
-            targets: ['[data-tour="nav-team"]', '[data-tour="nav-mehr"]'],
+            targets: ['[data-tour="nav-team"]'],
             icon: <Users />,
             title: 'Euer Team',
-            text: 'Fortschritt und Lernzeit aller auf einen Blick – motivierend, ohne Druck.',
-            fallbackText: 'Unter „Mehr“ → Team seht ihr Fortschritt und Lernzeit aller auf einen Blick.',
+            text: 'Fortschritt und Lernzeit aller Mitglieder auf einen Blick – motivierend, ohne Druck.',
           }
         : {
             id: 'stats',
-            targets: ['[data-tour="nav-analyse"]', '[data-tour="nav-mehr"]'],
+            targets: ['[data-tour="nav-analyse"]'],
             icon: <ChartLine />,
             title: 'Deine Statistik',
             text: 'Wie viel du gelernt hast, wo du stehst und was als Nächstes ansteht.',
@@ -358,8 +358,7 @@ function TourOverlay() {
       >
         <div className="mb-3 flex items-center gap-3">
           <motion.span
-            className="grid size-11 shrink-0 place-items-center rounded-[14px] text-white [&_svg]:size-[22px]"
-            style={{ background: 'linear-gradient(135deg, #8B7BFF, #5E5CE6)' }}
+            className="icon-badge"
             initial={reduce ? false : { rotate: -12, scale: 0.6 }}
             animate={{ rotate: 0, scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 14, delay: 0.05 }}

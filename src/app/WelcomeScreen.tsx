@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpenCheck, ChevronRight, LogOut, Sparkles, UserPlus, Use
 import { getSupabase } from '../lib/supabase';
 import { describeError } from '../lib/errors';
 import { EASE_EMPH } from '../lib/motion';
+import { AREA_TINT } from '../lib/tints';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/Field';
 import { AuthFrame } from './AuthScreen';
@@ -35,15 +36,15 @@ export function WelcomeScreen() {
   const first = groups.length === 0;
 
   const options: { id: Exclude<Choice, 'menu'>; icon: ReactNode; tint: string; title: string; text: string }[] = [
-    { id: 'join', icon: <UserPlus />, tint: '#2FA58B', title: 'Einer Lerngruppe beitreten', text: 'Du hast einen Einladungscode? Tritt kostenlos deiner Gruppe bei.' },
+    { id: 'join', icon: <UserPlus />, tint: AREA_TINT.join, title: 'Einer Lerngruppe beitreten', text: 'Du hast einen Einladungscode? Tritt kostenlos deiner Gruppe bei.' },
     {
       id: 'solo',
       icon: <UserRound />,
-      tint: '#6F7BF7',
+      tint: AREA_TINT.solo,
       title: 'Alleine lernen',
       text: me?.trial_used || me?.level ? 'Dein persönlicher Lernbereich mit Lernplan, Prüfungen und Fokus.' : 'Teste 14 Tage kostenlos alle Solo-Funktionen.',
     },
-    { id: 'group', icon: <Users />, tint: '#B57BF0', title: 'Eigene Lerngruppe erstellen', text: 'Lerne mit bis zu sieben Freunden. Wähle einen Gruppenpass.' },
+    { id: 'group', icon: <Users />, tint: AREA_TINT.plan_billing, title: 'Eigene Lerngruppe erstellen', text: 'Lerne mit bis zu sieben Freunden. Wähle einen Gruppenpass.' },
   ];
 
   const title = invite ? 'Einladung annehmen' : first ? 'Willkommen bei StudySpace!' : 'Wie möchtest du lernen?';

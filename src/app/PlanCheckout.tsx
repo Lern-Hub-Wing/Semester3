@@ -8,7 +8,7 @@ import { api, OFFERS, type PaidPlan } from './api';
 import { refreshMe, useAccount } from './account';
 
 const TIER_TEXT = {
-  solo: { title: 'StudySpace Solo', points: ['Persönlicher Lernplan und Hausaufgaben', 'Prüfungen, Fokusmodus und Statistiken', 'Erinnerungen'] },
+  solo: { title: 'StudySpace Solo', points: ['Persönlicher Lernplan und Hausaufgaben', 'Prüfungen, Fokusmodus und Statistiken', 'Planung auf allen Geräten'] },
   group: { title: 'StudySpace Gruppe', points: ['Alle Solo-Funktionen', 'Gemeinsamer Lernplan, Gruppenfortschritt und Ziele', 'Bis zu 8 Lernende – nur du bezahlst'] },
 } as const;
 
