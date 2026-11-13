@@ -25,8 +25,12 @@ export interface Snapshot {
   entries: { id: string; module_id: string; study_date: string; deleted_at: string | null }[];
   tasks: { id: string; study_entry_id: string; deleted_at: string | null }[];
   completions: { task_id: string; member_id: string; is_completed: boolean }[];
-  /** Kürzlich angelegte Hausaufgaben (für die Mitteilung „neue Hausaufgabe“) */
+  /** Hausaufgaben (nicht gelöscht, Abgabe ab ca. einer Woche zurück) – für „neue Hausaufgabe“ und die Tageserinnerungen */
   homework?: { id: string; module_id: string; title: string; due_date: string; deleted_at: string | null }[];
+  /** Teile der Hausaufgaben (Unteraufgaben/Einheiten), nicht gelöscht */
+  homeworkParts?: { id: string; homework_id: string }[];
+  /** Erledigt-Haken der Hausaufgaben (target_id = Hausaufgabe oder Teil) */
+  homeworkCompletions?: { target_id: string; member_id: string; is_completed: boolean }[];
   /** Änderungsverlauf ab dem kleinsten Geräte-Cursor (aufsteigend nach id) */
   activity: { id: number; occurred_at: string; actor_member_id: string | null; entity_type: string; entity_id: string; action: string }[];
   /** Gespeicherter Zustand des Schedulers (push_state) */
@@ -87,6 +91,8 @@ const OVERDUE_REPEAT_DAYS = 3;
 const SUCCESS_WINDOW_MS = 24 * 3600 * 1000;
 /** Neue Hausaufgaben höchstens so lange nachmelden (z. B. nach der Ruhezeit) */
 const HOMEWORK_WINDOW_MS = 36 * 3600 * 1000;
+/** Überfällige Hausaufgaben nur so lange erwähnen (danach nicht weiter nerven) */
+const HOMEWORK_OVERDUE_DAYS = 7;
 
 interface TaskInfo {
   id: string;
@@ -124,6 +130,14 @@ function moduleBreakdown(tasks: TaskInfo[], moduleName: (id: string) => string):
   for (const t of tasks) byModule.set(t.moduleId, (byModule.get(t.moduleId) ?? 0) + 1);
   const sorted = [...byModule.entries()].sort((a, b) => b[1] - a[1]);
   return listModules(sorted.map(([id]) => moduleName(id)));
+}
+
+/** „Aufgabe 8“, „Aufgabe 8“ und „Blatt 2“, „A“, „B“ und 2 weitere */
+function homeworkList(items: { title: string }[]): string {
+  const q = (t: string) => `„${t.trim().length > 50 ? `${t.trim().slice(0, 47)}…` : t.trim()}“`;
+  if (items.length === 1) return q(items[0].title);
+  if (items.length === 2) return `${q(items[0].title)} und ${q(items[1].title)}`;
+  return `${q(items[0].title)}, ${q(items[1].title)} und ${items.length - 2} weitere`;
 }
 
 function forDay(date: string, today: string): string {
@@ -171,15 +185,40 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
   const done = new Set(snap.completions.filter((c) => c.is_completed).map((c) => `${c.task_id}:${c.member_id}`));
   const isDone = (taskId: string, memberId: string) => done.has(`${taskId}:${memberId}`);
 
-  const memberCache = new Map<string, { todayAll: TaskInfo[]; todayOpen: TaskInfo[]; overdue: TaskInfo[] }>();
+  // Hausaufgaben: erledigt, wenn die Hausaufgabe selbst oder alle ihre Teile abgehakt sind (wie in der App)
+  type Hw = NonNullable<Snapshot['homework']>[number];
+  const activeHomework = (snap.homework ?? []).filter((h) => {
+    const m = modules.get(h.module_id);
+    return !h.deleted_at && !!m && !m.archived_at;
+  });
+  const hwParts = new Map<string, string[]>();
+  for (const p of snap.homeworkParts ?? []) {
+    if (!hwParts.has(p.homework_id)) hwParts.set(p.homework_id, []);
+    hwParts.get(p.homework_id)!.push(p.id);
+  }
+  const hwChecked = new Set((snap.homeworkCompletions ?? []).filter((c) => c.is_completed).map((c) => `${c.target_id}:${c.member_id}`));
+  const hwDone = (h: Hw, memberId: string) => {
+    if (hwChecked.has(`${h.id}:${memberId}`)) return true;
+    const parts = hwParts.get(h.id);
+    return !!parts && parts.length > 0 && parts.every((id) => hwChecked.has(`${id}:${memberId}`));
+  };
+  const byDue = (a: Hw, b: Hw) => a.due_date.localeCompare(b.due_date) || a.title.localeCompare(b.title);
+  const tomorrow = addDays(today, 1);
+  const overdueFrom = addDays(today, -HOMEWORK_OVERDUE_DAYS);
+
+  const memberCache = new Map<string, { todayAll: TaskInfo[]; todayOpen: TaskInfo[]; overdue: TaskInfo[]; hwToday: Hw[]; hwTomorrow: Hw[]; hwOverdue: Hw[] }>();
   const forMember = (memberId: string) => {
     let c = memberCache.get(memberId);
     if (!c) {
       const todayAll = tasks.filter((t) => t.date === today);
+      const openHw = activeHomework.filter((h) => !hwDone(h, memberId)).sort(byDue);
       c = {
         todayAll,
         todayOpen: todayAll.filter((t) => !isDone(t.id, memberId)),
         overdue: tasks.filter((t) => t.date < today && !isDone(t.id, memberId)),
+        hwToday: openHw.filter((h) => h.due_date === today),
+        hwTomorrow: openHw.filter((h) => h.due_date === tomorrow),
+        hwOverdue: openHw.filter((h) => h.due_date < today && h.due_date >= overdueFrom),
       };
       memberCache.set(memberId, c);
     }
@@ -245,7 +284,7 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
     const morningEff = effectiveMinute(timeToMinutes(prefs.morningTime), prefs);
     const overdueEff = effectiveMinute(timeToMinutes(prefs.overdueTime), prefs);
     const morningDue = prefs.morning && !quietNow && local.minutes >= morningEff && local.minutes < morningEff + DAILY_WINDOW_MIN;
-    const overdueIds = mine.overdue.map((t) => t.id).sort();
+    const overdueIds = [...mine.overdue.map((t) => t.id), ...mine.hwOverdue.map((h) => `hw:${h.id}`)].sort();
     const overdueKey = `overdue:${today}`;
     const overdueWanted =
       prefs.overdue &&
@@ -255,17 +294,32 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
         overdueIds.some((id) => !dev.lastOverdue!.taskIds.includes(id)) ||
         nowMs - Date.parse(dev.lastOverdue.at) >= OVERDUE_REPEAT_DAYS * 86_400_000);
     const overdueText = () => {
-      const allYesterday = mine.overdue.every((t) => t.date === addDays(today, -1));
-      return allYesterday
-        ? `${plural(overdueIds.length, 'Aufgabe', 'Aufgaben')} von gestern ${overdueIds.length === 1 ? 'wartet' : 'warten'} noch auf dich.`
-        : `${plural(overdueIds.length, 'Aufgabe', 'Aufgaben')} aus vergangenen Lerntagen ${overdueIds.length === 1 ? 'wartet' : 'warten'} noch auf dich.`;
+      const out: string[] = [];
+      const n = mine.overdue.length;
+      if (n > 0) {
+        const allYesterday = mine.overdue.every((t) => t.date === addDays(today, -1));
+        out.push(
+          allYesterday
+            ? `${plural(n, 'Aufgabe', 'Aufgaben')} von gestern ${n === 1 ? 'wartet' : 'warten'} noch auf dich.`
+            : `${plural(n, 'Aufgabe', 'Aufgaben')} aus vergangenen Lerntagen ${n === 1 ? 'wartet' : 'warten'} noch auf dich.`,
+        );
+      }
+      const k = mine.hwOverdue.length;
+      if (k > 0) out.push(`${k === 1 ? 'Diese Hausaufgabe ist' : `${k} Hausaufgaben sind`} noch nicht abgehakt: ${homeworkList(mine.hwOverdue)}.`);
+      return out.join(' ');
     };
+    const overdueUrl = mine.overdue.length === 0 ? '#/hausaufgaben' : '#/lernplan?ansicht=liste&status=ueberfaellig';
     const overdueMeta = { taskIds: overdueIds.slice(0, 200) };
 
     const morningKey = `morning:${today}`;
-    if (morningDue && mine.todayAll.length > 0 && mine.todayOpen.length > 0 && !dev.sent.has(morningKey)) {
+    const hwSoon = mine.hwToday.length + mine.hwTomorrow.length;
+    if (morningDue && (mine.todayOpen.length > 0 || hwSoon > 0) && !dev.sent.has(morningKey)) {
       const n = mine.todayOpen.length;
-      let body = `Heute ${n === 1 ? 'steht' : 'stehen'} ${plural(n, 'Aufgabe', 'Aufgaben')} in ${moduleBreakdown(mine.todayOpen, moduleName)} an. Du schaffst das!`;
+      const sentences: string[] = [];
+      if (n > 0) sentences.push(`Heute ${n === 1 ? 'steht' : 'stehen'} ${plural(n, 'Aufgabe', 'Aufgaben')} in ${moduleBreakdown(mine.todayOpen, moduleName)} an.`);
+      if (mine.hwToday.length) sentences.push(`Heute Abgabe: ${homeworkList(mine.hwToday)}.`);
+      if (mine.hwTomorrow.length) sentences.push(`Morgen Abgabe: ${homeworkList(mine.hwTomorrow)}.`);
+      let body = `${sentences.join(' ')} Du schaffst das!`;
       // Zusammenfassen, wenn die Überfällig-Erinnerung in die Nähe (≤ 60 Min.) fällt
       const merge = overdueWanted && Math.abs(overdueEff - morningEff) <= 60;
       if (merge) body += ` Außerdem: ${overdueText()}`;
@@ -273,9 +327,9 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
         {
           kind: 'morning',
           dedupeKey: morningKey,
-          title: 'Dein Lernplan für heute',
+          title: n > 0 ? 'Dein Lernplan für heute' : 'Hausaufgaben im Blick',
           body,
-          url: '#/',
+          url: n > 0 ? '#/' : '#/hausaufgaben',
           ttl: 4 * 3600,
           urgency: 'normal',
           topic: 'morning',
@@ -288,7 +342,7 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
     const overdueDue = !quietNow && local.minutes >= overdueEff && local.minutes < overdueEff + DAILY_WINDOW_MIN;
     if (overdueDue && overdueWanted && !dev.sent.has(overdueKey)) {
       push(
-        { kind: 'overdue', dedupeKey: overdueKey, title: 'Da ist noch etwas offen', body: overdueText(), url: '#/lernplan?ansicht=liste&status=ueberfaellig', ttl: 6 * 3600, urgency: 'normal', topic: 'overdue', meta: overdueMeta },
+        { kind: 'overdue', dedupeKey: overdueKey, title: 'Da ist noch etwas offen', body: overdueText(), url: overdueUrl, ttl: 6 * 3600, urgency: 'normal', topic: 'overdue', meta: overdueMeta },
         badge,
       );
     }
@@ -296,15 +350,26 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
     // ---------------- B: Abends noch offene Aufgaben
     const eveningEff = effectiveMinute(timeToMinutes(prefs.eveningTime), prefs);
     const eveningKey = `evening:${today}`;
-    if (prefs.evening && !quietNow && local.minutes >= eveningEff && local.minutes < eveningEff + DAILY_WINDOW_MIN && mine.todayOpen.length > 0 && !dev.sent.has(eveningKey)) {
+    if (
+      prefs.evening &&
+      !quietNow &&
+      local.minutes >= eveningEff &&
+      local.minutes < eveningEff + DAILY_WINDOW_MIN &&
+      (mine.todayOpen.length > 0 || mine.hwToday.length > 0 || mine.hwTomorrow.length > 0) &&
+      !dev.sent.has(eveningKey)
+    ) {
       const n = mine.todayOpen.length;
+      const sentences: string[] = [];
+      if (n > 0) sentences.push(`Du hast heute noch ${plural(n, 'Aufgabe', 'Aufgaben')} in ${moduleBreakdown(mine.todayOpen, moduleName)} offen.`);
+      if (mine.hwToday.length) sentences.push(`Heute noch abzugeben: ${homeworkList(mine.hwToday)}.`);
+      if (mine.hwTomorrow.length) sentences.push(`Morgen Abgabe: ${homeworkList(mine.hwTomorrow)}.`);
       push(
         {
           kind: 'evening',
           dedupeKey: eveningKey,
-          title: 'Noch nicht ganz geschafft!',
-          body: `Du hast heute noch ${plural(n, 'Aufgabe', 'Aufgaben')} in ${moduleBreakdown(mine.todayOpen, moduleName)} offen.`,
-          url: '#/',
+          title: n > 0 ? 'Noch nicht ganz geschafft!' : mine.hwToday.length ? 'Heute ist Abgabe' : 'Morgen ist Abgabe',
+          body: sentences.join(' '),
+          url: n > 0 ? '#/' : '#/hausaufgaben',
           ttl: 3 * 3600,
           urgency: 'normal',
           topic: 'evening',

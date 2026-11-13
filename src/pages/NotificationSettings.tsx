@@ -242,9 +242,9 @@ function Categories() {
   const prefs = usePush((s) => s.prefs);
   const toggle = (key: keyof PushPrefs) => (v: boolean) => void updatePushPrefs({ [key]: v });
   const all: { key: keyof PushPrefs; icon: ReactNode; tint: string; title: string; hint: string }[] = [
-    { key: 'morning', icon: <Sunrise />, tint: '#F4B9A0', title: 'Morgendliche Lernübersicht', hint: `Um ${prefs.morningTime} Uhr, wenn heute Aufgaben geplant sind` },
-    { key: 'evening', icon: <AlarmClock />, tint: 'var(--ss-accent)', title: 'Offene Aufgaben', hint: `Um ${prefs.eveningTime} Uhr, nur wenn noch etwas offen ist` },
-    { key: 'overdue', icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Überfällige Aufgaben', hint: `Um ${prefs.overdueTime} Uhr – nicht täglich dieselben` },
+    { key: 'morning', icon: <Sunrise />, tint: '#F4B9A0', title: 'Morgendliche Lernübersicht', hint: `Um ${prefs.morningTime} Uhr: heutige Aufgaben und Hausaufgaben mit Abgabe heute/morgen` },
+    { key: 'evening', icon: <AlarmClock />, tint: 'var(--ss-accent)', title: 'Offene Aufgaben', hint: `Um ${prefs.eveningTime} Uhr, nur wenn noch etwas offen ist oder morgen Abgabe ist` },
+    { key: 'overdue', icon: <CircleAlert />, tint: 'var(--ss-warn)', title: 'Überfällige Aufgaben', hint: `Um ${prefs.overdueTime} Uhr – auch nicht abgehakte Hausaufgaben, nicht täglich dieselben` },
     { key: 'exams', icon: <GraduationCap />, tint: '#E8CB9D', title: 'Prüfungserinnerungen', hint: '7, 3 und 1 Tag vorher sowie 2 Stunden vor Beginn' },
     { key: 'homework', icon: <NotebookPen />, tint: '#F2C4DA', title: 'Neue Hausaufgaben', hint: 'Sofort, wenn jemand aus der Gruppe eine Hausaufgabe einträgt' },
     { key: 'planChanges', icon: <CalendarClock />, tint: '#A6DED7', title: 'Änderungen am Lernplan', hint: 'Neue Aufgaben, verschobene Lerntage, Prüfungstermine – gesammelt' },
@@ -307,7 +307,7 @@ function Times() {
       <div className="mt-3">
         {!IS_APP && (
           <>
-            <TimeField label="Morgenübersicht" note="nur wenn heute etwas geplant ist" value={prefs.morningTime} onChange={set('morningTime')} warn={shifted(prefs.morningTime)} />
+            <TimeField label="Morgenübersicht" note="nur wenn heute etwas geplant oder abzugeben ist" value={prefs.morningTime} onChange={set('morningTime')} warn={shifted(prefs.morningTime)} />
             <TimeField label="Erinnerung an Offenes" note="nur wenn heute noch Aufgaben offen sind" value={prefs.eveningTime} onChange={set('eveningTime')} warn={shifted(prefs.eveningTime)} />
             <TimeField label="Überfällige Aufgaben" note="nur wenn etwas überfällig ist" value={prefs.overdueTime} onChange={set('overdueTime')} warn={shifted(prefs.overdueTime)} />
           </>

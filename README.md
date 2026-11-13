@@ -223,7 +223,9 @@ Mit installierter [Supabase CLI](https://supabase.com/docs/guides/cli) geht es a
 4. Nach ein paar Minuten prüfen (steht unten in der Datei): `cron.job_run_details` zeigt `succeeded`, `net._http_response` den Statuscode `200`.
 5. Einfacher: In der App unter Einstellungen → Benachrichtigungen steht „Automatische Erinnerungen aktiv · zuletzt geprüft …“. Liegt eine eingestellte Uhrzeit in der Ruhezeit (Standard 21:00–08:00), zeigt die App direkt darunter, wann die Nachricht stattdessen kommt (abends 15 Minuten vor Beginn der Ruhezeit, morgens zu ihrem Ende). Fehlt die Zeitsteuerung, steht dort ein Hinweis – dann kommen nur Testnachrichten, aber keine geplanten Erinnerungen.
 
-Hinweis: „Offene Aufgaben“ wird nur verschickt, wenn für heute wirklich noch Aufgaben offen sind, und höchstens einmal am Tag; „Morgendliche Lernübersicht“ nur, wenn heute etwas geplant ist.
+Hinweis: „Offene Aufgaben“ wird nur verschickt, wenn für heute wirklich noch Aufgaben offen sind oder heute/morgen eine nicht abgehakte Hausaufgabe abzugeben ist, und höchstens einmal am Tag; „Morgendliche Lernübersicht“ nur, wenn heute etwas geplant oder abzugeben ist.
+
+**Neue Hausaufgaben sofort melden (empfohlen):** Danach zusätzlich [`supabase/push_instant.sql`](supabase/push_instant.sql) im SQL Editor ausführen (nichts ersetzen – es nutzt die Werte aus `cron.sql`). Dann ruft die Datenbank die Zeitsteuerung direkt nach dem Speichern einer Hausaufgabe auf; ohne diese Datei kommt die Mitteilung erst beim nächsten 5-Minuten-Lauf – und gar nicht, wenn die Hausaufgabe bis dahin wieder gelöscht wurde.
 
 ### 12.6 Public Key in GitHub eintragen und veröffentlichen
 
@@ -243,11 +245,11 @@ Android (Chrome/Edge) und Desktop (Chrome, Edge, Firefox, Safari auf macOS) funk
 
 | Erinnerung | Wann | Bedingung |
 |---|---|---|
-| Morgendliche Lernübersicht | 08:00 | Heute sind Aufgaben geplant und noch offen (eine Sammelnachricht) |
-| Offene Aufgaben | 18:00 | Heute ist noch etwas offen |
-| Überfällige Aufgaben | 09:00 | Aufgaben vergangener Tage offen; dieselben Aufgaben höchstens alle 3 Tage erneut; fällt mit der Morgenübersicht zusammen → zusammengefasst |
+| Morgendliche Lernübersicht | 08:00 | Heute sind Aufgaben geplant und noch offen **oder** eine Hausaufgabe ist heute/morgen abzugeben und noch nicht abgehakt (eine Sammelnachricht) |
+| Offene Aufgaben | 18:00 | Heute ist noch etwas offen oder eine Hausaufgabe ist heute/morgen abzugeben |
+| Überfällige Aufgaben | 09:00 | Aufgaben vergangener Tage offen bzw. Hausaufgaben der letzten 7 Tage nicht abgehakt; dieselben Aufgaben höchstens alle 3 Tage erneut; fällt mit der Morgenübersicht zusammen → zusammengefasst |
 | Prüfung | 7, 3 und 1 Tag vorher (17:00) und 2 Std. vor Beginn | Termin aus der Datenbank; nach einer Verschiebung neu berechnet; nie nach Beginn |
-| Neue Hausaufgabe | sofort (außerhalb der Ruhezeit, danach nachgeholt) | Jemand anderes trägt eine Hausaufgabe ein: „Luk hat eine Hausaufgabe hinzugefügt – „Blatt 3“ in Controlling – bis zum Do., 17. Dez.“ |
+| Neue Hausaufgabe | sofort mit [`push_instant.sql`](supabase/push_instant.sql), sonst innerhalb von 5 Min. (außerhalb der Ruhezeit, danach nachgeholt) | Jemand anderes trägt eine Hausaufgabe ein: „Luk hat eine Hausaufgabe hinzugefügt – „Blatt 3“ in Controlling – bis zum Do., 17. Dez.“ |
 | Lernplan aktualisiert | gesammelt nach 10 Min. Ruhe | Neue Aufgaben/Lerntage/Prüfungstermine von anderen Profilen |
 | Gemeinsam geschafft! 🎉 | sofort (außerhalb der Ruhezeit) | Gruppe erreicht 100 % eines Moduls – genau einmal pro Übergang |
 | Persönlicher Erfolg | sofort | Standard **aus**; ganzes Modul erledigt |
