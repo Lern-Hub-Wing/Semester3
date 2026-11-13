@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, History, Music2, Search, Settings, Trash2, Users, UsersRound, Timer, Crown, LifeBuoy } from 'lucide-react';
+import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, Music2, Search, Settings, Trash2, Users, UsersRound, Timer, Crown, LifeBuoy } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
 import { useTrashCount } from '../../store/trash';
 import { AREA_TINT } from '../../lib/tints';
@@ -251,6 +251,11 @@ function AppMoreSheet() {
   );
 }
 
+/**
+ * Bisherige Seite: gleiche schlichte Struktur wie in der App – Fokus und
+ * Lernmodus oben, „Lernen“ und „Lerngruppe“, Papierkorb unten. Team steht
+ * in der Tab-Leiste, der Änderungsverlauf unter Einstellungen → Daten.
+ */
 function MoreSheet() {
   const open = useUI((s) => s.moreOpen);
   const setUI = useUI((s) => s.set);
@@ -270,32 +275,22 @@ function MoreSheet() {
     <Modal open={open} onClose={close} title="Mehr">
       <div className="flex flex-col gap-5 pb-2" data-testid="more-sheet">
         <ProfileCard onSwitch={close} />
-
-        {/* Häufige Schnellaktionen */}
         <div className="grid grid-cols-2 gap-2.5">
-          <QuickAction icon={<Search />} tint="#6F7BF7" label="Suche" hint="Alles finden" onClick={() => (close(), setUI({ searchOpen: true }))} />
-          <QuickAction icon={<Clock3 />} tint="#3F4A7A" label="Lernmodus" hint="Uhr im Vollbild" onClick={() => (close(), startStudyMode())} />
+          <QuickAction icon={<Timer />} tint={AREA_TINT.focus} label="Fokus" hint="Timer starten" onClick={go('/fokus')} testId="more-focus" />
+          <QuickAction icon={<Clock3 />} tint={AREA_TINT.studyMode} label="Lernmodus" hint="Uhr im Vollbild" onClick={() => (close(), startStudyMode())} />
         </div>
-
         <ListGroup title="Lernen">
-          <ListRow icon={<BookOpen />} tint="#7C6FF0" label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} />
-          <ListRow icon={<Users />} tint="#2FA58B" label="Team" value={memberCount || undefined} onClick={go('/team')} />
-          {IS_APP ? (
-            <ListRow icon={<UsersRound />} tint="#3D8BE0" label="Lerngruppe" onClick={go('/einstellungen/gruppe')} testId="more-group" />
-          ) : (
-            <ListRow icon={<FileText />} tint="#3D8BE0" label="Materialien" onClick={go('/materialien')} />
-          )}
-          <ListRow icon={<Music2 />} tint="#E0559A" label="Musik" value={tracks ? `${tracks} Titel` : undefined} onClick={go('/musik')} />
+          <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} testId="more-subjects" />
+          <ListRow icon={<ChartLine />} tint={AREA_TINT.stats} label="Statistiken" onClick={go('/analyse')} testId="more-stats" />
+          <ListRow icon={<FileText />} tint={AREA_TINT.export} label="Materialien" onClick={go('/materialien')} testId="more-materials" />
+          <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik" value={tracks ? `${tracks} Titel` : undefined} onClick={go('/musik')} testId="more-music" />
         </ListGroup>
-
-        <ListGroup title="Überblick">
-          <ListRow icon={<ChartLine />} tint="#F08A24" label="Statistiken" onClick={go('/analyse')} />
-          <ListRow icon={<History />} tint="#7A8499" label="Änderungsverlauf" onClick={go('/verlauf')} />
+        <ListGroup title="Lerngruppe">
+          <ListRow icon={<UsersRound />} tint={AREA_TINT.group} label="Personen" value={memberCount || undefined} onClick={go('/einstellungen/personen')} testId="more-people" />
+          <ListRow icon={<Settings />} tint={AREA_TINT.settings} label="Einstellungen" onClick={go('/einstellungen')} testId="more-settings" />
         </ListGroup>
-
         <ListGroup>
-          <ListRow icon={<Settings />} tint="#8E8E93" label="Einstellungen" onClick={go('/einstellungen')} />
-          <ListRow icon={<Trash2 />} tint="#E5484D" label="Papierkorb" value={trashCount || undefined} onClick={go('/papierkorb')} />
+          <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} onClick={go('/papierkorb')} testId="more-trash" />
         </ListGroup>
       </div>
     </Modal>

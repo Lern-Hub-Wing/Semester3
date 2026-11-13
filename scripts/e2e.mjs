@@ -160,7 +160,8 @@ async function mobileDesignChecks(p, name) {
   const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
   const bar = nav;
   const glass = nav.locator('.lg-tab-bar-glass').first();
-  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Kalender', '#/lernplan'], ['Dashboard', '#/']]) {
+  // Tab-Leiste wie in der App: Home · Kalender · Aufgaben · Team · Mehr
+  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Kalender', '#/lernplan'], ['Home', '#/']]) {
     await nav.getByRole('link', { name: label }).click();
     await p.waitForTimeout(350);
     check(new URL(p.url()).hash.split('?')[0] === hash, `Tab-Leiste (${name}): Antippen öffnet „${label}“`);
@@ -171,7 +172,7 @@ async function mobileDesignChecks(p, name) {
   const tab = (i) => box.x + 6 + ((box.width - 12) / 5) * (i + 0.5);
   await p.mouse.move(tab(0), y);
   await p.mouse.down();
-  await p.mouse.move(tab(3), y, { steps: 12 });
+  await p.mouse.move(tab(1), y, { steps: 12 });
   await p.waitForTimeout(150);
   const lifted = await bar.evaluate((el) => el.hasAttribute('data-lifted'));
   check(new URL(p.url()).hash === '#/' && lifted, `Tab-Leiste (${name}): Linse folgt beim Ziehen, noch keine Navigation`);
@@ -186,7 +187,7 @@ async function mobileDesignChecks(p, name) {
   await p.mouse.up();
   await p.waitForTimeout(300);
   check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Wischen über den Inhalt wechselt keine Seite`);
-  await nav.getByRole('link', { name: 'Dashboard' }).click();
+  await nav.getByRole('link', { name: 'Home' }).click();
   await p.waitForTimeout(300);
   // „Mehr“: gruppierte Liste statt vieler Kacheln, auf kleinen Geräten vollständig erreichbar
   await nav.getByRole('button', { name: 'Mehr' }).click();
@@ -197,10 +198,11 @@ async function mobileDesignChecks(p, name) {
   await lastRow.scrollIntoViewIfNeeded();
   const lr = await lastRow.boundingBox();
   check(groups === 3 && lr && lr.y + lr.height <= (p.viewportSize()?.height ?? 0), `Mehr (${name}): drei Gruppen, letzter Eintrag erreichbar (${groups})`);
+  check((await more.getByRole('button', { name: /Änderungsverlauf|^Team/ }).count()) === 0 && (await more.getByTestId('more-focus').count()) === 1, `Mehr (${name}): schlicht wie in der App (Fokus oben, Team in der Tab-Leiste)`);
   await more.getByRole('button', { name: /Statistiken/ }).click();
   await p.waitForTimeout(400);
   check(new URL(p.url()).hash === '#/analyse' && (await p.getByTestId('more-sheet').count()) === 0, `Mehr (${name}): Eintrag öffnet die Seite und schließt das Menü`);
-  await nav.getByRole('link', { name: 'Dashboard' }).click();
+  await nav.getByRole('link', { name: 'Home' }).click();
   await p.waitForTimeout(300);
   const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
   check(touchAction === 'pan-y', `Tab-Leiste (${name}): senkrechtes Scrollen bleibt frei (touch-action=${touchAction})`);

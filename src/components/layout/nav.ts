@@ -27,13 +27,6 @@ const ALL_NAV: NavItem[] = [
 /** In der App gibt es keine Dateien (keine Materialien-Seite). */
 export const NAV: NavItem[] = IS_APP ? ALL_NAV.filter((n) => n.to !== '/materialien') : ALL_NAV;
 
-export const MOBILE_NAV: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: House },
-  { to: '/fokus', label: 'Fokus', icon: Timer },
-  { to: '/hausaufgaben', label: 'Aufgaben', icon: SquareCheckBig },
-  { to: '/lernplan', label: 'Kalender', icon: CalendarDays },
-  { to: '#mehr', label: 'Mehr', icon: Ellipsis },
-];
 
 /**
  * App: Team bzw. Statistik (alleine lernen) gehört in die Tab-Leiste; der Fokus
@@ -48,6 +41,9 @@ export function appMobileNav(solo: boolean): NavItem[] {
     { to: '#mehr', label: 'Mehr', icon: Ellipsis },
   ];
 }
+
+/** Tab-Leiste (Smartphone) der bisherigen Seite – gleich wie in der App: Team statt Fokus. */
+export const MOBILE_NAV: NavItem[] = appMobileNav(false);
 
 export function isActive(path: string, to: string) {
   return to === '/' ? path === '/' : path === to || path.startsWith(`${to}/`);

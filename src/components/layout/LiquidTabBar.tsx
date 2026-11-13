@@ -3,7 +3,7 @@ import { TabBar } from 'glisse';
 import { useLocation } from '../../lib/router';
 import { haptic } from '../../lib/haptics';
 import { useUI } from '../../store/ui';
-import { MOBILE_NAV, appMobileNav, isActive } from './nav';
+import { appMobileNav, isActive } from './nav';
 import { IS_APP } from '../../lib/edition';
 import { useAccount } from '../../app/account';
 
@@ -53,7 +53,7 @@ export function LiquidTabBar() {
   const moreOpen = useUI((s) => s.moreOpen);
   // App: im eigenen Lernbereich (alleine) Statistik statt Team
   const solo = useAccount((s) => s.me?.groups.find((g) => g.id === s.me?.active_group_id)?.kind === 'solo');
-  const nav = useMemo(() => (IS_APP ? appMobileNav(solo) : MOBILE_NAV), [solo]);
+  const nav = useMemo(() => appMobileNav(IS_APP && solo), [solo]);
 
   const routeIndex = nav.findIndex((item) => item.to !== MORE && isActive(path, item.to));
   const value = moreOpen || routeIndex === -1 ? MORE : nav[routeIndex]!.to;
