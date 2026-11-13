@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlarmClock, ArrowLeft, Bell, BellOff, BellRing, CalendarClock, CircleAlert, CircleCheck, GraduationCap, LoaderCircle, Moon, PartyPopper, RefreshCw, Send, ShieldCheck, Smartphone, Sparkles, Sunrise, Trophy,
@@ -152,31 +153,19 @@ function StatusHero({ me, phase }: { me: Member; phase: PushPhase }) {
           {error}
         </p>
       )}
-      <AnimatePresence>
-        {confirmOff && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[18px] bg-[color-mix(in_srgb,var(--ss-text)_5%,transparent)] p-3 text-[13.5px]">
-              <span>Benachrichtigungen auf diesem Gerät ausschalten?</span>
-              <span className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setConfirmOff(false)}>
-                  Abbrechen
-                </Button>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={async () => {
-                    setConfirmOff(false);
-                    await disablePush();
-                    toast.info('Benachrichtigungen ausgeschaltet.');
-                  }}
-                >
-                  Ausschalten
-                </Button>
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog
+        open={confirmOff}
+        onClose={() => setConfirmOff(false)}
+        title="Benachrichtigungen ausschalten?"
+        confirmLabel="Ausschalten"
+        onConfirm={async () => {
+          setConfirmOff(false);
+          await disablePush();
+          toast.info('Benachrichtigungen ausgeschaltet.');
+        }}
+      >
+        Dieses Gerät bekommt dann keine Erinnerungen mehr. Du kannst sie jederzeit wieder einschalten.
+      </ConfirmDialog>
     </Card>
   );
 }

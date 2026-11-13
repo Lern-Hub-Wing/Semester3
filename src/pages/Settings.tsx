@@ -37,7 +37,7 @@ import { IS_APP } from '../lib/edition';
 import { AccountSection, GroupSection, PlusSection } from '../app/AccountSettings';
 import { useAccount } from '../app/account';
 import { myPlanLabel } from '../app/api';
-import { AREA_TINT } from '../lib/tints';
+import { AREA_TINT, TINT } from '../lib/tints';
 import { useTrashCount } from '../store/trash';
 import { exportMyData } from '../app/exportData';
 
@@ -169,6 +169,7 @@ function SiteSettingsNav({ active }: { active?: SectionKey }) {
     void initPush();
   }, []);
   const activeMembers = members.filter((m) => m.is_active).length;
+  const trashCount = useTrashCount();
   const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
   return (
     <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
@@ -176,26 +177,26 @@ function SiteSettingsNav({ active }: { active?: SectionKey }) {
       <ListGroup title="Dieses Gerät">
         <ListRow
           icon={phase === 'on' ? <BellRing /> : <Bell />}
-          tint={phase === 'on' ? '#2FA58B' : '#E5484D'}
+          tint={phase === 'on' ? TINT.teal : AREA_TINT.notifications}
           label="Benachrichtigungen"
           value={PUSH_LABEL[phase]}
           to="/einstellungen/benachrichtigungen"
           testId="settings-push"
         />
-        <ListRow icon={<Palette />} tint="#7C6FF0" label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
+        <ListRow icon={<Palette />} tint={AREA_TINT.appearance} label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
       </ListGroup>
       <ListGroup title="Lerngruppe">
-        <ListRow icon={<Users />} tint="#2FA58B" label="Personen" value={activeMembers} {...row('personen')} />
-        <ListRow icon={<BookOpen />} tint="#3D8BE0" label="Fächer" value={modules.length} {...row('faecher')} />
-        <ListRow icon={<Music2 />} tint="#E0559A" label="Musik-Bibliothek" value={musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`} to="/musik" testId="settings-music" />
+        <ListRow icon={<Users />} tint={AREA_TINT.group} label="Personen" value={activeMembers} {...row('personen')} />
+        <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer" value={modules.length} {...row('faecher')} />
+        <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik-Bibliothek" value={musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`} to="/musik" testId="settings-music" />
       </ListGroup>
       <ListGroup title="Daten">
-        <ListRow icon={<Download />} tint="#F08A24" label="Sicherung & Import" {...row('daten')} />
-        <ListRow icon={<Trash2 />} tint="#E5484D" label="Papierkorb" to="/papierkorb" />
-        <ListRow icon={<History />} tint="#7A8499" label="Änderungsverlauf" to="/verlauf" />
+        <ListRow icon={<Download />} tint={AREA_TINT.export} label="Sicherung & Import" {...row('daten')} />
+        <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} to="/papierkorb" />
+        <ListRow icon={<History />} tint={AREA_TINT.history} label="Änderungsverlauf" to="/verlauf" />
       </ListGroup>
       <ListGroup>
-        <ListRow icon={<Info />} tint="#8E8E93" label="Über StudySpace" value={config.version} {...row('info')} />
+        <ListRow icon={<Info />} tint={AREA_TINT.info} label="Über StudySpace" value={config.version} {...row('info')} />
       </ListGroup>
     </nav>
   );
