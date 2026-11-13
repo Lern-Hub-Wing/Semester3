@@ -246,6 +246,8 @@ export async function updatePassword(password: string) {
 /** Abmelden und alle lokal zwischengespeicherten Gruppendaten entfernen. */
 export async function signOut(scope: 'local' | 'global' = 'local') {
   try {
+    // Mitteilungen dieses Geräts beenden, solange die Anmeldung noch gilt (max. 2,5 s)
+    await Promise.race([import('../store/push').then((m) => m.stopPushForSignOut()), new Promise((r) => setTimeout(r, 2500))]).catch(() => undefined);
     await getSupabase().auth.signOut({ scope });
   } finally {
     clearLocalData();

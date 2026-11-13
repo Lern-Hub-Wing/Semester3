@@ -78,6 +78,11 @@ Deno.serve(async (req) => {
       all<any>('push_log', 'device_id, kind, dedupe_key, created_at, meta, status', (q) => q.gte('created_at', new Date(Date.now() - 8 * 86_400_000).toISOString()).order('created_at', { ascending: true })),
     ]);
 
+    // Hausaufgaben der letzten 2 Tage (für „neue Hausaufgabe“). Fehlt die Tabelle (Migration 005 nicht eingespielt), einfach ohne.
+    const homework = await all<any>('homework', 'id, module_id, title, due_date, deleted_at', (q) =>
+      q.is('deleted_at', null).gte('created_at', new Date(Date.now() - 2 * 86_400_000).toISOString()),
+    ).catch(() => []);
+
     const sentBy = new Map<string, Set<string>>();
     const lastOverdue = new Map<string, { at: string; taskIds: string[] }>();
     for (const l of logs) {
@@ -94,6 +99,7 @@ Deno.serve(async (req) => {
       entries,
       tasks,
       completions,
+      homework,
       activity: [...activity].sort((a: any, b: any) => a.id - b.id),
       state: Object.fromEntries(stateRows.map((r: any) => [r.key, r.value as StateValue])),
     };

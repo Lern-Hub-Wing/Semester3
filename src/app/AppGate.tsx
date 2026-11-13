@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Eye, X } from 'lucide-react';
 import { useSession } from '../store/session';
+import { useFlight } from '../store/flight';
+import { initPush } from '../store/push';
 import { setCacheKey } from '../store/sync';
 import { Link } from '../lib/router';
 import { cacheKeyFor, initAccount, refreshMe, signOut, useAccount } from './account';
@@ -34,6 +36,14 @@ export function AppGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (inGroup) select(memberId);
   }, [inGroup, memberId, select]);
+  // Beim Betreten der Lerngruppe: gleiche Ankunft wie auf der bisherigen Seite (Text blendet ein, Gipfel steigt auf)
+  useEffect(() => {
+    if (inGroup) useFlight.setState({ arrivedAt: Date.now() });
+  }, [inGroup]);
+  // Mitteilungen: Abo dieses Geräts mit dem Server abgleichen (nur wenn hier schon eingeschaltet)
+  useEffect(() => {
+    if (inGroup) void initPush();
+  }, [inGroup]);
 
   if (phase === 'loading') return <Splash />;
   if (phase === 'signedOut') return <AuthScreen />;
