@@ -307,6 +307,53 @@ describe('H: Neue Hausaufgaben', () => {
   });
 });
 
+describe('Hausaufgaben in den Tageserinnerungen', () => {
+  // Gruppe arbeitet nur mit Hausaufgaben (keine Lernplan-Aufgaben)
+  const hw = (id: string, title: string, due: string) => ({ id, module_id: CTRL, title, due_date: due, deleted_at: null });
+  const only = (now: Date, extra: Partial<Snapshot> = {}) =>
+    snapshot(now, { entries: [], tasks: [], completions: [], homework: [hw('h1', 'Aufgabe 8', DAY), hw('h2', 'Aufgabe 7 (1+3)', '2026-12-11'), hw('h3', 'Aufgabe 6', '2026-12-08')], ...extra });
+
+  it('Morgens: was heute und morgen abzugeben ist', () => {
+    const r = planNotifications(only(at(DAY, '08:00')), [device({}, { overdue: false })]);
+    expect(r.notifications.map((n) => [n.kind, n.title, n.body, n.url])).toEqual([
+      ['morning', 'Hausaufgaben im Blick', 'Heute Abgabe: „Aufgabe 8“. Morgen Abgabe: „Aufgabe 7 (1+3)“. Du schaffst das!', '#/hausaufgaben'],
+    ]);
+  });
+
+  it('Abends: Abgabe heute/morgen, nur wenn noch nicht abgehakt', () => {
+    const r = planNotifications(only(at(DAY, '18:00')), [device({}, { morning: false, overdue: false })]);
+    expect(r.notifications.map((n) => [n.title, n.body])).toEqual([['Heute ist Abgabe', 'Heute noch abzugeben: „Aufgabe 8“. Morgen Abgabe: „Aufgabe 7 (1+3)“.']]);
+    const done = only(at(DAY, '18:00'), {
+      homeworkCompletions: [
+        { target_id: 'h1', member_id: A, is_completed: true },
+        { target_id: 'p1', member_id: A, is_completed: true },
+      ],
+      homeworkParts: [{ id: 'p1', homework_id: 'h2' }],
+    });
+    // h1 direkt abgehakt, h2 über alle Teile erledigt → nichts mehr offen
+    expect(planNotifications(done, [device({}, { morning: false, overdue: false })]).notifications).toEqual([]);
+    // andere Person hat noch nichts erledigt
+    expect(planNotifications(done, [device({ id: 'dev-b', member_id: B }, { morning: false, overdue: false })]).notifications).toHaveLength(1);
+  });
+
+  it('Überfällige Hausaufgaben (höchstens eine Woche zurück) um 09:00', () => {
+    const r = planNotifications(only(at(DAY, '09:00')), [device({}, { morning: false })]);
+    expect(r.notifications.map((n) => [n.kind, n.body, n.url])).toEqual([['overdue', 'Diese Hausaufgabe ist noch nicht abgehakt: „Aufgabe 6“.', '#/hausaufgaben']]);
+    const old = only(at(DAY, '09:00'), { homework: [hw('h9', 'Uralt', '2026-11-20')] });
+    expect(planNotifications(old, [device({}, { morning: false })]).notifications).toEqual([]);
+  });
+
+  it('Lernplan und Hausaufgaben zusammen in einer Morgennachricht', () => {
+    const r = planNotifications(snapshot(at(DAY, '08:00'), { homework: [hw('h1', 'Aufgabe 8', DAY)] }), [device({}, { overdue: false })]);
+    expect(r.notifications.map((n) => [n.title, n.body])).toEqual([['Dein Lernplan für heute', 'Heute stehen 2 Aufgaben in Controlling an. Heute Abgabe: „Aufgabe 8“. Du schaffst das!']]);
+  });
+
+  it('gelöschte Hausaufgaben und archivierte Fächer zählen nicht', () => {
+    const snap = only(at(DAY, '08:00'), { modules: [{ id: CTRL, name: 'Controlling', archived_at: '2026-12-01T00:00:00Z' }] });
+    expect(planNotifications(snap, [device({}, { overdue: false })]).notifications).toEqual([]);
+  });
+});
+
 describe('F/G: Erfolge', () => {
   const allDone = ['t1', 't2', 't3'].flatMap((t) => [A, B].map((m) => ({ task_id: t, member_id: m, is_completed: true })));
   const onlyCtrl = { entries: [snapshot(new Date()).entries[0]], tasks: snapshot(new Date()).tasks.slice(0, 3) };

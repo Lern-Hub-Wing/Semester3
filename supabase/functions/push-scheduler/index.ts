@@ -1,7 +1,8 @@
 // =====================================================================
 // StudySpace – Edge Function „push-scheduler“
 // ---------------------------------------------------------------------
-// Wird von Supabase Cron alle 5 Minuten aufgerufen (siehe
+// Wird von Supabase Cron alle 5 Minuten aufgerufen und – mit
+// supabase/push_instant.sql – sofort nach jeder neuen Hausaufgabe (siehe
 // supabase/cron.sql). Lädt den aktuellen Lernplan, berechnet mit
 // planNotifications() die fälligen Erinnerungen und versendet sie.
 //
@@ -78,10 +79,14 @@ Deno.serve(async (req) => {
       all<any>('push_log', 'device_id, kind, dedupe_key, created_at, meta, status', (q) => q.gte('created_at', new Date(Date.now() - 8 * 86_400_000).toISOString()).order('created_at', { ascending: true })),
     ]);
 
-    // Hausaufgaben der letzten 2 Tage (für „neue Hausaufgabe“). Fehlt die Tabelle (Migration 005 nicht eingespielt), einfach ohne.
-    const homework = await all<any>('homework', 'id, module_id, title, due_date, deleted_at', (q) =>
-      q.is('deleted_at', null).gte('created_at', new Date(Date.now() - 2 * 86_400_000).toISOString()),
-    ).catch(() => []);
+    // Hausaufgaben mit Abgabe ab 8 Tagen zurück (für „neue Hausaufgabe“, Morgen-/Abend-/Überfällig-Erinnerung)
+    // samt Teilen und Haken. Fehlen die Tabellen (Migration 005 nicht eingespielt), einfach ohne.
+    const hwFrom = new Date(Date.now() - 8 * 86_400_000).toISOString().slice(0, 10);
+    const [homework, homeworkParts, homeworkCompletions] = await Promise.all([
+      all<any>('homework', 'id, module_id, title, due_date, deleted_at', (q) => q.is('deleted_at', null).gte('due_date', hwFrom)).catch(() => []),
+      all<any>('homework_parts', 'id, homework_id', (q) => q.is('deleted_at', null)).catch(() => []),
+      all<any>('homework_completions', 'target_id, member_id, is_completed', (q) => q.eq('is_completed', true)).catch(() => []),
+    ]);
 
     const sentBy = new Map<string, Set<string>>();
     const lastOverdue = new Map<string, { at: string; taskIds: string[] }>();
@@ -100,6 +105,8 @@ Deno.serve(async (req) => {
       tasks,
       completions,
       homework,
+      homeworkParts,
+      homeworkCompletions,
       activity: [...activity].sort((a: any, b: any) => a.id - b.id),
       state: Object.fromEntries(stateRows.map((r: any) => [r.key, r.value as StateValue])),
     };

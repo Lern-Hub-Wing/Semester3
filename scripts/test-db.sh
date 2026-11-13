@@ -43,6 +43,7 @@ FILES=(
   "$ROOT/supabase/tests/40_server_access_test.sql"
   "$ROOT/supabase/tests/50_music_test.sql"
 )
+SITE_PUSH_INSTANT=1
 fi
 
 run_all() {
@@ -51,6 +52,13 @@ run_all() {
     echo "→ $(basename "$f")"
     psql "$url" -v ON_ERROR_STOP=1 -q -X -f "$f" > /dev/null
   done
+  if [[ -n "${SITE_PUSH_INSTANT:-}" ]]; then
+    echo "→ push_instant.sql (mit Nachbau von Vault/pg_net)"
+    psql "$url" -v ON_ERROR_STOP=1 -q -X -f "$ROOT/supabase-app/tests/push_setup_stubs.sql" > /dev/null
+    sed '/create extension/d' "$ROOT/supabase/push_instant.sql" | psql "$url" -v ON_ERROR_STOP=1 -q -X > /dev/null
+    sed '/create extension/d' "$ROOT/supabase/push_instant.sql" | psql "$url" -v ON_ERROR_STOP=1 -q -X > /dev/null
+    psql "$url" -v ON_ERROR_STOP=1 -q -X -f "$ROOT/supabase/tests/60_push_instant_test.sql" > /dev/null
+  fi
   if [[ -n "${APP_MODE:-}" ]]; then
     concurrency_test "$url"
     echo "→ push_setup.sql (mit Nachbau von Vault/pg_net/pg_cron)"
