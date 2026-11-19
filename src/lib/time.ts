@@ -134,13 +134,18 @@ export function instantToZoned(instant: string | Date, tz: string = TZ): { date:
   };
 }
 
-/** Begrüßung passend zur Tageszeit in Berlin. */
+/**
+ * Begrüßung passend zur Tageszeit in Berlin:
+ * 5–11 Morgen · 11–14 Mittag · 14–18 Tag · 18–22 Abend · 22–5 Nacht.
+ * (Die Stunde kommt aus „HH:mm“ – „hour“ allein liefert auf Deutsch „14 Uhr“.)
+ */
 export function greetingFor(now: Date = new Date()): string {
-  const hour = Number(formatInstant(now, { hour: '2-digit', hourCycle: 'h23' }));
-  if (hour < 5) return 'Gute Nacht';
-  if (hour < 11) return 'Guten Morgen';
-  if (hour < 18) return 'Guten Tag';
-  return 'Guten Abend';
+  const hour = Number(instantToZoned(now).time.slice(0, 2));
+  if (hour >= 5 && hour < 11) return 'Guten Morgen';
+  if (hour >= 11 && hour < 14) return 'Guten Mittag';
+  if (hour >= 14 && hour < 18) return 'Guten Tag';
+  if (hour >= 18 && hour < 22) return 'Guten Abend';
+  return 'Gute Nacht';
 }
 
 /** "heute", "morgen", "gestern", "in 3 Tagen", "vor 2 Tagen" */

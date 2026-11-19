@@ -1115,6 +1115,54 @@ try {
     await c.close();
   }
 
+  // --- Begrüßung, Berg-Flug, Wetter im Hintergrund ----------------------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, geolocation: { latitude: 52.5162, longitude: 13.3777 }, permissions: ['geolocation'] });
+    const meteo = [];
+    await c.route('https://api.open-meteo.com/**', (r) => {
+      meteo.push(r.request().url());
+      return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ current: { weather_code: 63, is_day: 1, temperature_2m: 7.4 } }) });
+    });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('mountain-flight').waitFor({ timeout: 3000 });
+    check((await p.locator('[data-testid="mountain-flight"] .peak-pop img').count()) === 1, 'Berg-Flug: die Bergspitze fliegt mit (wächst nicht nachträglich)');
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.getByTestId('mountain-flight').waitFor({ state: 'detached', timeout: 4000 });
+    const greet = (await p.getByTestId('greeting').first().innerText()).trim();
+    check(/^(Guten (Morgen|Mittag|Tag|Abend)|Gute Nacht), Person 1$/.test(greet), `Begrüßung nach Tageszeit mit Namen („${greet}“)`);
+    await p.goto(`${BASE}#/einstellungen/darstellung`);
+    await p.getByTestId('weather-mode').waitFor();
+    check((await p.getByTestId('weather-mode').getByRole('radio', { checked: true }).getAttribute('data-value')) === 'auto', 'Wetter: Standard ist „Automatisch“');
+    await p.getByTestId('weather-share-location').click();
+    await p.getByTestId('weather-location').getByText('Regen', { exact: true }).waitFor({ timeout: 6000 });
+    check(meteo.length === 1 && /latitude=52\.52&longitude=13\.38/.test(meteo[0]), `Wetter: Standort gerundet an Open-Meteo (${meteo[0] ?? 'keine Anfrage'})`);
+    await p.goto(`${BASE}#/`);
+    const layer = p.getByTestId('weather-layer');
+    await layer.waitFor();
+    check((await layer.getAttribute('data-weather')) === 'rain', 'Wetter: Regen am Standort → Regen im Hintergrund');
+    await p.waitForTimeout(900);
+    const painted = await layer.evaluate((cv) => {
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 16) if (d[i] > 0) n++;
+      return n;
+    });
+    check(painted > 200, `Wetter: Regen wird gezeichnet (${painted} Bildpunkte)`);
+    check((await p.evaluate(() => getComputedStyle(document.querySelector('[data-testid="weather-layer"]')).pointerEvents)) === 'none', 'Wetter: Ebene blockiert keine Klicks');
+    for (const [mode, expected] of [['night', 'clear-night'], ['thunder', 'thunder'], ['off', null]]) {
+      await p.goto(`${BASE}#/einstellungen/darstellung`);
+      await p.getByTestId('weather-mode').locator(`[data-value="${mode}"]`).click();
+      await p.goto(`${BASE}#/`);
+      await p.getByTestId('dashboard-hero').waitFor();
+      await p.waitForTimeout(300);
+      const attr = (await layer.count()) ? (await layer.getAttribute('data-weather'))?.replace(/-night$/, mode === 'night' ? '-night' : '') : null;
+      check(expected === null ? (await layer.count()) === 0 : attr === expected, `Wetter fest „${mode}“ → ${expected ?? 'keine Ebene'}`);
+    }
+    check(errs.length === 0, `keine JavaScript-Fehler (Wetter)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
   // --- Push: Aktivieren, Einstellungen, Test, Profilwechsel, Abmelden ------
   {
     const { page: p, errors: errs, ctx: c } = await newPage(browser, {

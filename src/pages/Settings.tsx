@@ -34,6 +34,7 @@ import { ModuleEditor } from './Modules';
 import { StatusPill } from '../components/layout/StatusPill';
 import { Row, Section } from '../components/ui/SettingsCard';
 import { IS_APP } from '../lib/edition';
+import { WeatherSettings } from '../components/weather/WeatherSettings';
 import { AccountSection, GroupSection, PlusSection } from '../app/AccountSettings';
 import { useAccount } from '../app/account';
 import { myPlanLabel } from '../app/api';
@@ -45,7 +46,18 @@ const SECTIONS = {
   konto: { title: 'Konto', render: () => <AccountSection /> },
   gruppe: { title: 'Lerngruppe', render: () => <GroupSection /> },
   plus: { title: 'Tarif & Abo', render: () => <PlusSection /> },
-  darstellung: { title: 'Darstellung & Bedienung', render: () => <Appearance /> },
+  darstellung: {
+    title: 'Darstellung & Bedienung',
+    render: () =>
+      IS_APP ? (
+        <Appearance />
+      ) : (
+        <div className="flex flex-col gap-[var(--gap-grid)]">
+          <Appearance />
+          <WeatherSettings />
+        </div>
+      ),
+  },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
   daten: { title: IS_APP ? 'Daten exportieren' : 'Sicherung & Import', render: () => (IS_APP ? <AppDataSection /> : <DataSection />) },
