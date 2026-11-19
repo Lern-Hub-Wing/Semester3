@@ -22,7 +22,7 @@ export function WeatherSettings() {
   const { mode, coords, current, status, error } = useWeather();
   return (
     <Section title="Wetter im Hintergrund" icon={<CloudSun />} hint="Nur auf diesem Gerät. Bei „Bewegung reduzieren“ ausgeschaltet.">
-      <Row label="Wetter" hint="Fest gewählt zum Ausprobieren – „Automatisch“ zeigt das Wetter an deinem Standort.">
+      <Row stacked label="Wetter" hint="Fest gewählt zum Ausprobieren – „Automatisch“ zeigt das Wetter an deinem Standort.">
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Wetter im Hintergrund" data-testid="weather-mode">
           {OPTIONS.map((o) => (
             <button
