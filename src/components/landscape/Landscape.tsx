@@ -88,7 +88,7 @@ export function PeakStage({
         {children}
       </section>
       {/* Gipfel über dem Fensterrand (2 px Überlappung verdecken die Kante) */}
-      <div className="peak-pop" aria-hidden style={{ top: -pop, height: pop + 2, ['--rise' as string]: `${pop + 2}px` }}>
+      <div className="peak-pop" aria-hidden style={{ top: -pop, height: pop + 2 }}>
         {img('mountains-peak', 0)}
       </div>
     </div>

@@ -3,6 +3,7 @@ import { AlarmClock, BookOpen, CalendarDays, CalendarRange, ChevronRight, Clock3
 import type { Member } from '../lib/types';
 import { groupBy, memberRatio, overdueFor, type TaskView } from '../lib/progress';
 import { addDaysISO, formatISODate, formatInstant, greetingFor, relativeDayLabel } from '../lib/time';
+import { Greeting } from '../components/layout/Greeting';
 import { daysUntil, upcomingExams } from '../lib/countdown';
 import { Link } from '../lib/router';
 import { useData } from '../store/data';
@@ -45,7 +46,7 @@ export function Dashboard({ me }: { me: Member }) {
           {greetingFor()}, {me.name}
         </h1>
         <header className="pt-1" aria-hidden>
-          <p className="text-[14px] font-medium text-muted">{greetingFor()}</p>
+          <Greeting className="text-[14px] font-medium text-muted" />
           <h1 className="title mt-0.5 text-[26px] leading-tight">Bereit für Fokus?</h1>
         </header>
         <ExamHero compact />

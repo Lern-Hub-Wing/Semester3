@@ -13,7 +13,7 @@ import { isDone } from '../../lib/progress';
 import { useToday } from '../../hooks/useToday';
 import { useUI } from '../../store/ui';
 import { Logo, LogoMark } from '../Logo';
-import { greetingFor } from '../../lib/time';
+import { Greeting } from './Greeting';
 import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/Button';
 import { ProfileCard } from './ProfileCard';
@@ -27,6 +27,7 @@ import { startStudyMode } from '../../lib/studyModeStart';
 import { ProfileMenu } from './ProfileMenu';
 import { OfflineBanner, StatusPill } from './StatusPill';
 import { Ambient } from './Ambient';
+import { WeatherLayer } from '../weather/WeatherLayer';
 
 export { Ambient };
 
@@ -64,6 +65,8 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
     // „inert“: unter dem Fokus-Vollbild nicht bedienbar und für Screenreader ausgeblendet
     <div className="relative min-h-dvh" inert={inert}>
       <Ambient color={me?.color} />
+      {/* Wetter hinter den Karten (vorerst nur auf der bisherigen Seite) */}
+      {!IS_APP && <WeatherLayer />}
       <div aria-hidden className="top-fade" />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2">
         Zum Inhalt springen
@@ -135,7 +138,7 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
 function HeaderGreeting() {
   return (
     <div className="hidden md:block" data-testid="header-greeting">
-      <p className="text-[13px] font-medium text-muted">{greetingFor()}</p>
+      <Greeting className="text-[13px] font-medium text-muted" />
       <p className="title text-[22px] leading-tight lg:text-[26px]">Bereit für eine produktive Session?</p>
     </div>
   );

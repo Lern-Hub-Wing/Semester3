@@ -151,12 +151,18 @@ export function formatHours(sec: number): string {
 export function FocusStatsCard({ me, className = '' }: { me: Member; className?: string }) {
   const week = useFocusWeek(me.id);
   const max = Math.max(1, ...week.days.map((d) => d.seconds));
+  const total = week.days.reduce((a, d) => a + d.seconds, 0);
   return (
     <section className={`card flex flex-col rounded-[20px] p-5 ${className}`} data-testid="focus-stats" aria-label="Fokus-Statistik">
       <h3 className="title flex items-center gap-2.5 text-[16px]">
         <Flame className="size-[18px] text-accent" aria-hidden />
         Fokus-Statistik
       </h3>
+      {week.available !== false && (
+        <p className="mt-1 text-[13px] leading-snug text-muted" data-testid="focus-week-total">
+          {total > 0 ? `Diese Woche: ${formatHours(total)}` : 'Diese Woche noch keine Fokuszeit – jede Session füllt hier einen Balken.'}
+        </p>
+      )}
       <div className="mt-5 flex flex-1 items-end justify-between gap-4">
         <div>
           <p className="num whitespace-nowrap text-[30px] font-semibold leading-none tracking-[-0.03em]" data-testid="focus-today" data-seconds={week.today}>

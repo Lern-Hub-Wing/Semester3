@@ -131,7 +131,6 @@ export function Analytics({ me }: { me: Member }) {
   return (
     <div>
       <PageHeader
-        eyebrow="Werkzeuge"
         title="Analyse"
         actions={
           <Segmented

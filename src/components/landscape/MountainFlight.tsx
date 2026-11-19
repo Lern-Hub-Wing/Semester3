@@ -23,7 +23,10 @@ export function MountainFlight() {
     if (requested) setStart(requested);
   }, [requested]);
   const box = useRef<HTMLDivElement>(null);
+  const clip = useRef<HTMLDivElement>(null);
   const img = useRef<HTMLImageElement>(null);
+  const peakWrap = useRef<HTMLDivElement>(null);
+  const peakImg = useRef<HTMLImageElement>(null);
   const shade = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,19 +38,34 @@ export function MountainFlight() {
     let waited = 0;
     let done = false;
 
+    // Höhe des Gipfels über dem Fenster (wie im Dashboard) – bleibt während des ganzen Flugs gleich,
+    // damit die Spitze nie abgeschnitten wird und am Ende nicht „nachwächst“
+    let pop = 0;
     const apply = (r: { x: number; y: number; w: number; h: number; r: number }, g: ImgGeo, fade: number, shadeA: number) => {
       const b = box.current;
+      const c = clip.current;
       const i = img.current;
-      if (!b || !i) return;
+      if (!b || !c || !i) return;
       b.style.transform = `translate(${r.x}px, ${r.y}px)`;
       b.style.width = `${r.w}px`;
       b.style.height = `${r.h}px`;
-      b.style.borderRadius = `${r.r}px`;
+      c.style.borderRadius = `${r.r}px`;
       // unten weich ausblenden wie in der Profilwahl, am Ziel ganz deckend
-      b.style.setProperty('--fade', `${fade}%`);
-      i.style.transform = `translate(${g.left}px, ${g.top}px)`;
-      i.style.width = `${g.width}px`;
-      i.style.height = `${g.height}px`;
+      c.style.setProperty('--fade', `${fade}%`);
+      const place = (el: HTMLElement, dy: number) => {
+        el.style.transform = `translate(${g.left}px, ${g.top + dy}px)`;
+        el.style.width = `${g.width}px`;
+        el.style.height = `${g.height}px`;
+      };
+      place(i, 0);
+      // Freigestellter Gipfel (gleiches Bild, gleiche Lage) über der Oberkante des Fensters
+      const pw = peakWrap.current;
+      const pi = peakImg.current;
+      if (pw && pi) {
+        pw.style.top = `${-pop}px`;
+        pw.style.height = `${pop + 2}px`;
+        place(pi, pop);
+      }
       if (shade.current) shade.current.style.opacity = String(shadeA);
     };
     apply(from, fromImg, 40, 0);
@@ -64,7 +82,7 @@ export function MountainFlight() {
         await Promise.race([Promise.all(imgs.map((i) => i.decode().catch(() => undefined))), new Promise((r) => setTimeout(r, 220))]);
       }
       endFlight(arrived);
-      // Weich ausblenden, während das echte Fenster (mit aufsteigendem Gipfel) darunter erscheint
+      // Weich ausblenden, während das echte Fenster (pixelgleich, mit Gipfel) darunter erscheint
       const b = box.current;
       if (b && arrived) {
         b.style.transition = 'opacity 220ms ease-out';
@@ -89,7 +107,7 @@ export function MountainFlight() {
       const t = Math.min(1, (now - t0) / DURATION);
       const e = ease(t);
       const rect = hero.getBoundingClientRect();
-      const pop = Number(hero.dataset.pop ?? 0);
+      pop = Number(hero.dataset.pop ?? 0);
       const radius = parseFloat(getComputedStyle(hero).borderTopLeftRadius) || 22;
       const toImg = peakGeometry(rect.width, rect.height, pop);
       apply(
@@ -112,18 +130,31 @@ export function MountainFlight() {
 
   if (!start) return null;
   return (
-    <div ref={box} aria-hidden className="mountain-flight pointer-events-none fixed left-0 top-0 z-[25] overflow-hidden" data-testid="mountain-flight">
-      <img
-        ref={img}
-        src={`${base}scenery/mountains.jpg`}
-        srcSet={`${base}scenery/mountains-1200.webp 1200w, ${base}scenery/mountains.webp 2000w`}
-        sizes="(max-width: 900px) 100vw, 1400px"
-        alt=""
-        draggable={false}
-        className="absolute left-0 top-0 max-w-none origin-top-left select-none"
-      />
-      {/* Abdunklung des Countdown-Fensters wächst mit, damit der Wechsel unsichtbar bleibt */}
-      <div ref={shade} className="photo-shade absolute inset-0" style={{ opacity: 0 }} />
+    <div ref={box} aria-hidden className="pointer-events-none fixed left-0 top-0 z-[25]" style={{ willChange: 'transform, width, height' }} data-testid="mountain-flight">
+      <div ref={clip} className="mountain-flight absolute inset-0 overflow-hidden">
+        <img
+          ref={img}
+          src={`${base}scenery/mountains.jpg`}
+          srcSet={`${base}scenery/mountains-1200.webp 1200w, ${base}scenery/mountains.webp 2000w`}
+          sizes="(max-width: 900px) 100vw, 1400px"
+          alt=""
+          draggable={false}
+          className="absolute left-0 top-0 max-w-none origin-top-left select-none"
+        />
+        {/* Abdunklung des Countdown-Fensters wächst mit, damit der Wechsel unsichtbar bleibt */}
+        <div ref={shade} className="photo-shade absolute inset-0" style={{ opacity: 0 }} />
+      </div>
+      <div ref={peakWrap} className="peak-pop" style={{ top: 0, height: 0 }}>
+        <img
+          ref={peakImg}
+          src={`${base}scenery/mountains-peak.webp`}
+          srcSet={`${base}scenery/mountains-peak-1200.webp 1200w, ${base}scenery/mountains-peak.webp 2000w`}
+          sizes="(max-width: 900px) 100vw, 1400px"
+          alt=""
+          draggable={false}
+          className="absolute left-0 top-0 max-w-none origin-top-left select-none"
+        />
+      </div>
     </div>
   );
 }
