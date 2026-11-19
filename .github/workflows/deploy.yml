@@ -79,7 +79,13 @@ jobs:
       - name: Browser installieren
         run: |
           npm install --no-save playwright@1.64.1
-          npx playwright install --with-deps chromium
+          # Ubuntu-Paketserver sind gelegentlich kurz nicht erreichbar (503) – bis zu 4 Versuche
+          for i in 1 2 3 4; do
+            if npx playwright install --with-deps chromium; then exit 0; fi
+            echo "Versuch $i fehlgeschlagen – neuer Versuch in 45 s"; sleep 45
+            sudo apt-get update -o Acquire::Retries=3 || true
+          done
+          exit 1
       - name: Browsertests (mit nachgebildeter Supabase-API)
         run: |
           npm run build:e2e
