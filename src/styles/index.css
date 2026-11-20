@@ -2116,3 +2116,27 @@ select.field:hover {
 [data-theme='dark'] .ss-seg-accent > .lg-segmented {
   --lg-segment-thumb: var(--ss-accent);
 }
+
+/* App: Einstellungen im Stil der übrigen App (Karten wie im Dashboard) */
+.settings-card--app {
+  padding: 6px 18px;
+}
+.settings-card--app > .settings-row {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+.settings-card--app > .settings-row:first-child {
+  padding-top: 15px;
+}
+.settings-card--app > .settings-row:last-child {
+  padding-bottom: 15px;
+}
+.settings-card--app > :not(.settings-row) {
+  margin: 14px 0;
+}
+
+/* KI-Lernplan: eigener, leuchtender Verlauf (Violett → Pink → Orange) */
+.ai-badge {
+  background: linear-gradient(135deg, #7c6ff0 0%, #b56cf0 45%, #f0789a 80%, #f6a25b 100%);
+  box-shadow: 0 8px 22px -10px rgb(181 108 240 / 0.8);
+}

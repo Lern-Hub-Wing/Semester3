@@ -44,6 +44,7 @@ const Materials = lazy(() => import('./pages/Materials').then((m) => ({ default:
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash })));
 const HelpPage = lazy(() => import('./app/HelpPage').then((m) => ({ default: m.HelpPage })));
+const AiPlan = lazy(() => import('./app/AiPlan').then((m) => ({ default: m.AiPlan })));
 const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })));
 const loadFocus = () => import('./pages/Focus');
 const FocusLazy = lazy(() => loadFocus().then((m) => ({ default: m.Focus })));
@@ -96,6 +97,7 @@ function Routes({ me, path }: { me: Member; path: string }) {
   if (path === '/verlauf') return <Activity />;
   // Hilfe & Feedback gibt es nur in der App (Feedback landet im Admin-Bereich)
   if (path === '/hilfe') return IS_APP ? <HelpPage /> : <RedirectTo to="/" />;
+  if (path === '/ki-lernplan') return IS_APP ? <AiPlan /> : <RedirectTo to="/lernplan" />;
   return <Dashboard me={me} />;
 }
 

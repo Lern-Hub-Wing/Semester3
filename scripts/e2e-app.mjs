@@ -90,7 +90,12 @@ try {
     });
     assert(clip.left >= 2 && clip.right >= 2, `Namensfeld abgeschnitten: ${JSON.stringify(clip)}`);
     await a.getByLabel('Wie heißt du?').fill('Anna');
+    // Tippfehler im Anbieter → Vorschlag zum Antippen
+    await a.getByLabel('E-Mail').fill('anna@gmial.com');
+    await a.getByTestId('email-suggestion').click();
+    assert((await a.getByLabel('E-Mail').inputValue()) === 'anna@gmail.com', 'Vorschlag übernommen');
     await a.getByLabel('E-Mail').fill('anna@example.com');
+    assert((await a.getByTestId('email-suggestion').count()) === 0, 'kein Vorschlag bei richtiger Adresse');
     await a.getByLabel('Passwort', { exact: true }).fill('kurz');
     await a.getByRole('button', { name: 'Passwort anzeigen' }).click();
     assert((await a.getByLabel('Passwort', { exact: true }).getAttribute('type')) === 'text', 'Passwort sichtbar');
@@ -130,12 +135,30 @@ try {
     await a.getByTestId('tour-step-subjects').waitFor();
     await a.waitForTimeout(700);
     await shot(a, '06-einfuehrung-faecher');
-    // bis zum Ende durchklicken
-    for (let i = 0; i < 12 && (await a.getByTestId('tour-next').count()); i++) {
-      await a.getByTestId('tour-next').click();
-      await a.waitForTimeout(250);
+    // bis zum Ende: Info-Schritte mit „Weiter“, Mitmach-Schritte durch Tippen auf das echte Element im Lichtkegel
+    const tapped = [];
+    for (let i = 0; i < 30 && !(await a.getByTestId('tour-step-done').count()); i++) {
+      if (await a.getByTestId('tour-tap-hint').count()) {
+        const id = (await a.locator('[data-testid^="tour-step-"]').getAttribute('data-testid')).replace('tour-step-', '');
+        await a.waitForTimeout(700); // Lichtkegel steht
+        // daneben tippen bewirkt nichts (nur das Ziel ist bedienbar)
+        if (id === 'homework-tab') {
+          await a.mouse.click(640, 430);
+          await a.waitForTimeout(300);
+          assert((await a.getByTestId('tour-step-homework-tab').count()) === 1, 'Klick neben das Ziel hat weitergeschaltet');
+        }
+        const b = await a.getByTestId('tour-spot').boundingBox();
+        await a.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+        await a.locator(`[data-testid="tour-step-${id}"]`).waitFor({ state: 'detached', timeout: 5000 });
+        tapped.push(id);
+      } else {
+        await a.getByTestId('tour-next').click();
+        await a.waitForTimeout(300);
+      }
     }
+    assert(['homework-tab', 'homework-new', 'back-home', 'focus', 'focus-settings', 'focus-close-panel', 'focus-leave'].every((x) => tapped.includes(x)), `Mitmach-Schritte: ${tapped.join(', ')}`);
     await a.getByTestId('tour-step-done').waitFor();
+    assert(await a.evaluate(() => location.hash === '#/' || location.hash === ''), 'Einführung endet auf dem Start');
     await shot(a, '07-einfuehrung-ende');
     await a.getByTestId('tour-done').click();
     await a.getByTestId('tour').waitFor({ state: 'detached' });
@@ -184,6 +207,62 @@ try {
     assert((await a.getByText('Morgendliche Lernübersicht').count()) === 0, 'keine Themen der bisherigen Seite');
     assert((await a.getByText('Für wen?').count()) === 0, 'keine Profilauswahl');
     await shot(a, '09-mitteilungen');
+  });
+
+  await check('KI-Lernplan: Fragebogen → KI-Vorschau → in den Lernplan übernehmen', async () => {
+    const g = mock.state.groups.find((x) => x.kind === 'team');
+    const t = new Date().toISOString();
+    const v = { version: 1, created_at: t, updated_at: t, changed_by: null, group_id: g.id };
+    const day = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+    mock.state.tables.modules.push({ ...v, id: 'm-mathe', name: 'Mathe', color: '#6F7BF7', description: null, sort_order: 1, archived_at: null });
+    mock.state.tables.modules.push({ ...v, id: 'm-bio', name: 'Biologie', color: '#2FA58B', description: null, sort_order: 2, archived_at: null });
+    mock.state.tables.exams.push({ ...v, id: 'e-mathe', module_id: 'm-mathe', starts_at: `${day(24)}T08:00:00.000Z`, ends_at: `${day(24)}T10:00:00.000Z`, timezone: 'Europe/Berlin', location: null, notes: null, deleted_at: null });
+    await a.goto(`${BASE}#/lernplan`);
+    await a.reload();
+    await a.getByTestId('plan-ai').click();
+    await a.getByTestId('aiplan-start').click();
+    await a.getByRole('radio', { name: 'Abitur' }).click();
+    await a.getByRole('radio', { name: 'Bestnote' }).click();
+    await a.getByTestId('aiplan-next').click();
+    // Mathe hat schon einen Termin (aus den Prüfungen), Biologie braucht einen
+    await a.getByTestId('aiplan-step-subjects').waitFor();
+    await a.getByLabel('Biologie').check();
+    assert(await a.getByTestId('aiplan-next').isDisabled(), 'Weiter ohne Termin möglich');
+    await a.getByLabel('Prüfungstermin Biologie').fill(day(17));
+    await a.getByTestId('aiplan-next').click();
+    await a.getByLabel('Thema für Mathe').fill('Integrale, Vektoren');
+    await a.getByLabel('Thema für Mathe').press('Enter');
+    await a.getByRole('button', { name: /Integrale: mittel/ }).click();
+    assert((await a.getByRole('button', { name: /Integrale: schwer/ }).count()) === 1, 'Schwierigkeit umschaltbar');
+    await a.getByTestId('aiplan-next').click();
+    await a.getByTestId('aiplan-step-time').waitFor();
+    await a.getByTestId('aiplan-next').click();
+    await a.getByRole('button', { name: 'Altklausuren' }).click();
+    await shot(a, '10-ki-fragebogen');
+    await a.getByTestId('aiplan-generate').click();
+    await a.getByTestId('aiplan-step-preview').waitFor({ timeout: 10000 });
+    assert((await a.getByTestId('aiplan-source').innerText()).includes('Mit KI'), 'Quelle KI');
+    assert(mock.state.lastAiInput.input.subjects.length === 2 && mock.state.lastAiInput.input.status === 'abitur', 'Fragebogen an die KI übergeben');
+    assert(mock.state.lastAiInput.budgets['m-mathe'] > mock.state.lastAiInput.budgets['m-bio'], 'mehr Zeit für das schwerere/spätere Fach');
+    assert((await a.getByText('Integrale: Kernbegriffe erklären').count()) > 0, 'Einheiten der KI in der Vorschau');
+    await shot(a, '11-ki-vorschau');
+    const before = mock.state.tables.study_entries.filter((e) => e.group_id === g.id).length;
+    await a.getByTestId('aiplan-apply').click();
+    await a.waitForFunction(() => location.hash.startsWith('#/lernplan'), null, { timeout: 15000 });
+    const entries = mock.state.tables.study_entries.filter((e) => e.group_id === g.id);
+    assert(entries.length > before + 5, `Lerntage übernommen: ${entries.length - before}`);
+    assert(entries.every((e) => e.study_date < day(24)), 'nichts am/nach dem Prüfungstag');
+    assert(mock.state.tables.tasks.some((x) => /Probeklausur Mathe/.test(x.title)), 'Probeklausur als Aufgabe');
+  });
+  await check('KI-Lernplan ohne Server-KI: Plan nach Lernregeln, ehrlich gekennzeichnet', async () => {
+    mock.state.aiMode = 'not_configured';
+    await a.goto(`${BASE}#/ki-lernplan`);
+    await a.getByTestId('aiplan-start').click();
+    for (let i = 0; i < 4; i++) await a.getByTestId('aiplan-next').click();
+    await a.getByTestId('aiplan-generate').click();
+    await a.getByTestId('aiplan-step-preview').waitFor({ timeout: 10000 });
+    assert((await a.getByTestId('aiplan-source').innerText()).includes('Lernregeln'), 'nicht als KI ausgegeben');
+    mock.state.aiMode = undefined;
   });
 
   console.log('App: Einladung per Link');

@@ -8,6 +8,7 @@ import { navigate } from '../lib/router';
 import { getSupabase } from '../lib/supabase';
 import { useData } from '../store/data';
 import { useUI } from '../store/ui';
+import { Hand, SlidersHorizontal, Wand2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { LogoMark } from '../components/Logo';
 import { api } from './api';
@@ -27,6 +28,7 @@ interface TourState {
 const useTour = create<TourState>(() => ({ open: false, step: 0 }));
 
 const localKey = (uid: string) => `studyspace.app.tour.${uid}`;
+let autoStarted = false;
 
 /** Einführung (erneut) starten – z. B. aus den Einstellungen. */
 export function startTour() {
@@ -44,6 +46,14 @@ interface Step {
   text: string;
   /** anderer Text, wenn nur das Ersatzziel (z. B. „Mehr“) sichtbar ist */
   fallbackText?: string;
+  /**
+   * Mitmach-Schritt: Nur das hervorgehobene Element ist bedienbar; es geht
+   * weiter, sobald die Person es selbst angetippt hat (Seite gewechselt bzw.
+   * Element erschienen/verschwunden).
+   */
+  tap?: { hint: string; path?: string; appears?: string; gone?: string };
+  /** beim Verlassen des Schritts aufräumen (z. B. Editor schließen) */
+  onLeave?: () => void;
 }
 
 function visible(el: Element | null): el is HTMLElement {
@@ -92,25 +102,81 @@ function useSteps(): Step[] {
         id: 'plan',
         targets: ['[data-tour="nav-lernplan"]'],
         icon: <CalendarDays />,
-        title: 'Lernplan & Kalender',
+        title: 'Lernplan & KI-Lernplan',
         text: team
-          ? 'Plane gemeinsame Lerntage mit Aufgaben. Jede Person hakt für sich ab – so sieht jeder seinen eigenen Fortschritt.'
-          : 'Plane Lerntage mit Aufgaben und hake sie ab – dein Fortschritt wächst mit jedem Haken.',
+          ? 'Plane gemeinsame Lerntage mit Aufgaben – oder lass dir mit dem KI-Lernplan einen kompletten Plan bis zur Prüfung erstellen. Jede Person hakt für sich ab.'
+          : 'Plane Lerntage mit Aufgaben – oder lass dir mit dem KI-Lernplan einen kompletten Plan bis zur Prüfung erstellen.',
       },
       {
-        id: 'homework',
+        id: 'homework-tab',
         targets: ['[data-tour="nav-hausaufgaben"]'],
         icon: <NotebookPen />,
-        title: 'Hausaufgaben',
-        text: 'Mit Abgabedatum und Unteraufgaben. Auf Wunsch verteilt StudySpace Arbeitseinheiten bis zum Tag vor der Abgabe.',
+        title: 'Probier’s aus: Hausaufgaben',
+        text: 'Hier sammelst du alles mit Abgabedatum.',
+        tap: { hint: 'Tippe auf „Aufgaben“', path: '/hausaufgaben' },
+      },
+      {
+        id: 'homework-new',
+        targets: ['[data-tour="hw-new"]'],
+        icon: <NotebookPen />,
+        title: 'Neue Hausaufgabe',
+        text: 'Mit diesem Knopf legst du eine Hausaufgabe an.',
+        tap: { hint: 'Tippe auf „Neue Hausaufgabe“', appears: '[data-testid="homework-save"]' },
+      },
+      {
+        id: 'homework-editor',
+        targets: ['[role="dialog"]:not([data-testid="tour"])'],
+        icon: <Wand2 />,
+        title: 'Zum Beispiel so',
+        text: 'Titel, Fach und Abgabetag eintragen – fertig. Mit Schritten und „Arbeitseinheiten“ verteilt StudySpace die Arbeit bis zum Tag vor der Abgabe. Deine Gruppe bekommt automatisch Bescheid.',
+        onLeave: () => useUI.setState((st) => ({ homeworkEditor: { ...st.homeworkEditor, open: false } })),
+      },
+      {
+        id: 'back-home',
+        targets: ['[data-tour="nav-home"]'],
+        icon: <ArrowLeft />,
+        title: 'Zurück zum Start',
+        text: 'Vom Start aus erreichst du alles Wichtige.',
+        tap: { hint: 'Tippe auf „Home“', path: '/' },
       },
       {
         id: 'focus',
-        targets: ['[data-tour="nav-fokus"]', '[data-tour="focus-start"]'],
+        targets: ['[data-tour="focus-start"]'],
         icon: <Timer />,
         title: 'Fokus-Modus',
-        text: 'Pomodoro im Vollbild, mit Lofi, Regen oder Stille. Nur echte Fokuszeit zählt in deine Lernzeit.',
-        fallbackText: 'Mit „Fokus starten“ beginnt der Pomodoro-Timer im Vollbild – auch unter „Mehr“ zu finden. Nur echte Fokuszeit zählt in deine Lernzeit.',
+        text: 'Pomodoro im Vollbild – nur echte Fokuszeit zählt in deine Lernzeit.',
+        tap: { hint: 'Tippe auf „Fokus starten“', path: '/fokus' },
+      },
+      {
+        id: 'focus-settings',
+        targets: ['[aria-label="Fokus-Einstellungen"]'],
+        icon: <SlidersHorizontal />,
+        title: 'Alles einstellbar',
+        text: 'Fokus- und Pausenlänge, Runden, Hintergrund, Lofi, Regen oder Stille.',
+        tap: { hint: 'Tippe auf die Regler', appears: '.focus-panel' },
+      },
+      {
+        id: 'focus-panel',
+        targets: ['.focus-panel'],
+        icon: <SlidersHorizontal />,
+        title: 'Dein Rhythmus',
+        text: 'Zum Beispiel 25 Minuten Fokus, 5 Minuten Pause und nach vier Runden eine lange Pause. Der Ton am Ende einer Phase lässt sich abschalten.',
+      },
+      {
+        id: 'focus-close-panel',
+        targets: ['[aria-label="Einstellungen schließen"]'],
+        icon: <X />,
+        title: 'Einstellungen schließen',
+        text: 'Änderungen gelten sofort.',
+        tap: { hint: 'Tippe auf das ×', gone: '.focus-panel' },
+      },
+      {
+        id: 'focus-leave',
+        targets: ['[aria-label="Fokus schließen"]'],
+        icon: <X />,
+        title: 'Fokus verlassen',
+        text: 'Läuft ein Timer, geht er im Hintergrund weiter – oben siehst du ihn als kleine Anzeige.',
+        tap: { hint: 'Tippe auf „Fokus schließen“', gone: '[data-testid="focus-immersive"]' },
       },
       team
         ? {
@@ -149,7 +215,7 @@ function useSteps(): Step[] {
         id: 'done',
         icon: <Check />,
         title: 'Alles bereit!',
-        text: 'Am besten legst du jetzt dein erstes Fach mit Prüfungstermin an – der Rest ergibt sich fast von selbst.',
+        text: 'Leg jetzt dein erstes Fach mit Prüfungstermin an – danach erstellt dir der KI-Lernplan in zwei Minuten deinen Plan bis zur Prüfung.',
       },
     ];
     return steps;
@@ -172,13 +238,18 @@ export function TourHost() {
   const open = useTour((s) => s.open);
 
   useEffect(() => {
-    if (!me || me.tutorial_done || phase !== 'ready') return;
+    // nur einmal je Sitzung automatisch – sonst startet sie nach einem Seitenwechsel (z. B. Fokus) von vorn
+    if (!me || me.tutorial_done || phase !== 'ready' || autoStarted || useTour.getState().open) return;
     try {
       if (localStorage.getItem(localKey(me.user_id)) === 'done') return;
     } catch {
       /* ohne Speicher entscheidet nur der Server */
     }
-    const t = setTimeout(() => startTour(), 1400);
+    const t = setTimeout(() => {
+      if (autoStarted || useTour.getState().open) return;
+      autoStarted = true;
+      startTour();
+    }, 1400);
     return () => clearTimeout(t);
   }, [me, phase]);
 
@@ -237,6 +308,7 @@ function TourOverlay() {
 
   const go = useCallback(
     (dir: 1 | -1) => {
+      steps[stepIndex]?.onLeave?.();
       let i = stepIndex + dir;
       // Ziel fehlt → weiter in dieselbe Richtung
       while (i > 0 && i < steps.length - 1 && steps[i].targets && !findTarget(steps[i]).el) i += dir;
@@ -270,12 +342,34 @@ function TourOverlay() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') finish();
+      else if (step.tap) return; // Mitmach-Schritt: selbst antippen
       else if (e.key === 'ArrowRight' || e.key === 'Enter') go(1);
-      else if (e.key === 'ArrowLeft') go(-1);
+      else if (e.key === 'ArrowLeft' && !steps[stepIndex - 1]?.tap) go(-1);
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [go]);
+  }, [go, step, steps, stepIndex]);
+
+  // Mitmach-Schritt: weiter, sobald die Person selbst getippt hat
+  useEffect(() => {
+    const t = step.tap;
+    if (!t) return;
+    let done = false;
+    const id = setInterval(() => {
+      if (done) return;
+      const path = window.location.hash.replace(/^#/, '').split('?')[0] || '/';
+      const ok =
+        (t.path !== undefined && path === t.path) ||
+        (t.appears !== undefined && [...document.querySelectorAll(t.appears)].some(visible)) ||
+        (t.gone !== undefined && ![...document.querySelectorAll(t.gone)].some(visible));
+      if (ok) {
+        done = true;
+        // kurz warten, bis die neue Ansicht steht
+        setTimeout(() => go(1), 450);
+      }
+    }, 150);
+    return () => clearInterval(id);
+  }, [step, go]);
 
   useLayoutEffect(() => {
     const el = cardRef.current;
@@ -308,7 +402,7 @@ function TourOverlay() {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200]"
+      className="pointer-events-none fixed inset-0 z-[200]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -321,6 +415,7 @@ function TourOverlay() {
       {/* Abdunkeln mit Aussparung um das Ziel (Klicks gehen nicht an die App) */}
       <motion.div
         className="pointer-events-none absolute rounded-[18px]"
+        data-testid="tour-spot"
         initial={false}
         animate={{ left: spot.x, top: spot.y, width: spot.w, height: spot.h }}
         transition={spring}
@@ -334,13 +429,23 @@ function TourOverlay() {
           />
         )}
       </motion.div>
-      <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
+      {step.tap && rect ? (
+        // Nur das Ziel bleibt bedienbar: vier Flächen rundherum fangen alle anderen Klicks ab
+        <>
+          <div className="pointer-events-auto absolute inset-x-0 top-0" style={{ height: Math.max(0, rect.y) }} />
+          <div className="pointer-events-auto absolute inset-x-0 bottom-0" style={{ top: rect.y + rect.h }} />
+          <div className="pointer-events-auto absolute left-0" style={{ top: rect.y, height: rect.h, width: Math.max(0, rect.x) }} />
+          <div className="pointer-events-auto absolute right-0" style={{ top: rect.y, height: rect.h, left: rect.x + rect.w }} />
+        </>
+      ) : (
+        <div className="pointer-events-auto absolute inset-0" onClick={(e) => e.stopPropagation()} />
+      )}
 
       {/* Überspringen: immer oben links */}
       <button
         type="button"
         onClick={finish}
-        className="glass absolute left-3 top-[max(env(safe-area-inset-top),12px)] z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-ink"
+        className={`glass pointer-events-auto absolute ${rect && rect.x < 170 && rect.y < 80 ? 'right-3' : 'left-3'} top-[max(env(safe-area-inset-top),12px)] z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-ink`}
         data-testid="tour-skip"
       >
         <X className="size-4" aria-hidden /> Überspringen
@@ -349,7 +454,7 @@ function TourOverlay() {
       <motion.div
         ref={cardRef}
         key={step.id}
-        className="glass mat-float absolute w-[min(360px,calc(100vw-24px))] rounded-[24px] p-5"
+        className="glass mat-float pointer-events-auto absolute w-[min(360px,calc(100vw-24px))] rounded-[24px] p-5"
         initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1, left: cx, top: cy }}
         transition={reduce ? { duration: 0 } : { opacity: { duration: 0.25 }, y: { type: 'spring', stiffness: 260, damping: 22 }, scale: { duration: 0.25 }, left: spring, top: spring }}
@@ -381,21 +486,37 @@ function TourOverlay() {
               />
             ))}
           </div>
-          {stepIndex > 0 && !isLast && (
+          {stepIndex > 0 && !isLast && !step.tap && !steps[stepIndex - 1]?.tap && (
             <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:text-ink" onClick={() => go(-1)} aria-label="Zurück">
               <ArrowLeft className="size-4" aria-hidden />
             </button>
           )}
-          {!isLast && (
+          {!isLast && !step.tap && (
             <Button size="sm" variant="primary" onClick={() => go(1)} data-testid="tour-next">
               {stepIndex === 0 ? 'Los geht’s' : 'Weiter'} <ArrowRight className="size-4" aria-hidden />
             </Button>
           )}
         </div>
+        {step.tap && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="inline-flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--ss-accent)_14%,transparent)] px-3 py-1.5 text-[13.5px] font-semibold text-accent" data-testid="tour-tap-hint">
+              <motion.span animate={reduce ? undefined : { y: [0, -3, 0] }} transition={{ duration: 1, repeat: Infinity }} aria-hidden>
+                <Hand className="size-4" />
+              </motion.span>
+              {step.tap.hint}
+            </p>
+            <button type="button" className="text-[12.5px] font-medium text-faint hover:text-ink" onClick={() => go(1)} data-testid="tour-tap-skip">
+              Weiter ohne Tippen
+            </button>
+          </div>
+        )}
         {isLast && (
           <div className="mt-4 flex flex-col gap-2">
             <Button variant="primary" onClick={() => (finish(), navigate('/faecher'))} data-testid="tour-first-subject">
               <BookOpen className="size-4" aria-hidden /> Erstes Fach anlegen
+            </Button>
+            <Button onClick={() => (finish(), navigate('/ki-lernplan'))} data-testid="tour-ai">
+              <Sparkles className="size-4" aria-hidden /> KI-Lernplan ansehen
             </Button>
             {team && group?.is_owner && (
               <Button onClick={() => (finish(), navigate('/einstellungen/gruppe'))}>

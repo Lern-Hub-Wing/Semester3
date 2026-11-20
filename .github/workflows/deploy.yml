@@ -140,6 +140,9 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_APP_SUPABASE_PUBLISHABLE_KEY }}
           # Öffentlicher VAPID-Schlüssel der App – ohne eigene Variable derselbe wie bei der bisherigen Seite
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_APP_VAPID_PUBLIC_KEY || vars.VITE_VAPID_PUBLIC_KEY }}
+          # Links auf Nutzungsbedingungen und Datenschutzerklärung bei der Registrierung (vor Veröffentlichung setzen)
+          VITE_APP_PRIVACY_URL: ${{ vars.VITE_APP_PRIVACY_URL }}
+          VITE_APP_TERMS_URL: ${{ vars.VITE_APP_TERMS_URL }}
       - name: SPA-Fallback und .nojekyll
         run: |
           cp dist/index.html dist/404.html

@@ -33,6 +33,7 @@ import { AddMemberDialog, MemberColorEditor } from './Team';
 import { ModuleEditor } from './Modules';
 import { StatusPill } from '../components/layout/StatusPill';
 import { Row, Section } from '../components/ui/SettingsCard';
+import { IconTile } from '../components/ui/Card';
 import { IS_APP } from '../lib/edition';
 import { WeatherSettings } from '../components/weather/WeatherSettings';
 import { AccountSection, GroupSection, PlusSection } from '../app/AccountSettings';
@@ -48,15 +49,12 @@ const SECTIONS = {
   plus: { title: 'Tarif & Abo', render: () => <PlusSection /> },
   darstellung: {
     title: 'Darstellung & Bedienung',
-    render: () =>
-      IS_APP ? (
+    render: () => (
+      <div className="flex flex-col gap-[var(--gap-grid)]">
         <Appearance />
-      ) : (
-        <div className="flex flex-col gap-[var(--gap-grid)]">
-          <Appearance />
-          <WeatherSettings />
-        </div>
-      ),
+        <WeatherSettings />
+      </div>
+    ),
   },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
@@ -64,6 +62,33 @@ const SECTIONS = {
   info: { title: 'Über StudySpace', render: () => (IS_APP ? <AppGeneral /> : <General />) },
 } as const;
 type SectionKey = keyof typeof SECTIONS;
+
+/** App: Kopf jeder Einstellungsseite – farbiges Symbol und ein Satz, worum es geht */
+const SECTION_META: Record<SectionKey, { icon: ReactNode; tint: string; desc: string }> = {
+  konto: { icon: <UserRound />, tint: AREA_TINT.account, desc: 'Name, Anmeldung und Sicherheit deines Kontos.' },
+  gruppe: { icon: <Users />, tint: AREA_TINT.group, desc: 'Mitglieder, Einladungen und deine Lernbereiche.' },
+  plus: { icon: <Crown />, tint: AREA_TINT.plan_billing, desc: 'Dein Zugang, Laufzeit und was enthalten ist.' },
+  darstellung: { icon: <Palette />, tint: AREA_TINT.appearance, desc: 'Aussehen, Bewegung und Wetter – nur auf diesem Gerät.' },
+  personen: { icon: <Users />, tint: AREA_TINT.group, desc: 'Personen der Lerngruppe.' },
+  faecher: { icon: <BookOpen />, tint: AREA_TINT.subjects, desc: 'Reihenfolge, Farben und Archiv eurer Fächer.' },
+  daten: { icon: <Download />, tint: AREA_TINT.export, desc: 'Alle Inhalte als Datei herunterladen.' },
+  info: { icon: <Info />, tint: AREA_TINT.info, desc: 'Version, Verbindung und Datenschutz.' },
+};
+
+function AppSectionHeader({ k, as: Tag = 'h1' }: { k: SectionKey; as?: 'h1' | 'h2' }) {
+  const m = SECTION_META[k];
+  return (
+    <header className="mb-5 flex items-center gap-3.5" data-testid="settings-section-header">
+      <IconTile tint={m.tint} size={46}>
+        {m.icon}
+      </IconTile>
+      <div className="min-w-0">
+        <Tag className={Tag === 'h1' ? 'display text-[26px] leading-tight md:text-[28px]' : 'title text-[22px] leading-tight'}>{SECTIONS[k].title}</Tag>
+        <p className="mt-0.5 text-[13.5px] leading-snug text-muted">{m.desc}</p>
+      </div>
+    </header>
+  );
+}
 /** Bisherige Seite: ohne Konto/Gruppe/Plus. App: ohne Personen (kommen per Einladung) und ohne Import. */
 const AVAILABLE: SectionKey[] = IS_APP ? ['konto', 'gruppe', 'plus', 'faecher', 'darstellung', 'daten', 'info'] : ['darstellung', 'personen', 'faecher', 'daten', 'info'];
 const isSection = (k: string | undefined): k is SectionKey => !!k && (AVAILABLE as string[]).includes(k);
@@ -91,7 +116,7 @@ export function Settings({ section }: { section?: string }) {
         <Link to="/einstellungen" className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
           <ArrowLeft className="size-4" aria-hidden /> Einstellungen
         </Link>
-        <h1 className="display mb-5 text-[28px]">{SECTIONS[key].title}</h1>
+        {IS_APP ? <AppSectionHeader k={key} /> : <h1 className="display mb-5 text-[28px]">{SECTIONS[key].title}</h1>}
         {SECTIONS[key].render()}
       </div>
     );
@@ -106,7 +131,7 @@ export function Settings({ section }: { section?: string }) {
           <SettingsNav active={active} />
         </div>
         <div data-testid={`settings-${active}`}>
-          <h2 className="title mb-4 text-[22px]">{SECTIONS[active].title}</h2>
+          {IS_APP ? <AppSectionHeader k={active} as="h2" /> : <h2 className="title mb-4 text-[22px]">{SECTIONS[active].title}</h2>}
           {SECTIONS[active].render()}
         </div>
       </div>
@@ -229,7 +254,7 @@ function SiteSettingsNav({ active }: { active?: SectionKey }) {
 function Appearance() {
   const prefs = usePrefs();
   return (
-    <Section title="Erscheinungsbild" icon={<Palette />} hint="Diese Einstellungen gelten nur für dieses Gerät.">
+    <Section title="Erscheinungsbild" icon={<Palette />} tint={TINT.violet} hint="Diese Einstellungen gelten nur für dieses Gerät.">
       <Row label="Darstellung" hint="System übernimmt die Geräteeinstellung.">
         <Segmented
           label="Darstellung"
@@ -442,7 +467,7 @@ function ModulesSection() {
     void reorderModules(ids);
   };
   return (
-    <Section title="Fächer" icon={<Archive />} hint="Reihenfolge und Farben gelten für alle. Archivierte Fächer zählen nicht zum Fortschritt und lassen sich jederzeit wiederherstellen.">
+    <Section title="Fächer" icon={<BookOpen />} tint={TINT.violet} hint="Reihenfolge und Farben gelten für alle. Archivierte Fächer zählen nicht zum Fortschritt und lassen sich jederzeit wiederherstellen.">
       <ul className="-my-1 flex flex-col">
         {modules.map((m, i) => (
           <li key={m.id} className="flex min-h-[56px] items-center gap-3 border-t border-line py-2 first:border-t-0" data-testid="settings-subject">
@@ -640,7 +665,7 @@ function ActionTile({ icon, title, text, onClick, busy }: { icon: ReactNode; tit
 function AppGeneral() {
   const lastSyncAt = useData((s) => s.lastSyncAt);
   return (
-    <Section title="Über StudySpace" icon={<Info />}>
+    <Section title="Version & Verbindung" icon={<Info />} tint={TINT.gray}>
       <Row label="Version">
         <span className="num text-sm text-muted">
           {config.version}
@@ -671,7 +696,7 @@ function AppGeneral() {
 function AppDataSection() {
   const [busy, setBusy] = useState(false);
   return (
-    <Section hint="Die Datei enthält alle Inhalte dieser Lerngruppe bzw. deines Lernbereichs, deine Haken und Fokuszeiten sowie deine Kontoangaben – lesbar als JSON.">
+    <Section title="Export" icon={<Download />} tint={TINT.blue} hint="Die Datei enthält alle Inhalte dieser Lerngruppe bzw. deines Lernbereichs, deine Haken und Fokuszeiten sowie deine Kontoangaben – lesbar als JSON.">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="export-section">
         <div>
           <p className="text-[14.5px] font-medium">Daten exportieren</p>

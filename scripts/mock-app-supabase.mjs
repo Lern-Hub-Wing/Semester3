@@ -353,6 +353,30 @@ export function createAppMock() {
   async function handleFunctions(route) {
     const req = route.request();
     const body = req.postData() ? JSON.parse(req.postData()) : {};
+    // KI-Lernplan: antwortet wie die Edge Function (Einheiten je Fach aus den Themen)
+    if (req.url().includes('/functions/v1/app-ai-plan')) {
+      state.aiRequests = (state.aiRequests ?? 0) + 1;
+      state.lastAiInput = body;
+      if (state.aiMode === 'not_configured') return ok(route, { error: 'Der KI-Lernplan ist auf dem Server noch nicht eingerichtet.', code: 'not_configured' }, 503);
+      const len = body.input?.sessionMinutes ?? 45;
+      return ok(route, {
+        summary: 'Erst die Grundlagen, dann viel Übung – und vor jeder Prüfung eine Probeklausur.',
+        tips: ['Starte mit dem schwersten Thema, solange du frisch bist.', 'Erkläre jedes Thema einmal laut.'],
+        subjects: (body.input?.subjects ?? []).map((s) => ({
+          subject_id: s.id,
+          units: [
+            ...(s.topics.length ? s.topics : [{ title: s.name }]).flatMap((t) => [
+              { title: `${t.title}: Kernbegriffe erklären`, topic: t.title, minutes: len, kind: 'learn' },
+              { title: `${t.title}: 8 Übungsaufgaben`, topic: t.title, minutes: len, kind: 'practice' },
+            ]),
+            { title: `${s.name}: alles wiederholen`, topic: s.name, minutes: len, kind: 'review' },
+            { title: `Probeklausur ${s.name} unter Zeitdruck`, topic: s.name, minutes: 90, kind: 'mock_exam' },
+          ],
+        })),
+        left: 4,
+        model: 'claude-opus-5-5',
+      });
+    }
     state.requests.push({ kind: 'fn', action: body.action });
     const admin = state.users.find((u) => u.admin);
     if (body.action === 'status') return ok(route, { setup_done: !!admin, setup_possible: state.adminSetupPossible });

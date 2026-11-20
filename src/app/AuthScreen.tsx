@@ -15,6 +15,11 @@ import {
 } from './account';
 import { getRemember } from './authStorage';
 import { passwordProblem } from './api';
+import { emailSuggestion } from './emailHint';
+
+/** Rechtstexte (vor der Veröffentlichung als GitHub-Variablen setzen) */
+const PRIVACY_URL = (import.meta.env.VITE_APP_PRIVACY_URL ?? '').trim();
+const TERMS_URL = (import.meta.env.VITE_APP_TERMS_URL ?? '').trim();
 
 /** Gemeinsamer Rahmen der Konto-Seiten: Berglandschaft, Logo, Glaskarte. */
 export function AuthFrame({ title, subtitle, children, wide }: { title: string; subtitle?: ReactNode; children: ReactNode; wide?: boolean }) {
@@ -39,7 +44,8 @@ export function AuthFrame({ title, subtitle, children, wide }: { title: string; 
           transition={{ duration: reduce ? 0 : 0.5, ease: EASE_OUT }}
         >
           <LogoMark size={44} />
-          <span className="title text-[21px]">StudySpace</span>
+          {/* liegt auf dem Bergfoto: hell mit weichem Schatten, damit es immer lesbar ist */}
+          <span className="title text-[21px] text-white [text-shadow:0_1px_14px_rgba(16,12,48,0.55)]">StudySpace</span>
         </motion.div>
         <motion.h1
           className="display text-center text-[30px] md:text-[40px]"
@@ -134,16 +140,42 @@ export function AuthScreen() {
     }
   };
 
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const suggestion = emailSuggestion(email);
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (mode === 'signin') void run('email', () => signInWithPassword(email, password, remember));
+    setUnconfirmed(false);
+    if (mode === 'signin')
+      void run('email', async () => {
+        try {
+          await signInWithPassword(email, password, remember);
+        } catch (err) {
+          const c = (err ?? {}) as { code?: string; message?: string };
+          // Konto noch nicht bestätigt → Bestätigungs-Mail direkt erneut anbieten
+          if (c.code === 'email_not_confirmed' || /Email not confirmed/i.test(c.message ?? '')) setUnconfirmed(true);
+          throw err;
+        }
+      });
     else if (mode === 'signup') {
       const problem = passwordProblem(password);
       if (problem) return setError(problem);
       if (!name.trim()) return setError('Bitte gib deinen Namen ein.');
       void run('email', async () => {
-        const { needsConfirmation } = await signUp(email, password, name, remember);
-        if (needsConfirmation) setMode('check-mail');
+        try {
+          const { needsConfirmation } = await signUp(email, password, name, remember);
+          if (needsConfirmation) setMode('check-mail');
+        } catch (err) {
+          const c = (err ?? {}) as { code?: string; message?: string };
+          if (c.code === 'user_already_exists' || /already registered/i.test(c.message ?? '')) {
+            // Konto gibt es schon: gleich zur Anmeldung, E-Mail bleibt stehen
+            setMode('signin');
+            setPassword('');
+            setInfo('Für diese E-Mail gibt es schon ein Konto – melde dich einfach an.');
+            return;
+          }
+          throw err;
+        }
       });
     } else if (mode === 'reset')
       void run('email', async () => {
@@ -247,7 +279,14 @@ export function AuthScreen() {
             </motion.div>
           )}
         </AnimatePresence>
-        <TextField label="E-Mail" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <div>
+          <TextField label="E-Mail" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          {suggestion && (
+            <button type="button" className="mt-1.5 text-left text-[13px] text-muted hover:text-ink" onClick={() => setEmail(suggestion)} data-testid="email-suggestion">
+              Meintest du <strong className="font-semibold text-accent">{suggestion}</strong>?
+            </button>
+          )}
+        </div>
         {mode !== 'reset' && (
           <div className="relative">
             <TextField
@@ -280,6 +319,23 @@ export function AuthScreen() {
         )}
 
         {error && <Notice tone="error">{error}</Notice>}
+        {unconfirmed && (
+          <Button
+            variant="glass"
+            icon={<Mail className="size-4" />}
+            loading={busy === 'resend'}
+            onClick={() =>
+              void run('resend', async () => {
+                await resendConfirmation(email);
+                setUnconfirmed(false);
+                setInfo('Bestätigungs-E-Mail erneut gesendet – schau auch im Spam-Ordner nach.');
+              })
+            }
+            data-testid="auth-resend"
+          >
+            Bestätigungs-E-Mail erneut senden
+          </Button>
+        )}
         {info && <Notice tone="success">{info}</Notice>}
 
         <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy === 'email'} disabled={!email.trim() || (mode !== 'reset' && !password)}>
@@ -298,7 +354,27 @@ export function AuthScreen() {
           ) : null}
         </div>
         {mode === 'signup' && (
-          <p className="text-center text-[12px] leading-snug text-faint">Kostenlos und ohne Zahlungsdaten. Danach bestätigst du kurz deine E-Mail-Adresse.</p>
+          <p className="text-center text-[12px] leading-snug text-faint">
+            Kostenlos und ohne Zahlungsdaten. Danach bestätigst du kurz deine E-Mail-Adresse.
+            {(PRIVACY_URL || TERMS_URL) && (
+              <>
+                {' '}
+                Mit der Registrierung gelten{' '}
+                {TERMS_URL && (
+                  <a className="underline" href={TERMS_URL} target="_blank" rel="noreferrer">
+                    Nutzungsbedingungen
+                  </a>
+                )}
+                {TERMS_URL && PRIVACY_URL && ' und '}
+                {PRIVACY_URL && (
+                  <a className="underline" href={PRIVACY_URL} target="_blank" rel="noreferrer">
+                    Datenschutzerklärung
+                  </a>
+                )}
+                .
+              </>
+            )}
+          </p>
         )}
       </form>
     </AuthFrame>

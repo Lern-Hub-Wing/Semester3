@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { WEATHER_LABEL, type WeatherMode } from '../../lib/weather';
 import { forgetLocation, refreshWeather, setWeatherMode, shareLocation, useWeather } from '../../store/weather';
 import { toast } from '../../store/toast';
+import { TINT } from '../../lib/tints';
 
 const OPTIONS: { value: WeatherMode; label: string; icon: ReactNode }[] = [
   { value: 'auto', label: 'Automatisch', icon: <MapPin /> },
@@ -21,7 +22,7 @@ const OPTIONS: { value: WeatherMode; label: string; icon: ReactNode }[] = [
 export function WeatherSettings() {
   const { mode, coords, current, status, error } = useWeather();
   return (
-    <Section title="Wetter im Hintergrund" icon={<CloudSun />} hint="Nur auf diesem Gerät. Bei „Bewegung reduzieren“ ausgeschaltet.">
+    <Section title="Wetter im Hintergrund" icon={<CloudSun />} tint={TINT.blue} hint="Nur auf diesem Gerät. Bei „Bewegung reduzieren“ ausgeschaltet.">
       <Row stacked label="Wetter" hint="Fest gewählt zum Ausprobieren – „Automatisch“ zeigt das Wetter an deinem Standort.">
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Wetter im Hintergrund" data-testid="weather-mode">
           {OPTIONS.map((o) => (

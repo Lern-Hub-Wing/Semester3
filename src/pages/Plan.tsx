@@ -1,12 +1,13 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { AlarmClock, CalendarDays, CalendarRange, Check, ChevronLeft, ChevronRight, GraduationCap, List, Plus } from 'lucide-react';
+import { AlarmClock, CalendarDays, CalendarRange, Check, ChevronLeft, ChevronRight, GraduationCap, List, Plus, Sparkles } from 'lucide-react';
+import { IS_APP } from '../lib/edition';
 import type { Exam, ISODate, Member, StudyEntry } from '../lib/types';
 import { groupBy, isDone, memberRatio, type TaskView } from '../lib/progress';
 import {
   addDaysISO, addMonthsISO, formatISODate, formatTime, instantToZoned, isSameMonth, isValidISODate, isoWeekNumber, monthGrid, weekDays,
 } from '../lib/time';
-import { setQuery, useLocation } from '../lib/router';
+import { Link, setQuery, useLocation } from '../lib/router';
 import { useData } from '../store/data';
 import { useActiveMembers, useModules, useTaskViews } from '../store/derived';
 import { moveEntry } from '../store/actions';
@@ -151,9 +152,16 @@ export function Plan({ me }: { me: Member }) {
       <PageHeader
         title="Lernplan"
         actions={
-          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openEditor({ date: view === 'tag' ? date : date < today ? today : date })}>
-            Neuer Lerntag
-          </Button>
+          <>
+            {IS_APP && (
+              <Link to="/ki-lernplan" className="ai-badge inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-[14px] font-semibold text-white" data-testid="plan-ai">
+                <Sparkles className="size-4" aria-hidden /> KI-Lernplan
+              </Link>
+            )}
+            <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openEditor({ date: view === 'tag' ? date : date < today ? today : date })}>
+              Neuer Lerntag
+            </Button>
+          </>
         }
       />
 

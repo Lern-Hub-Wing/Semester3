@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Check, Copy, Crown, KeyRound, LogOut, RefreshCw, Share2, Trash2, UserMinus } from 'lucide-react';
+import { ArrowLeftRight, Check, Copy, Crown, Gauge, KeyRound, LifeBuoy, ListChecks, LogOut, RefreshCw, Share2, ShieldCheck, Trash2, UserMinus, UserRound, Users, UsersRound } from 'lucide-react';
+import { TINT } from '../lib/tints';
 import { getSupabase } from '../lib/supabase';
 import { describeError } from '../lib/errors';
 import { toast } from '../store/toast';
@@ -80,7 +81,7 @@ export function AccountSection() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="account-section">
-      <Section hint="Dein Name ist für alle in deinen Lerngruppen sichtbar.">
+      <Section title="Profil" icon={<UserRound />} tint={TINT.indigo} hint="Dein Name ist für alle in deinen Lerngruppen sichtbar.">
         <Row label="Name">
           <div className="flex items-center gap-2">
             <input className="field w-full sm:w-56" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} aria-label="Name" />
@@ -99,7 +100,7 @@ export function AccountSection() {
         </Row>
       </Section>
 
-      <Section>
+      <Section title="Anmeldung & Sicherheit" icon={<ShieldCheck />} tint={TINT.teal}>
         {hasPassword && (
           <Row label="Passwort" hint="Ändern, ohne dich abzumelden.">
             <Button size="sm" icon={<KeyRound className="size-4" />} onClick={() => (setPw(''), setPwOpen(true))}>
@@ -119,7 +120,7 @@ export function AccountSection() {
         </Row>
       </Section>
 
-      <Section hint="Eigene Lerngruppen ohne weitere Mitglieder werden mitgelöscht; sonst übernimmt das am längsten dabei gewesene Mitglied.">
+      <Section title="Konto entfernen" icon={<Trash2 />} tint={TINT.red} hint="Eigene Lerngruppen ohne weitere Mitglieder werden mitgelöscht; sonst übernimmt das am längsten dabei gewesene Mitglied.">
         <Row label="Konto löschen" hint="Entfernt dein Konto endgültig.">
           <Button size="sm" variant="danger" icon={<Trash2 className="size-4" />} onClick={() => setDeleteOpen(true)} disabled={me?.is_admin}>
             Konto löschen
@@ -234,7 +235,7 @@ export function GroupSection() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="group-section">
-      <Section hint={solo ? 'Dein persönlicher Lernbereich – nur du siehst ihn.' : owner ? 'Du verwaltest diese Gruppe.' : 'Lernplan, Prüfungen und Hausaufgaben teilt ihr; Fortschritt und Lernzeit bleiben persönlich.'}>
+      <Section title="Name & Zugang" icon={<Users />} tint={TINT.teal} hint={solo ? 'Dein persönlicher Lernbereich – nur du siehst ihn.' : owner ? 'Du verwaltest diese Gruppe.' : 'Lernplan, Prüfungen und Hausaufgaben teilt ihr; Fortschritt und Lernzeit bleiben persönlich.'}>
         <Row label={solo ? 'Lernbereich' : 'Gruppe'}>
           {owner ? (
             <div className="flex items-center gap-2">
@@ -261,7 +262,7 @@ export function GroupSection() {
       </Section>
 
       {!solo && owner && link && group.invite_code && (
-        <Section hint="Mit Link oder Code treten andere kostenlos bei – höchstens 8 Personen inklusive dir.">
+        <Section title="Freunde einladen" icon={<Share2 />} tint={TINT.teal} hint="Mit Link oder Code treten andere kostenlos bei – höchstens 8 Personen inklusive dir.">
           <div className="flex flex-col gap-3" data-testid="invite-card">
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Einladungscode</p>
@@ -287,7 +288,7 @@ export function GroupSection() {
       )}
 
       {!solo && (
-      <Section hint={`${members.length} von ${GROUP_LIMITS.members} Plätzen belegt.`}>
+      <Section title="Mitglieder" icon={<UsersRound />} tint={TINT.indigo} hint={`${members.length} von ${GROUP_LIMITS.members} Plätzen belegt.`}>
         <ul className="flex flex-col" data-testid="group-members">
           {members.map((m) => (
             <li key={m.user_id} className="flex items-center gap-3 border-t border-line py-2.5 first:border-t-0 first:pt-0 last:pb-0">
@@ -312,7 +313,7 @@ export function GroupSection() {
       )}
 
       {usage && (
-        <Section hint="Grenzen je Lerngruppe. Gelöschte Einträge zählen nicht und werden nach 30 Tagen endgültig entfernt.">
+        <Section title="Speicher" icon={<Gauge />} tint={TINT.slate} hint="Grenzen je Lerngruppe. Gelöschte Einträge zählen nicht und werden nach 30 Tagen endgültig entfernt.">
           <UsageRow label="Aktive Hausaufgaben" value={usage.homework} max={usage.homework_max} />
           <UsageRow label="Aktive Lernplaneinträge" value={usage.study_entries} max={usage.study_entries_max} />
           <UsageRow label="Mitglieder" value={usage.members} max={usage.members_max} />
@@ -322,7 +323,7 @@ export function GroupSection() {
         </Section>
       )}
 
-      <Section>
+      <Section title="Weitere Lernbereiche" icon={<ArrowLeftRight />} tint={TINT.slate}>
         {others.map((g) => (
           <Row key={g.id} label={g.kind === 'solo' ? 'Mein Lernbereich' : g.name} hint={g.kind === 'solo' ? `alleine · ${plusLabel(g)}` : `${g.members}/8 · ${plusLabel(g)}`} inline>
             <Button size="sm" loading={busy === `switch-${g.id}`} onClick={() => void run(`switch-${g.id}`, async () => (await api.switchGroup(sb(), g.id), reloadIntoGroup()))}>
@@ -374,7 +375,7 @@ export function GroupSection() {
         )}
       </Section>
 
-      <Section>
+      <Section title={owner ? 'Löschen' : 'Verlassen'} icon={<LogOut />} tint={TINT.red}>
         {owner ? (
           <Row label={solo ? 'Lernbereich löschen' : 'Gruppe löschen'} hint={solo ? 'Löscht deinen Lernplan, Prüfungen, Hausaufgaben und Haken endgültig.' : 'Löscht Lernplan, Prüfungen, Hausaufgaben und alle Haken dieser Gruppe endgültig.'}>
             <Button size="sm" variant="danger" icon={<Trash2 className="size-4" />} onClick={() => setConfirm('delete')}>
@@ -475,7 +476,7 @@ export function PlusSection() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="plus-section">
-      <Section hint="Zugänge schaltet nur der Server frei – nie allein die App.">
+      <Section title="Dein Zugang" icon={<Crown />} tint={TINT.purple} hint="Zugänge schaltet nur der Server frei – nie allein die App.">
         <Row label="Dein Tarif" inline>
           <span className={`inline-flex items-center gap-1.5 text-[14px] font-medium ${me.level ? 'text-accent' : ''}`} data-testid="own-plan">
             {me.level && <Crown className="size-4" aria-hidden />}
@@ -535,7 +536,7 @@ export function PlusSection() {
         </p>
       </div>
 
-      <Section hint="Läuft der Zugang ab, bleibt alles sichtbar. Neue Einträge und Änderungen sind dann erst nach einer Verlängerung wieder möglich; Haken setzen und Fokuszeiten funktionieren weiter.">
+      <Section title="So funktionieren die Zugänge" icon={<ListChecks />} tint={TINT.purple} hint="Läuft der Zugang ab, bleibt alles sichtbar. Neue Einträge und Änderungen sind dann erst nach einer Verlängerung wieder möglich; Haken setzen und Fokuszeiten funktionieren weiter.">
         <Row label="Mitglieder je Gruppe" inline>
           <span className="num text-[14px] text-muted">{GROUP_LIMITS.members}</span>
         </Row>
@@ -550,7 +551,7 @@ export function PlusSection() {
         </Row>
       </Section>
 
-      <Section>
+      <Section title="Einführung" icon={<LifeBuoy />} tint={TINT.teal}>
         <Row label="Einführung" hint="Die kurze Tour durch StudySpace noch einmal ansehen." inline>
           <Button size="sm" onClick={() => startTour()} data-testid="replay-tour">
             Ansehen
