@@ -90,7 +90,12 @@ try {
     });
     assert(clip.left >= 2 && clip.right >= 2, `Namensfeld abgeschnitten: ${JSON.stringify(clip)}`);
     await a.getByLabel('Wie heißt du?').fill('Anna');
+    // Tippfehler im Anbieter → Vorschlag zum Antippen
+    await a.getByLabel('E-Mail').fill('anna@gmial.com');
+    await a.getByTestId('email-suggestion').click();
+    assert((await a.getByLabel('E-Mail').inputValue()) === 'anna@gmail.com', 'Vorschlag übernommen');
     await a.getByLabel('E-Mail').fill('anna@example.com');
+    assert((await a.getByTestId('email-suggestion').count()) === 0, 'kein Vorschlag bei richtiger Adresse');
     await a.getByLabel('Passwort', { exact: true }).fill('kurz');
     await a.getByRole('button', { name: 'Passwort anzeigen' }).click();
     assert((await a.getByLabel('Passwort', { exact: true }).getAttribute('type')) === 'text', 'Passwort sichtbar');
