@@ -2134,3 +2134,9 @@ select.field:hover {
 .settings-card--app > :not(.settings-row) {
   margin: 14px 0;
 }
+
+/* KI-Lernplan: eigener, leuchtender Verlauf (Violett → Pink → Orange) */
+.ai-badge {
+  background: linear-gradient(135deg, #7c6ff0 0%, #b56cf0 45%, #f0789a 80%, #f6a25b 100%);
+  box-shadow: 0 8px 22px -10px rgb(181 108 240 / 0.8);
+}

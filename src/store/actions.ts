@@ -276,6 +276,36 @@ export async function createEntry(draft: EntryDraft): Promise<UUID | null> {
 }
 
 /**
+ * Viele Lerntage auf einmal (KI-Lernplan): ohne einzelne Meldungen, mit
+ * Fortschritt. Gibt die Anzahl der angelegten Lerntage zurück; bricht beim
+ * ersten Fehler ab (z. B. Grenze erreicht) und meldet ihn einmal.
+ */
+export async function createEntriesBulk(drafts: EntryDraft[], onProgress?: (done: number, total: number) => void): Promise<{ created: number; error: string | null }> {
+  let created = 0;
+  for (const draft of drafts) {
+    const id = uuid();
+    const siblings = Object.values(useData.getState().study_entries).filter((e) => e.study_date === draft.study_date && !e.deleted_at);
+    const payload = {
+      id,
+      module_id: draft.module_id,
+      topic_id: draft.topic_id,
+      study_date: draft.study_date,
+      title: draft.title.trim().slice(0, 200),
+      description: draft.description?.trim() || null,
+      sort_order: nextSort(siblings),
+      deleted_at: null,
+    };
+    const res = await createRow('study_entries', payload, { ...base(id), ...payload } as StudyEntry);
+    if (!res.ok) return { created, error: describeError(res.error) };
+    const tasks = draft.tasks.filter((t) => t.title.trim()).map((t, i) => ({ id: uuid(), title: t.title.slice(0, 200), sort_order: i + 1 }));
+    if (tasks.length && !(await insertTasks(id, tasks))) return { created: created + 1, error: 'Nicht alle Aufgaben konnten gespeichert werden.' };
+    created++;
+    onProgress?.(created, drafts.length);
+  }
+  return { created, error: null };
+}
+
+/**
  * Speichert Änderungen an einem bestehenden Lerntag. Aufgaben behalten
  * ihre IDs – Titeländerungen, Umsortieren und Verschieben erhalten daher
  * alle Haken. In den Papierkorb wandern ausschließlich Aufgaben aus

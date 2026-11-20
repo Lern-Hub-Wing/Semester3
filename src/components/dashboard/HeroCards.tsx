@@ -83,9 +83,20 @@ export function TodayCard({ views, today, me, members, className = '', allEmpty 
           title="Dein Lernplan ist noch leer"
           text={IS_APP ? 'Lege deinen ersten Lerntag an – mit Aufgaben zum Abhaken. In einer Gruppe hakt jedes Mitglied für sich ab.' : 'Füge dein erstes Thema hinzu – mit Unteraufgaben, die jede Person für sich abhaken kann.'}
           action={
-            <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openEditor({ date: today })}>
-              Ersten Lerntag anlegen
-            </Button>
+            IS_APP ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link to="/ki-lernplan" className="ai-badge inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-[14px] font-semibold text-white" data-testid="dash-ai">
+                  <Sparkles className="size-4" aria-hidden /> Mit KI planen
+                </Link>
+                <Button icon={<Plus className="size-4" />} onClick={() => openEditor({ date: today })}>
+                  Selbst anlegen
+                </Button>
+              </div>
+            ) : (
+              <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openEditor({ date: today })}>
+                Ersten Lerntag anlegen
+              </Button>
+            )
           }
         />
       ) : views.length === 0 ? (

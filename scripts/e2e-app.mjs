@@ -191,6 +191,62 @@ try {
     await shot(a, '09-mitteilungen');
   });
 
+  await check('KI-Lernplan: Fragebogen → KI-Vorschau → in den Lernplan übernehmen', async () => {
+    const g = mock.state.groups.find((x) => x.kind === 'team');
+    const t = new Date().toISOString();
+    const v = { version: 1, created_at: t, updated_at: t, changed_by: null, group_id: g.id };
+    const day = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+    mock.state.tables.modules.push({ ...v, id: 'm-mathe', name: 'Mathe', color: '#6F7BF7', description: null, sort_order: 1, archived_at: null });
+    mock.state.tables.modules.push({ ...v, id: 'm-bio', name: 'Biologie', color: '#2FA58B', description: null, sort_order: 2, archived_at: null });
+    mock.state.tables.exams.push({ ...v, id: 'e-mathe', module_id: 'm-mathe', starts_at: `${day(24)}T08:00:00.000Z`, ends_at: `${day(24)}T10:00:00.000Z`, timezone: 'Europe/Berlin', location: null, notes: null, deleted_at: null });
+    await a.goto(`${BASE}#/lernplan`);
+    await a.reload();
+    await a.getByTestId('plan-ai').click();
+    await a.getByTestId('aiplan-start').click();
+    await a.getByRole('radio', { name: 'Abitur' }).click();
+    await a.getByRole('radio', { name: 'Bestnote' }).click();
+    await a.getByTestId('aiplan-next').click();
+    // Mathe hat schon einen Termin (aus den Prüfungen), Biologie braucht einen
+    await a.getByTestId('aiplan-step-subjects').waitFor();
+    await a.getByLabel('Biologie').check();
+    assert(await a.getByTestId('aiplan-next').isDisabled(), 'Weiter ohne Termin möglich');
+    await a.getByLabel('Prüfungstermin Biologie').fill(day(17));
+    await a.getByTestId('aiplan-next').click();
+    await a.getByLabel('Thema für Mathe').fill('Integrale, Vektoren');
+    await a.getByLabel('Thema für Mathe').press('Enter');
+    await a.getByRole('button', { name: /Integrale: mittel/ }).click();
+    assert((await a.getByRole('button', { name: /Integrale: schwer/ }).count()) === 1, 'Schwierigkeit umschaltbar');
+    await a.getByTestId('aiplan-next').click();
+    await a.getByTestId('aiplan-step-time').waitFor();
+    await a.getByTestId('aiplan-next').click();
+    await a.getByRole('button', { name: 'Altklausuren' }).click();
+    await shot(a, '10-ki-fragebogen');
+    await a.getByTestId('aiplan-generate').click();
+    await a.getByTestId('aiplan-step-preview').waitFor({ timeout: 10000 });
+    assert((await a.getByTestId('aiplan-source').innerText()).includes('Mit KI'), 'Quelle KI');
+    assert(mock.state.lastAiInput.input.subjects.length === 2 && mock.state.lastAiInput.input.status === 'abitur', 'Fragebogen an die KI übergeben');
+    assert(mock.state.lastAiInput.budgets['m-mathe'] > mock.state.lastAiInput.budgets['m-bio'], 'mehr Zeit für das schwerere/spätere Fach');
+    assert((await a.getByText('Integrale: Kernbegriffe erklären').count()) > 0, 'Einheiten der KI in der Vorschau');
+    await shot(a, '11-ki-vorschau');
+    const before = mock.state.tables.study_entries.filter((e) => e.group_id === g.id).length;
+    await a.getByTestId('aiplan-apply').click();
+    await a.waitForFunction(() => location.hash.startsWith('#/lernplan'), null, { timeout: 15000 });
+    const entries = mock.state.tables.study_entries.filter((e) => e.group_id === g.id);
+    assert(entries.length > before + 5, `Lerntage übernommen: ${entries.length - before}`);
+    assert(entries.every((e) => e.study_date < day(24)), 'nichts am/nach dem Prüfungstag');
+    assert(mock.state.tables.tasks.some((x) => /Probeklausur Mathe/.test(x.title)), 'Probeklausur als Aufgabe');
+  });
+  await check('KI-Lernplan ohne Server-KI: Plan nach Lernregeln, ehrlich gekennzeichnet', async () => {
+    mock.state.aiMode = 'not_configured';
+    await a.goto(`${BASE}#/ki-lernplan`);
+    await a.getByTestId('aiplan-start').click();
+    for (let i = 0; i < 4; i++) await a.getByTestId('aiplan-next').click();
+    await a.getByTestId('aiplan-generate').click();
+    await a.getByTestId('aiplan-step-preview').waitFor({ timeout: 10000 });
+    assert((await a.getByTestId('aiplan-source').innerText()).includes('Lernregeln'), 'nicht als KI ausgegeben');
+    mock.state.aiMode = undefined;
+  });
+
   console.log('App: Einladung per Link');
   const group = mock.state.groups.find((g) => g.kind === 'team');
   const ctxB = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });

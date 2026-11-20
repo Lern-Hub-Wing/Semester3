@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, Music2, Search, Settings, Trash2, Users, UsersRound, Timer, Crown, LifeBuoy } from 'lucide-react';
+import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, Music2, Search, Settings, Sparkles, Trash2, Users, UsersRound, Timer, Crown, LifeBuoy } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
 import { useTrashCount } from '../../store/trash';
 import { AREA_TINT } from '../../lib/tints';
@@ -232,6 +232,7 @@ function AppMoreSheet() {
           <QuickAction icon={<Clock3 />} tint={AREA_TINT.studyMode} label="Lernmodus" hint="Uhr im Vollbild" onClick={() => (close(), startStudyMode())} />
         </div>
         <ListGroup title="Lernen">
+          <ListRow icon={<Sparkles />} tint={AREA_TINT.plan_billing} label="KI-Lernplan" sub="Plan bis zur Prüfung erstellen" onClick={go('/ki-lernplan')} testId="more-ai" />
           <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} testId="more-subjects" />
           {solo ? (
             <ListRow icon={<Users />} tint={AREA_TINT.team} label="Mit Freunden lernen" sub="Gruppe erstellen oder beitreten" onClick={go('/einstellungen/gruppe')} testId="more-team" />
