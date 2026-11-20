@@ -28,6 +28,7 @@ interface TourState {
 const useTour = create<TourState>(() => ({ open: false, step: 0 }));
 
 const localKey = (uid: string) => `studyspace.app.tour.${uid}`;
+let autoStarted = false;
 
 /** Einführung (erneut) starten – z. B. aus den Einstellungen. */
 export function startTour() {
@@ -237,13 +238,18 @@ export function TourHost() {
   const open = useTour((s) => s.open);
 
   useEffect(() => {
-    if (!me || me.tutorial_done || phase !== 'ready') return;
+    // nur einmal je Sitzung automatisch – sonst startet sie nach einem Seitenwechsel (z. B. Fokus) von vorn
+    if (!me || me.tutorial_done || phase !== 'ready' || autoStarted || useTour.getState().open) return;
     try {
       if (localStorage.getItem(localKey(me.user_id)) === 'done') return;
     } catch {
       /* ohne Speicher entscheidet nur der Server */
     }
-    const t = setTimeout(() => startTour(), 1400);
+    const t = setTimeout(() => {
+      if (autoStarted || useTour.getState().open) return;
+      autoStarted = true;
+      startTour();
+    }, 1400);
     return () => clearTimeout(t);
   }, [me, phase]);
 
@@ -396,7 +402,7 @@ function TourOverlay() {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200]"
+      className="pointer-events-none fixed inset-0 z-[200]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -426,20 +432,20 @@ function TourOverlay() {
       {step.tap && rect ? (
         // Nur das Ziel bleibt bedienbar: vier Flächen rundherum fangen alle anderen Klicks ab
         <>
-          <div className="absolute inset-x-0 top-0" style={{ height: Math.max(0, rect.y) }} />
-          <div className="absolute inset-x-0 bottom-0" style={{ top: rect.y + rect.h }} />
-          <div className="absolute left-0" style={{ top: rect.y, height: rect.h, width: Math.max(0, rect.x) }} />
-          <div className="absolute right-0" style={{ top: rect.y, height: rect.h, left: rect.x + rect.w }} />
+          <div className="pointer-events-auto absolute inset-x-0 top-0" style={{ height: Math.max(0, rect.y) }} />
+          <div className="pointer-events-auto absolute inset-x-0 bottom-0" style={{ top: rect.y + rect.h }} />
+          <div className="pointer-events-auto absolute left-0" style={{ top: rect.y, height: rect.h, width: Math.max(0, rect.x) }} />
+          <div className="pointer-events-auto absolute right-0" style={{ top: rect.y, height: rect.h, left: rect.x + rect.w }} />
         </>
       ) : (
-        <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
+        <div className="pointer-events-auto absolute inset-0" onClick={(e) => e.stopPropagation()} />
       )}
 
       {/* Überspringen: immer oben links */}
       <button
         type="button"
         onClick={finish}
-        className="glass absolute left-3 top-[max(env(safe-area-inset-top),12px)] z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-ink"
+        className={`glass pointer-events-auto absolute ${rect && rect.x < 170 && rect.y < 80 ? 'right-3' : 'left-3'} top-[max(env(safe-area-inset-top),12px)] z-10 inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-ink`}
         data-testid="tour-skip"
       >
         <X className="size-4" aria-hidden /> Überspringen
@@ -448,7 +454,7 @@ function TourOverlay() {
       <motion.div
         ref={cardRef}
         key={step.id}
-        className="glass mat-float absolute w-[min(360px,calc(100vw-24px))] rounded-[24px] p-5"
+        className="glass mat-float pointer-events-auto absolute w-[min(360px,calc(100vw-24px))] rounded-[24px] p-5"
         initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1, left: cx, top: cy }}
         transition={reduce ? { duration: 0 } : { opacity: { duration: 0.25 }, y: { type: 'spring', stiffness: 260, damping: 22 }, scale: { duration: 0.25 }, left: spring, top: spring }}
