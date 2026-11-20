@@ -65,8 +65,8 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
     // „inert“: unter dem Fokus-Vollbild nicht bedienbar und für Screenreader ausgeblendet
     <div className="relative min-h-dvh" inert={inert}>
       <Ambient color={me?.color} />
-      {/* Wetter hinter den Karten (vorerst nur auf der bisherigen Seite) */}
-      {!IS_APP && <WeatherLayer />}
+      {/* Wetter hinter den Karten */}
+      <WeatherLayer />
       <div aria-hidden className="top-fade" />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2">
         Zum Inhalt springen

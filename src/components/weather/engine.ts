@@ -20,6 +20,8 @@ interface Surface {
   radius: number;
   /** Bergspitze: Abstand der Kontur von `top` je Spalte (px), Infinity = keine Kontur */
   profile?: Float32Array;
+  /** Element – Schneehaube bleibt beim Scrollen an der Karte */
+  el?: Element;
 }
 interface Drop {
   x: number;
@@ -35,7 +37,16 @@ interface Flake {
   r: number;
   phase: number;
   sway: number;
+  /** 0 = weit weg (fällt hinter allem durch), 1 = Mitte, 2 = nah (größer, weicher) */
+  depth: 0 | 1 | 2;
 }
+/** Schneehaube auf einer Kartenkante: Höhe je 3-px-Spalte */
+interface Cap {
+  w: number;
+  h: Float32Array;
+}
+const CAP_STEP = 3;
+const CAP_MAX = 7;
 interface Particle {
   x: number;
   y: number;
@@ -103,6 +114,9 @@ export class WeatherEngine {
   private particles: Particle[] = [];
   private ripples: Ripple[] = [];
   private settled: Settled[] = [];
+  private caps = new WeakMap<Element, Cap>();
+  private lastHit: Surface | null = null;
+  private flakeSprites: HTMLCanvasElement[] = [];
   private clouds: Cloud[] = [];
   private stars: Star[] = [];
   private shooting: Shooting | null = null;
@@ -212,7 +226,7 @@ export class WeatherEngine {
         radius = Math.min(r.height / 2, parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0);
         this.radii.set(el, radius);
       }
-      out.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, radius });
+      out.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, radius, el });
     }
     // Bergspitze über dem Countdown: Kontur aus dem freigestellten Bild
     const pop = document.querySelector<HTMLElement>('main .peak-pop');
@@ -221,7 +235,7 @@ export class WeatherEngine {
       const r = pop.getBoundingClientRect();
       if (r.bottom > 0 && r.top < this.h) {
         const data = this.peakProfile(pop, img, Math.round(r.width), Math.round(r.height));
-        if (data) out.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, radius: 0, profile: data });
+        if (data) out.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, radius: 0, profile: data, el: pop });
       }
     }
     this.surfaces = out;
@@ -273,14 +287,24 @@ export class WeatherEngine {
   }
 
   /** Trifft die Bahn y0→y1 bei x eine Kante? → y der Kante; hinter einer Karte → -1; sonst null */
+  private capAt(s: Surface, x: number): number {
+    const c = s.el ? this.caps.get(s.el) : undefined;
+    if (!c) return 0;
+    return c.h[Math.floor((x - s.left) / CAP_STEP)] ?? 0;
+  }
+
   private hit(x: number, y0: number, y1: number): number | null {
     let best: number | null = null;
+    this.lastHit = null;
     for (const s of this.surfaces) {
       if (x < s.left || x > s.right) continue;
-      const e = this.edgeAt(s, x);
+      const e = this.edgeAt(s, x) - this.capAt(s, x);
       if (!Number.isFinite(e)) continue;
       if (y0 <= e && y1 >= e) {
-        if (best === null || best < 0 || e < best) best = e;
+        if (best === null || best < 0 || e < best) {
+          best = e;
+          this.lastHit = s;
+        }
       } else if (y0 > e && y0 < s.bottom && best === null) {
         best = -1; // fällt (z. B. nach dem Scrollen) hinter einer Karte – unsichtbar, entfernen
       }
@@ -514,39 +538,116 @@ export class WeatherEngine {
   }
 
   private flakeDot(x: number, y: number, r: number) {
-    const ctx = this.ctx;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = this.dark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.95)';
-    ctx.fill();
-    if (!this.dark) {
-      ctx.strokeStyle = 'rgba(120, 118, 170, 0.35)';
-      ctx.lineWidth = 0.6;
-      ctx.stroke();
-    }
+    // weiche Flocke (vorgerendert): helles Zentrum, im hellen Design mit zartem Rand
+    const sprite = this.flakeSprites[this.dark ? 1 : 0] ?? (this.flakeSprites = [makeFlake(false), makeFlake(true)])[this.dark ? 1 : 0];
+    this.ctx.drawImage(sprite, x - r * 2, y - r * 2, r * 4, r * 4);
   }
 
   private drawSnow(dt: number, strength: number) {
-    this.spawnAcc += this.w * 0.05 * strength * dt;
+    this.spawnAcc += (this.w - this.x0) * 0.07 * strength * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
-      this.flakes.push({ x: rand(this.x0 - 20, this.w + 20), y: -8, vy: rand(38, 85), r: rand(1.4, 3.4), phase: rand(0, 6.28), sway: rand(10, 28) });
+      const z = Math.random();
+      const depth: 0 | 1 | 2 = z < 0.35 ? 0 : z < 0.85 ? 1 : 2;
+      const r = depth === 0 ? rand(0.8, 1.5) : depth === 1 ? rand(1.6, 2.8) : rand(3, 4.6);
+      const vy = depth === 0 ? rand(22, 38) : depth === 1 ? rand(42, 70) : rand(70, 100);
+      this.flakes.push({ x: rand(this.x0 - 20, this.w + 20), y: -10, vy, r, phase: rand(0, 6.28), sway: rand(8, 26) * (0.6 + depth * 0.3), depth });
     }
+    const ctx = this.ctx;
     const keep: Flake[] = [];
     for (const f of this.flakes) {
       const y0 = f.y;
       f.y += f.vy * dt;
-      f.x += Math.cos(this.time * 1.2 + f.phase) * f.sway * dt;
-      const hit = this.hit(f.x, y0, f.y);
-      if (hit !== null) {
-        if (hit >= 0) this.settled.push({ x: f.x, y: hit - f.r * 0.6, r: f.r, life: rand(2.2, 4) });
-        continue;
+      f.x += Math.cos(this.time * (0.8 + f.depth * 0.3) + f.phase) * f.sway * dt;
+      // weit entfernte Flocken fallen hinter den Karten vorbei
+      if (f.depth > 0) {
+        const hit = this.hit(f.x, y0, f.y);
+        if (hit !== null) {
+          if (hit >= 0 && this.lastHit) this.addSnow(this.lastHit, f.x, f.r);
+          continue;
+        }
       }
       if (f.y - f.r > this.h) continue;
+      ctx.globalAlpha = f.depth === 0 ? 0.55 : f.depth === 2 ? 0.85 : 1;
       this.flakeDot(f.x, f.y, f.r);
       keep.push(f);
     }
+    ctx.globalAlpha = 1;
     this.flakes = keep;
+    this.drawCaps(dt);
+  }
+
+  /** Landende Flocke erhöht die Schneehaube der Karte an dieser Stelle (weich verteilt) */
+  private addSnow(s: Surface, x: number, r: number) {
+    if (!s.el) return;
+    const w = Math.ceil((s.right - s.left) / CAP_STEP) + 1;
+    let c = this.caps.get(s.el);
+    if (!c || c.w !== w) {
+      c = { w, h: new Float32Array(w) };
+      this.caps.set(s.el, c);
+    }
+    const i0 = Math.floor((x - s.left) / CAP_STEP);
+    const amount = r * 0.45;
+    for (let d = -3; d <= 3; d++) {
+      const i = i0 + d;
+      if (i < 0 || i >= w) continue;
+      c.h[i] = Math.min(CAP_MAX, c.h[i] + amount * Math.exp(-(d * d) / 4));
+    }
+  }
+
+  /** Schneehauben zeichnen – sie kleben an den Karten (auch beim Scrollen) und tauen langsam */
+  private drawCaps(dt: number) {
+    const ctx = this.ctx;
+    ctx.fillStyle = this.dark ? 'rgba(236, 238, 255, 0.92)' : 'rgba(255, 255, 255, 0.98)';
+    ctx.strokeStyle = this.dark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(126, 122, 178, 0.32)';
+    ctx.lineWidth = 0.8;
+    for (const s of this.surfaces) {
+      if (!s.el) continue;
+      const w = Math.ceil((s.right - s.left) / CAP_STEP) + 1;
+      let c = this.caps.get(s.el);
+      if (!c || c.w !== w) {
+        // Karte kommt neu ins Bild: liegt schon eine dünne, unregelmäßige Schneeschicht
+        const phase = Math.random() * 10;
+        const h = new Float32Array(w);
+        for (let i = 0; i < w; i++) h[i] = 2.2 + Math.sin(i * 0.21 + phase) * 0.7 + Math.sin(i * 0.53 + phase * 2) * 0.45;
+        c = { w, h };
+        this.caps.set(s.el, c);
+      }
+      // langsam tauen, Spitzen glätten
+      for (let i = 0; i < c.w; i++) {
+        c.h[i] = Math.max(0, c.h[i] - dt * 0.03);
+        if (i > 0 && i < c.w - 1) c.h[i] = c.h[i] * 0.9 + (c.h[i - 1] + c.h[i + 1]) * 0.05;
+      }
+      let open = false;
+      let seg: { x: number; e: number }[] = [];
+      const flush = () => {
+        if (seg.length > 1) {
+          ctx.beginPath();
+          seg.forEach((p, k) => {
+            const hh = c.h[Math.floor((p.x - s.left) / CAP_STEP)] ?? 0;
+            if (k === 0) ctx.moveTo(p.x, p.e - hh);
+            else ctx.lineTo(p.x, p.e - hh);
+          });
+          for (let k = seg.length - 1; k >= 0; k--) ctx.lineTo(seg[k].x, seg[k].e + 0.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        seg = [];
+      };
+      for (let x = s.left; x <= s.right; x += CAP_STEP) {
+        const e = this.edgeAt(s, x);
+        const hh = c.h[Math.floor((x - s.left) / CAP_STEP)] ?? 0;
+        if (!Number.isFinite(e) || hh < 0.15) {
+          if (open) flush();
+          open = false;
+          continue;
+        }
+        open = true;
+        seg.push({ x, e });
+      }
+      if (open) flush();
+    }
   }
 
   private drawLightning(dt: number) {
@@ -662,4 +763,19 @@ function makeBolt(x: number, toY: number): { x: number; y: number }[][] {
     paths.push(br);
   }
   return paths;
+}
+
+/** Weiche Schneeflocke als kleines Bild (wird skaliert gezeichnet) */
+function makeFlake(dark: boolean): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.95)');
+  grad.addColorStop(0.55, dark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(150, 146, 200, 0.45)');
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  return c;
 }

@@ -48,15 +48,12 @@ const SECTIONS = {
   plus: { title: 'Tarif & Abo', render: () => <PlusSection /> },
   darstellung: {
     title: 'Darstellung & Bedienung',
-    render: () =>
-      IS_APP ? (
+    render: () => (
+      <div className="flex flex-col gap-[var(--gap-grid)]">
         <Appearance />
-      ) : (
-        <div className="flex flex-col gap-[var(--gap-grid)]">
-          <Appearance />
-          <WeatherSettings />
-        </div>
-      ),
+        <WeatherSettings />
+      </div>
+    ),
   },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
