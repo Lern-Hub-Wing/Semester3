@@ -135,12 +135,30 @@ try {
     await a.getByTestId('tour-step-subjects').waitFor();
     await a.waitForTimeout(700);
     await shot(a, '06-einfuehrung-faecher');
-    // bis zum Ende durchklicken
-    for (let i = 0; i < 12 && (await a.getByTestId('tour-next').count()); i++) {
-      await a.getByTestId('tour-next').click();
-      await a.waitForTimeout(250);
+    // bis zum Ende: Info-Schritte mit „Weiter“, Mitmach-Schritte durch Tippen auf das echte Element im Lichtkegel
+    const tapped = [];
+    for (let i = 0; i < 30 && !(await a.getByTestId('tour-step-done').count()); i++) {
+      if (await a.getByTestId('tour-tap-hint').count()) {
+        const id = (await a.locator('[data-testid^="tour-step-"]').getAttribute('data-testid')).replace('tour-step-', '');
+        await a.waitForTimeout(700); // Lichtkegel steht
+        // daneben tippen bewirkt nichts (nur das Ziel ist bedienbar)
+        if (id === 'homework-tab') {
+          await a.mouse.click(640, 430);
+          await a.waitForTimeout(300);
+          assert((await a.getByTestId('tour-step-homework-tab').count()) === 1, 'Klick neben das Ziel hat weitergeschaltet');
+        }
+        const b = await a.getByTestId('tour-spot').boundingBox();
+        await a.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+        await a.locator(`[data-testid="tour-step-${id}"]`).waitFor({ state: 'detached', timeout: 5000 });
+        tapped.push(id);
+      } else {
+        await a.getByTestId('tour-next').click();
+        await a.waitForTimeout(300);
+      }
     }
+    assert(['homework-tab', 'homework-new', 'back-home', 'focus', 'focus-settings', 'focus-close-panel', 'focus-leave'].every((x) => tapped.includes(x)), `Mitmach-Schritte: ${tapped.join(', ')}`);
     await a.getByTestId('tour-step-done').waitFor();
+    assert(await a.evaluate(() => location.hash === '#/' || location.hash === ''), 'Einführung endet auf dem Start');
     await shot(a, '07-einfuehrung-ende');
     await a.getByTestId('tour-done').click();
     await a.getByTestId('tour').waitFor({ state: 'detached' });

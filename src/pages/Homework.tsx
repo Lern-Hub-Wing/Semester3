@@ -57,7 +57,7 @@ export function Homework({ me }: { me: Member }) {
           available ? (
             <>
               <Segmented size="sm" label="Filter" value={filter} onChange={setFilter} options={[{ value: 'offen', label: `Offen${open.length ? ` · ${open.length}` : ''}` }, { value: 'erledigt', label: 'Erledigt' }, { value: 'alle', label: 'Alle' }]} />
-              <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openHomeworkEditor()}>
+              <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openHomeworkEditor()} data-tour="hw-new">
                 Neue Hausaufgabe
               </Button>
             </>

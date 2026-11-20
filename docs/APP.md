@@ -139,9 +139,27 @@ Einmalige Einrichtung (alles im **App**-Projekt, nichts im bisherigen):
 6. Testen: App → Einstellungen → **Benachrichtigungen** → einschalten → „Testbenachrichtigung senden“. Steht dort
    „Automatischer Versand aktiv“, läuft auch Schritt 5.
 
+### 13. KI-Lernplan (Claude)
+Fragebogen (Wofür lernst du, Prüfungen, Themen mit Schwierigkeit, Lerntage und -zeiten, Lernmethoden) → die Edge Function
+**app-ai-plan** lässt **Claude Opus 5.5** die Themen in Lerneinheiten zerlegen (strukturierte JSON-Ausgabe) → die App verteilt sie
+nach festen Regeln auf die Lerntage bis zur Prüfung (nie am Prüfungstag, Wiederholungen und Probeklausur am Ende, höchstens zwei
+Fächer pro Tag) → Vorschau → „In den Lernplan übernehmen“. An Claude gehen nur Fachnamen, Themen, Termine und Lernzeiten.
+
+Einrichtung (App-Projekt):
+1. Bei console.anthropic.com einen API-Schlüssel erzeugen (Abrechnung dort aktivieren).
+2. Supabase → Edge Functions → Secrets: `ANTHROPIC_API_KEY` = der Schlüssel. Nie in GitHub, Chat oder Code.
+3. `supabase-app/app_schema.sql` erneut ausführen (Migration 0006: Verbrauchsprotokoll, Tageslimit).
+4. Funktion **app-ai-plan** bereitstellen (Workflow wie in Abschnitt 12, oder im Dashboard den Inhalt von
+   `supabase-app/functions/app-ai-plan/index.ts` einfügen, Verify JWT aus).
+
+Kosten und Grenzen: Opus 5.5 kostet 4 $ je 1 Mio. Eingabe- und 20 $ je 1 Mio. Ausgabe-Token – ein Plan liegt grob bei 0,05–0,20 $.
+Pro Konto höchstens 5 KI-Pläne am Tag (`update public.app_config set value = '3' where key = 'ai_plans_per_day';` ändert das,
+`0` schaltet die KI ab). Nur mit Zugang (Testphase, Solo, Gruppe). Ohne Schlüssel oder bei Störungen erstellt die App den Plan
+nach festen Lernregeln und kennzeichnet ihn ehrlich als „Nach Lernregeln erstellt“. Verbrauch: Tabelle `ai_usage`.
+
 ### Navigation der App (Handy)
 Tab-Leiste: Home · Kalender · Aufgaben · **Team** (alleine lernen: **Statistik**) · Mehr. Fokus startet groß im Dashboard und steht oben unter „Mehr“.
-„Mehr“ enthält nur noch: Fokus, Lernmodus · Fächer & Prüfungen, Statistiken, Musik · Lerngruppe, Tarif & Abo, Einstellungen · Hilfe & Feedback, Papierkorb.
+„Mehr“ enthält nur noch: Fokus, Lernmodus · KI-Lernplan, Fächer & Prüfungen, Statistiken, Musik · Lerngruppe, Tarif & Abo, Einstellungen · Hilfe & Feedback, Papierkorb.
 Mitglieder sind echte Konten: Name und Farbe ändert jede Person nur für sich; der Inhaber lädt ein und kann Mitglieder entfernen.
 Mitteilungen werden nicht beworben: Wer sie möchte, schaltet sie unter **Einstellungen → Benachrichtigungen** ein (Abschnitt 12).
 
