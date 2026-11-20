@@ -2116,3 +2116,21 @@ select.field:hover {
 [data-theme='dark'] .ss-seg-accent > .lg-segmented {
   --lg-segment-thumb: var(--ss-accent);
 }
+
+/* App: Einstellungen im Stil der übrigen App (Karten wie im Dashboard) */
+.settings-card--app {
+  padding: 6px 18px;
+}
+.settings-card--app > .settings-row {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+.settings-card--app > .settings-row:first-child {
+  padding-top: 15px;
+}
+.settings-card--app > .settings-row:last-child {
+  padding-bottom: 15px;
+}
+.settings-card--app > :not(.settings-row) {
+  margin: 14px 0;
+}
