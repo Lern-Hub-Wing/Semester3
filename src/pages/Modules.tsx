@@ -28,6 +28,9 @@ import { Menu } from '../components/ui/Menu';
 import { Reveal } from '../components/ui/Reveal';
 import { EntryCard } from '../components/EntryCard';
 import { AttachmentList, FileDrop } from '../components/Attachments';
+import { ParticipantsPicker, sameParticipants } from '../components/exams/ParticipantsPicker';
+import { participantsEnabled } from '../store/visibility';
+import { resync } from '../store/sync';
 import { MemberProgress } from '../components/MemberProgress';
 import { ExamCard, ExamEditor } from '../components/exams/ExamParts';
 
@@ -157,6 +160,7 @@ export function ModuleEditor({ value, onClose }: { value: Module | 'new' | null;
   const [name, setName] = useState('');
   const [color, setColor] = useState('#B4D3F2');
   const [description, setDescription] = useState('');
+  const [participants, setParticipants] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastKey, setLastKey] = useState<string | null>(null);
@@ -168,16 +172,22 @@ export function ModuleEditor({ value, onClose }: { value: Module | 'new' | null;
     setName(mod?.name ?? '');
     setColor(mod?.color ?? suggestColor(modules.map((m) => m.color)));
     setDescription(mod?.description ?? '');
+    setParticipants(mod?.participants ?? []);
   }
 
   const save = async () => {
     if (!name.trim()) return setError('Bitte einen Namen eingeben.');
     setBusy(true);
+    const visibilityChanged = participantsEnabled && !sameParticipants(participants, mod?.participants);
+    const extra = visibilityChanged ? { participants: participants.length ? participants : null } : {};
     const ok = isNew
-      ? !!(await createModule({ name, color, description }))
-      : await updateModule(mod!.id, { name: name.trim(), color, description: description.trim() || null }, mod!.version);
+      ? !!(await createModule({ name, color, description, participants: participantsEnabled ? participants : null }))
+      : await updateModule(mod!.id, { name: name.trim(), color, description: description.trim() || null, ...extra }, mod!.version);
     setBusy(false);
-    if (ok) onClose();
+    if (ok) {
+      onClose();
+      if (visibilityChanged) void resync();
+    }
   };
 
   return (
@@ -206,6 +216,7 @@ export function ModuleEditor({ value, onClose }: { value: Module | 'new' | null;
           </p>
           <ColorPicker value={color} onChange={setColor} label="Fachfarbe" />
         </div>
+        {participantsEnabled && <ParticipantsPicker value={participants} onChange={setParticipants} />}
       </div>
     </Modal>
   );

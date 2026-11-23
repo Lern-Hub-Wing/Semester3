@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
     const minCursor = devices.reduce((m, d) => (d.plan_cursor === null ? m : Math.min(m, Number(d.plan_cursor))), Number.MAX_SAFE_INTEGER);
     const [members, modules, exams, entries, tasks, completions, stateRows, activity, logs] = await Promise.all([
       all<any>('members', 'id, name, is_active'),
-      all<any>('modules', 'id, name, archived_at'),
+      // „*“ statt fester Spalten: klappt mit und ohne Migration 009 (participants)
+      all<any>('modules', '*'),
       all<any>('exams', 'id, module_id, starts_at, ends_at, deleted_at', (q) => q.is('deleted_at', null).gte('starts_at', new Date(Date.now() - 86_400_000).toISOString())),
       all<any>('study_entries', 'id, module_id, study_date, deleted_at', (q) => q.is('deleted_at', null)),
       all<any>('tasks', 'id, study_entry_id, deleted_at', (q) => q.is('deleted_at', null)),

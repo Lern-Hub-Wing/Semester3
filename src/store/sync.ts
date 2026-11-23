@@ -7,6 +7,8 @@ import { applyServerDelete, applyServerRows, confirmedRow, isPending, replaceTab
 import { applyHomeworkChange, loadHomework } from './homework';
 import { applyMusicChange, loadMusic } from './music';
 import { applyFocusChange } from './focus';
+import { cacheable, filterRows, filterSnapshot, moduleVisibilityChanged, participantsEnabled } from './visibility';
+import { useSession } from './session';
 
 import { IS_APP } from '../lib/edition';
 
@@ -53,11 +55,13 @@ export function resync(): Promise<void> {
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
     try {
-      // Hausaufgaben unabhängig laden – ihr Fehlen (Migration 005) stört den Rest nicht
-      void loadHomework();
       void loadMusic();
-      const results = await Promise.all(SYNC_TABLES.map((t) => fetchTable(t)));
+      const raw = await Promise.all(SYNC_TABLES.map((t) => fetchTable(t)));
+      // Fächer, die nur bestimmte Personen schreiben, für alle anderen ausblenden
+      const results = filterSnapshot(SYNC_TABLES, raw);
       SYNC_TABLES.forEach((t, i) => replaceTable(t, results[i] as RowByTable[typeof t][]));
+      // Hausaufgaben danach laden (brauchen die Sichtbarkeit der Fächer) – ihr Fehlen (Migration 005) stört den Rest nicht
+      void loadHomework();
       useData.setState({ phase: 'ready', fromCache: false, error: null, lastSyncAt: Date.now() });
       saveCacheSoon();
     } catch (err) {
@@ -93,7 +97,8 @@ function saveCache() {
     for (const [key, row] of Object.entries(src)) {
       // Nur bestätigte Werte cachen – nie unbestätigte optimistische Änderungen.
       const value = isPending(t, key) ? confirmedRow(t, key) : row;
-      if (value) dst[key] = value;
+      // Eingeschränkte Fächer nie zwischenspeichern (sonst sähe sie beim nächsten Start kurz jemand anderes)
+      if (value && cacheable(t, value as unknown as Record<string, unknown>)) dst[key] = value;
     }
     (tables as Record<TableName, unknown>)[t] = dst;
   }
@@ -155,7 +160,14 @@ function handleChange(payload: RealtimePostgresChangesPayload<Record<string, unk
       /* unvollständige Daten → beim nächsten Resync bereinigt */
     }
   } else {
-    applyServerRows(table, [payload.new as unknown as RowByTable[typeof table]]);
+    const row = payload.new as unknown as RowByTable[typeof table];
+    // Wer schreibt die Prüfung? Geändert → komplett neu laden (Fach mit allem Zubehör ein-/ausblenden)
+    if (table === 'modules' && moduleVisibilityChanged(row as unknown as Record<string, unknown>)) {
+      void resync();
+      return;
+    }
+    const visible = filterRows(table, [row as unknown as Record<string, unknown>]);
+    if (visible.length) applyServerRows(table, [row]);
   }
   saveCacheSoon();
 }
@@ -180,6 +192,11 @@ function subscribe() {
 
 /** Startet Laden, Realtime und automatische Wiederverbindung (einmalig). */
 export function startSync() {
+  // Anderes Profil gewählt → Daten neu laden (jede Person sieht nur ihre Fächer)
+  if (participantsEnabled)
+    useSession.subscribe((st, prev) => {
+      if (st.activeMemberId !== prev.activeMemberId) void resync();
+    });
   if (started) return;
   started = true;
   loadCache();

@@ -32,6 +32,8 @@ export interface Module extends Versioned {
   sort_order: number;
   archived_at: Timestamp | null;
   created_at: Timestamp;
+  /** Nur bisherige Seite: wer schreibt die Prüfung? null/leer = alle sehen das Fach (Migration 009) */
+  participants?: UUID[] | null;
 }
 
 export interface Topic extends Versioned {

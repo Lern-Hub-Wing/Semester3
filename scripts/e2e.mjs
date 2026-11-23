@@ -1245,6 +1245,59 @@ try {
     check(errs.length === 0, `keine JavaScript-Fehler (Push Desktop)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
   }
+
+  // --- Wer schreibt die Prüfung? Nur die gewählte Person sieht das Fach ----
+  {
+    const ctrl = db.modules[4];
+    const examsBefore = db.exams.length;
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 } });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.goto(`${BASE}#/faecher/${ctrl.id}`);
+    const examBox = p.getByTestId('module-exams');
+    await examBox.waitFor();
+    await examBox.getByRole('button', { name: 'Termin' }).click();
+    const dlg = p.getByRole('dialog', { name: 'Neue Prüfung' });
+    await dlg.waitFor();
+    const picker = dlg.getByTestId('participants-picker');
+    check((await picker.getByRole('button', { name: 'Alle' }).getAttribute('aria-pressed')) === 'true', 'Wer schreibt: Standard ist „Alle“');
+    await picker.getByRole('button', { name: 'Person 1', exact: true }).click();
+    check((await picker.getByRole('button', { name: 'Alle' }).getAttribute('aria-pressed')) === 'false' && (await picker.innerText()).includes('Anzeige-Regel'), 'Wer schreibt: Auswahl mit Hinweis (keine Anmeldung)');
+    await dlg.getByLabel('Datum').fill('2027-01-15');
+    await dlg.getByLabel('Beginn').fill('08:30');
+    await dlg.getByLabel('Ende').fill('11:00');
+    await dlg.getByRole('button', { name: 'Speichern' }).click();
+    await dlg.waitFor({ state: 'hidden' });
+    await p.waitForTimeout(600);
+    const saved = db.modules.find((m) => m.id === ctrl.id);
+    check(JSON.stringify(saved.participants) === JSON.stringify([db.members[0].id]) && db.exams.length === examsBefore + 1, `Wer schreibt: am Fach gespeichert (${JSON.stringify(saved.participants)})`);
+    check((await p.getByTestId('module-exams').count()) === 1, 'Wer schreibt: Person 1 sieht das Fach weiterhin');
+    // Person 2 sieht das Fach nicht – weder Karte noch Prüfung noch Lerntage
+    const other = await newPage(browser, { viewport: { width: 1280, height: 900 } });
+    await other.page.goto(BASE);
+    await other.page.getByRole('button', { name: 'Als Person 2 lernen' }).click();
+    await other.page.getByTestId('dashboard-hero').waitFor();
+    await other.page.goto(`${BASE}#/faecher`);
+    await other.page.getByTestId('subject-card').first().waitFor();
+    await other.page.waitForTimeout(400);
+    check((await other.page.getByTestId('subject-card').filter({ hasText: ctrl.name }).count()) === 0, 'Wer schreibt: Person 2 sieht das Fach nicht');
+    const leaked = await other.page.evaluate(() => Object.keys(localStorage).map((k) => localStorage.getItem(k) ?? '').join(' '));
+    check(!leaked.includes(ctrl.id), 'Wer schreibt: eingeschränktes Fach landet nicht im Gerätespeicher');
+    // Zurück auf „Alle“: wieder für alle sichtbar
+    const dlg2 = p.getByTestId('module-exams');
+    await dlg2.getByRole('button', { name: 'Termin' }).click();
+    await dlg.waitFor();
+    await dlg.getByTestId('participants-picker').getByRole('button', { name: 'Alle' }).click();
+    await dlg.getByRole('button', { name: 'Abbrechen' }).click();
+    check(JSON.stringify(db.modules.find((m) => m.id === ctrl.id).participants) === JSON.stringify([db.members[0].id]), 'Wer schreibt: Abbrechen ändert nichts');
+    check(errs.length === 0 && other.errors.length === 0, `keine JavaScript-Fehler (Wer schreibt)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await other.ctx.close();
+    await c.close();
+    // Ausgangszustand für weitere Läufe wiederherstellen
+    saved.participants = null;
+    db.exams.splice(examsBefore);
+  }
 } catch (err) {
   failures++;
   console.error('✗ Abbruch:', err);

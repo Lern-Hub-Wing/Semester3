@@ -7,6 +7,7 @@ import { hwKey, type Homework, type HomeworkCompletion, type HomeworkPart, type 
 import type { ISODate, UUID } from '../lib/types';
 import { getActiveMemberId } from './session';
 import { toast } from './toast';
+import { filterRows } from './visibility';
 
 /**
  * Hausaufgaben (Migration 005) – eigener Store, getrennt vom Kern-Sync.
@@ -60,11 +61,13 @@ export function loadHomework(): Promise<void> {
         fetchAll<HomeworkPart>('homework_parts', 'id'),
         fetchAll<HomeworkCompletion>('homework_completions', 'target_id'),
       ]);
+      // Hausaufgaben von Fächern, die die aktive Person nicht schreibt, ausblenden
+      const hwVisible = filterRows('homework', hw as unknown as Record<string, unknown>[]) as unknown as Homework[];
       useHomework.setState({
         available: true,
-        homework: Object.fromEntries(hw.map((r) => [r.id, r])),
-        parts: Object.fromEntries(parts.map((r) => [r.id, r])),
-        completions: Object.fromEntries(comps.map((r) => [hwKey(r.target_id, r.member_id), r])),
+        homework: Object.fromEntries(hwVisible.map((r) => [r.id, r])),
+        parts: Object.fromEntries((filterRows('homework_parts', parts as unknown as Record<string, unknown>[]) as unknown as HomeworkPart[]).map((r) => [r.id, r])),
+        completions: Object.fromEntries((filterRows('homework_completions', comps as unknown as Record<string, unknown>[]) as unknown as HomeworkCompletion[]).map((r) => [hwKey(r.target_id, r.member_id), r])),
       });
     } catch (err) {
       if (isMissingTable(err)) useHomework.setState({ available: false });
@@ -79,6 +82,8 @@ export function loadHomework(): Promise<void> {
 /** Realtime-Ereignis aus dem gemeinsamen Kanal übernehmen (neuere Version gewinnt). */
 export function applyHomeworkChange(table: string, type: 'INSERT' | 'UPDATE' | 'DELETE', row: Record<string, unknown>) {
   if (!(HOMEWORK_TABLES as readonly string[]).includes(table) || type === 'DELETE') return;
+  // Hausaufgaben eines Fachs, das die aktive Person nicht schreibt, nicht übernehmen
+  if (!filterRows(table, [row]).length) return;
   useHomework.setState((s) => {
     if (table === 'homework') {
       const r = row as unknown as Homework;
