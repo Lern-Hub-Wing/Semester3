@@ -118,10 +118,12 @@ export async function setMemberActive(id: UUID, active: boolean) {
 // Module & Themen
 // ---------------------------------------------------------------------
 
-export async function createModule(input: { name: string; color: string; description?: string | null }): Promise<UUID | null> {
+export async function createModule(input: { name: string; color: string; description?: string | null; participants?: UUID[] | null }): Promise<UUID | null> {
   const id = uuid();
   const sort_order = nextSort(Object.values(useData.getState().modules));
-  const payload = { id, name: input.name.trim(), color: input.color, description: input.description?.trim() || null, sort_order, archived_at: null };
+  // Teilnehmende nur mitschicken, wenn gesetzt – so klappt das Anlegen auch ohne Migration 009
+  const participants = input.participants?.length ? { participants: input.participants } : {};
+  const payload = { id, name: input.name.trim(), color: input.color, description: input.description?.trim() || null, sort_order, archived_at: null, ...participants };
   const res = await createRow('modules', payload, { ...base(id), ...payload } as Module);
   return report(res, 'Modul erstellt') ? id : null;
 }

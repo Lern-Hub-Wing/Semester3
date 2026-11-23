@@ -20,7 +20,8 @@ export type Kind = 'morning' | 'evening' | 'overdue' | 'exam' | 'plan' | 'group'
 export interface Snapshot {
   now: Date;
   members: { id: string; name: string; is_active: boolean }[];
-  modules: { id: string; name: string; archived_at: string | null }[];
+  /** participants (Migration 009): nur diese Personen schreiben die Prüfung und sehen das Fach; null/leer = alle */
+  modules: { id: string; name: string; archived_at: string | null; participants?: string[] | null }[];
   exams: { id: string; module_id: string; starts_at: string; ends_at: string; deleted_at: string | null }[];
   entries: { id: string; module_id: string; study_date: string; deleted_at: string | null }[];
   tasks: { id: string; study_entry_id: string; deleted_at: string | null }[];
@@ -171,6 +172,14 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
   const memberName = new Map(snap.members.map((m) => [m.id, m.name]));
   const homeworkById = new Map((snap.homework ?? []).map((h) => [h.id, h]));
 
+  // „Wer schreibt diese Prüfung?“: eingeschränkte Fächer nur an diese Personen melden.
+  // Geräte ohne gewähltes Profil bekommen nur Hinweise zu offenen Fächern.
+  const canSee = (moduleId: string | null | undefined, memberId: string | null) => {
+    const p = moduleId ? modules.get(moduleId)?.participants : null;
+    if (!Array.isArray(p) || p.length === 0) return true;
+    return !!memberId && p.includes(memberId);
+  };
+
   // Aktive Aufgaben = nicht gelöscht, Lerntag nicht gelöscht, Modul nicht archiviert (wie in der App)
   const tasks: TaskInfo[] = [];
   for (const t of snap.tasks) {
@@ -210,12 +219,13 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
   const forMember = (memberId: string) => {
     let c = memberCache.get(memberId);
     if (!c) {
-      const todayAll = tasks.filter((t) => t.date === today);
-      const openHw = activeHomework.filter((h) => !hwDone(h, memberId)).sort(byDue);
+      const visibleTasks = tasks.filter((t) => canSee(t.moduleId, memberId));
+      const todayAll = visibleTasks.filter((t) => t.date === today);
+      const openHw = activeHomework.filter((h) => canSee(h.module_id, memberId) && !hwDone(h, memberId)).sort(byDue);
       c = {
         todayAll,
         todayOpen: todayAll.filter((t) => !isDone(t.id, memberId)),
-        overdue: tasks.filter((t) => t.date < today && !isDone(t.id, memberId)),
+        overdue: visibleTasks.filter((t) => t.date < today && !isDone(t.id, memberId)),
         hwToday: openHw.filter((h) => h.due_date === today),
         hwTomorrow: openHw.filter((h) => h.due_date === tomorrow),
         hwOverdue: openHw.filter((h) => h.due_date < today && h.due_date >= overdueFrom),
@@ -247,16 +257,28 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
     if (m.archived_at) continue;
     const mt = tasks.filter((t) => t.moduleId === m.id);
     if (mt.length === 0) continue;
-    const groupComplete = activeMembers.length > 0 && activeMembers.every((mem) => mt.every((t) => isDone(t.id, mem.id)));
+    const writers = activeMembers.filter((mem) => canSee(m.id, mem.id));
+    const groupComplete = writers.length > 0 && writers.every((mem) => mt.every((t) => isDone(t.id, mem.id)));
     const g = transitions(`group_complete:${m.id}`, groupComplete);
     if (g.complete && g.transition && nowMs - Date.parse(g.since) < SUCCESS_WINDOW_MS) groupWins.push({ moduleId: m.id, since: g.since });
-    for (const mem of activeMembers) {
+    for (const mem of writers) {
       const p = transitions(`member_complete:${mem.id}:${m.id}`, mt.every((t) => isDone(t.id, mem.id)));
       if (p.complete && p.transition && nowMs - Date.parse(p.since) < SUCCESS_WINDOW_MS) personalWins.push({ memberId: mem.id, moduleId: m.id, since: p.since });
     }
   }
 
   const maxActivityId = snap.activity.reduce((a, r) => Math.max(a, r.id), 0);
+
+  // Zu welchem Fach gehört eine Änderung im Verlauf? (für die Sichtbarkeit)
+  const rawTaskEntry = new Map(snap.tasks.map((t) => [t.id, t.study_entry_id]));
+  const examModule = new Map(snap.exams.map((e) => [e.id, e.module_id]));
+  const changeModule = (r: Snapshot['activity'][number]): string | null => {
+    if (r.entity_type === 'exams') return examModule.get(r.entity_id) ?? null;
+    if (r.entity_type === 'study_entries') return entries.get(r.entity_id)?.module_id ?? null;
+    if (r.entity_type === 'tasks') return entries.get(rawTaskEntry.get(r.entity_id) ?? '')?.module_id ?? null;
+    if (r.entity_type === 'homework') return homeworkById.get(r.entity_id)?.module_id ?? null;
+    return null;
+  };
 
   for (const dev of devices) {
     const prefs = dev.prefs;
@@ -383,7 +405,7 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
       for (const ex of snap.exams) {
         if (ex.deleted_at) continue;
         const mod = modules.get(ex.module_id);
-        if (!mod || mod.archived_at) continue;
+        if (!mod || mod.archived_at || !canSee(mod.id, memberId)) continue;
         const startMs = Date.parse(ex.starts_at);
         if (startMs <= nowMs) continue; // begonnen oder vorbei: keine Vorbereitungserinnerung mehr
         const start = new Date(startMs);
@@ -448,6 +470,7 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
     // ---------------- F: Gemeinsame Erfolge
     if (prefs.groupSuccess && !quietNow) {
       for (const w of groupWins) {
+        if (!canSee(w.moduleId, memberId)) continue;
         push(
           {
             kind: 'group',
@@ -499,6 +522,7 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
         if (nowMs - Date.parse(r.occurred_at) > HOMEWORK_WINDOW_MS) continue;
         const hw = homeworkById.get(r.entity_id);
         if (!hw || hw.deleted_at || hw.due_date < today) continue; // inzwischen gelöscht oder schon vorbei
+        if (!canSee(hw.module_id, member)) continue; // Fach, das diese Person nicht schreibt
         if (d.sent.has(`homework:${hw.id}`) || items.some((i) => i.id === hw.id)) continue;
         items.push({ id: hw.id, title: hw.title, moduleName: modules.get(hw.module_id)?.name ?? null, dueDate: hw.due_date, actorName: r.actor_member_id ? (memberName.get(r.actor_member_id) ?? null) : null });
         ids.push(r.id);
@@ -534,7 +558,7 @@ export function planNotifications(snap: Snapshot, devices: DeviceInfo[]): PlanRe
       }
       const rows = snap.activity.filter((r) => r.id > d.plan_cursor!);
       if (rows.length === 0) return;
-      const relevant = rows.filter((r) => isRelevantChange(r) && (!member || r.actor_member_id !== member));
+      const relevant = rows.filter((r) => isRelevantChange(r) && (!member || r.actor_member_id !== member) && canSee(changeModule(r), member));
       // Ausstehende Hausaufgaben-Mitteilung (Ruhezeit): Cursor davor anhalten
       const latestId = holdAt === null ? rows[rows.length - 1].id : Math.min(rows[rows.length - 1].id, holdAt - 1);
       if (latestId <= d.plan_cursor) return;

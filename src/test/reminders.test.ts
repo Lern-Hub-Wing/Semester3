@@ -404,3 +404,55 @@ describe('Allgemein', () => {
     ]);
   });
 });
+
+describe('Wer schreibt die Prüfung? (participants)', () => {
+  // Controlling schreibt nur Luk (A); Diana (B) bekommt dazu nichts
+  const onlyA = (at: Date, extra: Partial<Snapshot> = {}) =>
+    snapshot(at, {
+      modules: [
+        { id: CTRL, name: 'Controlling', archived_at: null, participants: [A] },
+        { id: MATH, name: 'Angewandte Mathematik', archived_at: null },
+      ],
+      ...extra,
+    });
+  const quiet = { morning: false, evening: false, overdue: false };
+  const exam = (start: Date) => ({ id: 'ex-1', module_id: CTRL, starts_at: start.toISOString(), ends_at: new Date(start.getTime() + 90 * 60000).toISOString(), deleted_at: null });
+
+  it('Prüfungserinnerungen nur an die Person, die schreibt', () => {
+    const start = at('2027-01-18', '14:00');
+    const r = planNotifications(onlyA(at('2027-01-17', '17:00'), { exams: [exam(start)] }), [
+      device({}, quiet),
+      device({ id: 'dev-b', member_id: B }, quiet),
+      device({ id: 'dev-x', member_id: null }, quiet),
+    ]);
+    expect(r.notifications.map((n) => [n.deviceId, n.kind])).toEqual([['dev-a', 'exam']]);
+  });
+
+  it('Lernaufgaben eines eingeschränkten Fachs zählen nur für die Schreibenden', () => {
+    const r = planNotifications(onlyA(at(DAY, '18:00')), [device({ sent: new Set([`overdue:${DAY}`]) }), device({ id: 'dev-b', member_id: B, sent: new Set([`overdue:${DAY}`]) })]);
+    expect(r.notifications.map((n) => [n.deviceId, n.body])).toEqual([['dev-a', 'Du hast heute noch 2 Aufgaben in Controlling offen.']]);
+    // Diana: nur die überfälligen Mathe-Aufgaben als Zahl am App-Symbol
+    const morningB = planNotifications(onlyA(at(DAY, '08:00')), [device({ id: 'dev-b', member_id: B }, { overdue: false })]).notifications;
+    expect(morningB).toEqual([]);
+  });
+
+  it('Lernplan-Änderungen und neue Hausaufgaben im Fach gehen nicht an andere', () => {
+    const now = at(DAY, '15:00');
+    const act = (id: number, entity: string, entityId: string) => ({ id, occurred_at: new Date(now.getTime() - 20 * 60000).toISOString(), actor_member_id: A, entity_type: entity, entity_id: entityId, action: 'created' });
+    const snap = onlyA(now, {
+      activity: [act(5, 'tasks', 't2'), act(6, 'homework', 'hw1')],
+      homework: [{ id: 'hw1', module_id: CTRL, title: 'Blatt 1', due_date: '2026-12-17', deleted_at: null }],
+    });
+    const r = planNotifications(snap, [device({ id: 'dev-b', member_id: B, plan_cursor: 4 }, quiet), device({ id: 'dev-x', member_id: null, plan_cursor: 4 }, quiet)]);
+    expect(r.notifications).toEqual([]);
+    expect(r.cursors['dev-b']).toBe(6); // Cursor läuft trotzdem weiter
+  });
+
+  it('Gemeinsamer Erfolg zählt nur die Schreibenden', () => {
+    const done = ['t1', 't2', 't3'].map((task_id) => ({ task_id, member_id: A, is_completed: true }));
+    const prev = { [`group_complete:${CTRL}`]: { complete: false, since: '2026-12-01T00:00:00.000Z', transition: false } };
+    const r = planNotifications(onlyA(at(DAY, '15:00'), { completions: done, state: prev }), [device({}, quiet), device({ id: 'dev-b', member_id: B }, quiet)]);
+    const group = r.notifications.filter((n) => n.kind === 'group');
+    expect(group.map((n) => n.deviceId)).toEqual(['dev-a']);
+  });
+});

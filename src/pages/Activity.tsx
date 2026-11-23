@@ -6,6 +6,7 @@ import { getSupabase } from '../lib/supabase';
 import { describeError } from '../lib/errors';
 import { formatInstant } from '../lib/time';
 import { useData } from '../store/data';
+import { activityVisible } from '../store/visibility';
 import { PageHeader } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -52,8 +53,10 @@ export function Activity() {
     if (before) q = q.lt('id', before);
     const { data, error: err } = await q;
     if (err) return setError(describeError(err));
-    const list = (data ?? []) as ActivityEntry[];
-    setMore(list.length === PAGE);
+    const raw = (data ?? []) as ActivityEntry[];
+    setMore(raw.length === PAGE);
+    // Einträge zu Fächern, die die aktive Person nicht schreibt, ausblenden
+    const list = raw.filter((r) => activityVisible(r));
     setRows((prev) => (before && prev ? [...prev, ...list] : list));
   }, []);
 

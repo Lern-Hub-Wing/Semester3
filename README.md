@@ -101,6 +101,11 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 6 | [`supabase/migrations/006_server_read_access.sql`](supabase/migrations/006_server_read_access.sql) | Leserechte für die Push-Funktionen (siehe Schritt 12.1) |
 | 7 | [`supabase/migrations/007_music.sql`](supabase/migrations/007_music.sql) | Gemeinsame Musik-Bibliothek (siehe Schritt 14) |
 | 8 | [`supabase/migrations/008_focus_realtime.sql`](supabase/migrations/008_focus_realtime.sql) | optional: Lernzeiten der anderen erscheinen sofort statt nach spätestens einer Minute (ändert keine Daten) |
+| 9 | [`supabase/migrations/009_exam_participants.sql`](supabase/migrations/009_exam_participants.sql) | „Wer schreibt diese Prüfung?“: Fächer nur für einzelne Personen sichtbar (ändert keine Daten; siehe unten) |
+
+**Wer schreibt diese Prüfung? (009)** Beim Anlegen oder Bearbeiten einer Prüfung bzw. eines Fachs lässt sich auswählen, wer die Prüfung schreibt. Dann sehen nur diese Personen das Fach mit Prüfung, Lernplan, Aufgaben und Hausaufgaben und bekommen Erinnerungen dazu; alle anderen sehen es gar nicht. Standard ist „Alle“. Wichtig: Die Seite hat keine Anmeldung – das ist eine Anzeige-Regel, kein Passwortschutz. Eingeschränkte Fächer werden nicht im Gerätespeicher zwischengespeichert. Erst die Seite mit dieser Version ausliefern, dann 009 ausführen.
+
+Fertige Lernpläne zum Einspielen liegen in [`supabase/plans/`](supabase/plans/) (z. B. Chemie für Luk, nach 009 ausführen).
 
 Falls Supabase warnt, dass die Abfrage „destruktive Operationen“ enthält: Das betrifft nur `drop trigger/policy if exists` (Neuanlage). Mit **Run this query** bestätigen. Alle Skripte können gefahrlos mehrfach ausgeführt werden.
 

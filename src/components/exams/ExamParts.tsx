@@ -6,7 +6,10 @@ import { formatDuration, formatInstant, formatTime, instantToZoned, isValidISODa
 import { LIMITS } from '../../lib/config';
 import { useData } from '../../store/data';
 import { useModules } from '../../store/derived';
-import { createExam, deleteExam, updateExam } from '../../store/actions';
+import { createExam, deleteExam, updateExam, updateModule } from '../../store/actions';
+import { participantsEnabled } from '../../store/visibility';
+import { resync } from '../../store/sync';
+import { ParticipantsPicker, sameParticipants } from './ParticipantsPicker';
 import { Button } from '../ui/Button';
 import { Menu } from '../ui/Menu';
 import { Modal } from '../ui/Modal';
@@ -73,14 +76,24 @@ export function ExamEditor({ value, onClose, moduleId }: { value: Exam | 'new' |
   const modules = useModules();
   const exam = value && value !== 'new' ? value : null;
   const [form, setForm] = useState({ module_id: '', date: '', start: '14:00', end: '15:30', location: '', notes: '' });
+  const [participants, setParticipants] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const moduleRow = useData((s) => (form.module_id ? s.modules[form.module_id] : undefined));
+
+  // Teilnehmende gehören zum Fach: beim Wechsel des Fachs dessen Auswahl übernehmen
+  const [participantsFor, setParticipantsFor] = useState<string | null>(null);
+  if (value !== null && form.module_id !== participantsFor) {
+    setParticipantsFor(form.module_id);
+    setParticipants(moduleRow?.participants ?? []);
+  }
 
   // Beim Öffnen sofort (während des Renderns) befüllen – nie veraltete Werte anzeigen.
   const key = value === null ? null : exam ? `${exam.id}` : 'new';
   const [initKey, setInitKey] = useState<string | null>(null);
   if (key !== initKey) {
     setInitKey(key);
+    setParticipantsFor(null);
     if (key !== null) {
       setError(null);
       if (exam) {
@@ -108,9 +121,15 @@ export function ExamEditor({ value, onClose, moduleId }: { value: Exam | 'new' |
       location: form.location.trim() || null,
       notes: form.notes.trim() || null,
     };
+    const visibilityChanged = participantsEnabled && !!moduleRow && !sameParticipants(participants, moduleRow.participants);
+    if (visibilityChanged) {
+      const saved = await updateModule(moduleRow.id, { participants: participants.length ? participants : null }, moduleRow.version);
+      if (!saved) return setBusy(false);
+    }
     const ok = exam ? await updateExam(exam.id, payload, exam.version) : !!(await createExam(payload));
     setBusy(false);
     if (ok) onClose();
+    if (visibilityChanged) void resync();
   };
 
   return (
@@ -145,6 +164,7 @@ export function ExamEditor({ value, onClose, moduleId }: { value: Exam | 'new' |
         </div>
         <TextField label="Ort (optional)" value={form.location} maxLength={LIMITS.location} placeholder="z. B. Hörsaal A1" onChange={(e) => setForm({ ...form, location: e.target.value })} />
         <TextArea label="Notizen (optional)" value={form.notes} maxLength={LIMITS.description} rows={2} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        {participantsEnabled && moduleRow && <ParticipantsPicker value={participants} onChange={setParticipants} />}
         {error && (
           <p className="text-sm text-danger" role="alert">
             {error}
