@@ -10,6 +10,15 @@ export interface TaskView {
   date: ISODate;
 }
 
+/**
+ * Gilt ein Fach für diese Person? („Wer schreibt diese Prüfung?“, nur bisherige Seite)
+ * Leer/null = für alle. Sonst zählen Aufgaben, Hausaufgaben und Fortschritt
+ * des Fachs nur für die eingetragenen Personen.
+ */
+export function appliesTo(participants: readonly string[] | null | undefined, memberId: UUID): boolean {
+  return !participants || participants.length === 0 || participants.includes(memberId);
+}
+
 export interface Ratio {
   done: number;
   total: number;
@@ -37,6 +46,8 @@ export interface HomeworkItem {
   moduleId: UUID;
   /** aktive Unteraufgaben und Arbeitseinheiten */
   partIds: UUID[];
+  /** Teilnehmende des Fachs (null = alle) */
+  participants?: UUID[] | null;
 }
 
 /** Alles, was in einen Fortschrittswert einfließt */
@@ -67,28 +78,42 @@ export function homeworkCredit(item: HomeworkItem, memberId: UUID, done: DoneLoo
 export function scopeMemberRatio(scope: ProgressScope, memberId: UUID, done: DoneLookup): Ratio {
   let full = 0;
   let credit = 0;
-  for (const t of scope.tasks) if (isDone(done.tasks, t.task.id, memberId)) (full++, credit++);
+  let total = 0;
+  for (const t of scope.tasks) {
+    if (!appliesTo(t.module.participants, memberId)) continue;
+    total++;
+    if (isDone(done.tasks, t.task.id, memberId)) (full++, credit++);
+  }
   for (const h of scope.homework) {
+    if (!appliesTo(h.participants, memberId)) continue;
+    total++;
     const c = homeworkCredit(h, memberId, done.homework);
     credit += c;
     if (c >= 1) full++;
   }
-  return ratio(full, scope.tasks.length + scope.homework.length, credit);
+  return ratio(full, total, credit);
 }
 
 /** Gruppenfortschritt: alle Erledigungen aller Personen ÷ (Posten × Personen). */
 export function scopeGroupRatio(scope: ProgressScope, memberIds: UUID[], done: DoneLookup): Ratio {
   let full = 0;
   let credit = 0;
+  let total = 0;
   for (const m of memberIds) {
-    for (const t of scope.tasks) if (isDone(done.tasks, t.task.id, m)) (full++, credit++);
+    for (const t of scope.tasks) {
+      if (!appliesTo(t.module.participants, m)) continue;
+      total++;
+      if (isDone(done.tasks, t.task.id, m)) (full++, credit++);
+    }
     for (const h of scope.homework) {
+      if (!appliesTo(h.participants, m)) continue;
+      total++;
       const c = homeworkCredit(h, m, done.homework);
       credit += c;
       if (c >= 1) full++;
     }
   }
-  return ratio(full, (scope.tasks.length + scope.homework.length) * memberIds.length, credit);
+  return ratio(full, total, credit);
 }
 
 /** Ausschnitt für ein Fach */
@@ -114,7 +139,7 @@ export function activeHomeworkItems(
     if (h.deleted_at) continue;
     const m = modules[h.module_id];
     if (!m || m.archived_at) continue;
-    out.push({ id: h.id, moduleId: h.module_id, partIds: byHw.get(h.id) ?? [] });
+    out.push({ id: h.id, moduleId: h.module_id, partIds: byHw.get(h.id) ?? [], participants: m.participants ?? null });
   }
   return out.sort((a, b) => a.id.localeCompare(b.id));
 }
@@ -167,8 +192,13 @@ export function ratio(done: number, total: number, credit: number = done): Ratio
 /** Persönlicher Fortschritt: erledigte Aufgaben ÷ alle relevanten aktiven Aufgaben. */
 export function memberRatio(tasks: TaskView[], memberId: UUID, completions: Record<string, Completion>): Ratio {
   let done = 0;
-  for (const t of tasks) if (isDone(completions, t.task.id, memberId)) done++;
-  return ratio(done, tasks.length);
+  let total = 0;
+  for (const t of tasks) {
+    if (!appliesTo(t.module.participants, memberId)) continue;
+    total++;
+    if (isDone(completions, t.task.id, memberId)) done++;
+  }
+  return ratio(done, total);
 }
 
 /**
@@ -177,8 +207,14 @@ export function memberRatio(tasks: TaskView[], memberId: UUID, completions: Reco
  */
 export function groupRatio(tasks: TaskView[], memberIds: UUID[], completions: Record<string, Completion>): Ratio {
   let done = 0;
-  for (const t of tasks) for (const m of memberIds) if (isDone(completions, t.task.id, m)) done++;
-  return ratio(done, tasks.length * memberIds.length);
+  let total = 0;
+  for (const t of tasks)
+    for (const m of memberIds) {
+      if (!appliesTo(t.module.participants, m)) continue;
+      total++;
+      if (isDone(completions, t.task.id, m)) done++;
+    }
+  return ratio(done, total);
 }
 
 export interface TaskGroupStatus {
@@ -187,10 +223,10 @@ export interface TaskGroupStatus {
   allDone: boolean;
 }
 
-export function taskGroupStatus(taskId: UUID, memberIds: UUID[], completions: Record<string, Completion>): TaskGroupStatus {
+export function taskGroupStatus(taskId: UUID, memberIds: UUID[], completions: Record<string, Completion>, participants?: readonly string[] | null): TaskGroupStatus {
   const doneMembers: UUID[] = [];
   const openMembers: UUID[] = [];
-  for (const m of memberIds) (isDone(completions, taskId, m) ? doneMembers : openMembers).push(m);
+  for (const m of memberIds) if (appliesTo(participants, m)) (isDone(completions, taskId, m) ? doneMembers : openMembers).push(m);
   return { doneMembers, openMembers, allDone: memberIds.length > 0 && openMembers.length === 0 };
 }
 
@@ -218,7 +254,7 @@ export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[
 
 /** Offene Aufgaben einer Person aus vergangenen Lerntagen. */
 export function overdueFor(tasks: TaskView[], memberId: UUID, completions: Record<string, Completion>, today: ISODate): TaskView[] {
-  return tasks.filter((t) => t.date < today && !isDone(completions, t.task.id, memberId));
+  return tasks.filter((t) => t.date < today && appliesTo(t.module.participants, memberId) && !isDone(completions, t.task.id, memberId));
 }
 
 /** Verbleibende gemeinsame Erledigungen bis 100 %. */
