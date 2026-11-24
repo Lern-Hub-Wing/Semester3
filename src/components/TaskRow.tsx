@@ -1,11 +1,11 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { PresenceDiv } from './ui/PresenceDiv';
 import { Check, Circle, MoveRight, Paperclip, Pencil, Trash2, Users } from 'lucide-react';
 import type { Member, Task } from '../lib/types';
 import { completionKey } from '../lib/types';
 import { LIMITS } from '../lib/config';
-import { taskGroupStatus } from '../lib/progress';
+import { appliesTo, taskGroupStatus } from '../lib/progress';
 import { useData } from '../store/data';
 import { deleteTask, setCompletion, updateTask } from '../store/actions';
 import { useUI } from '../store/ui';
@@ -24,8 +24,11 @@ interface Props {
 }
 
 /** Eine Aufgabe mit dem Haken der aktiven Person und dem Gruppenstatus. */
-export const TaskRow = memo(function TaskRow({ task, member, members, showGroup = true, dense, subtitle, readOnly }: Props) {
+export const TaskRow = memo(function TaskRow({ task, member, members: allMembers, showGroup = true, dense, subtitle, readOnly }: Props) {
   const completions = useData((s) => s.task_completions);
+  // Nur Personen, die das Fach schreiben, zählen für den Gruppenstatus (z. B. Chemie nur Luk → kein „0/4“)
+  const participants = useData((s) => s.modules[s.study_entries[task.study_entry_id]?.module_id ?? '']?.participants ?? null);
+  const members = useMemo(() => allMembers.filter((m) => appliesTo(participants, m.id)), [allMembers, participants]);
   const attachmentCount = useData((s) => {
     let n = 0;
     for (const a of Object.values(s.attachments)) if (!a.deleted_at && a.target_type === 'task' && a.target_id === task.id) n++;

@@ -196,3 +196,30 @@ describe('Hausaufgaben im Fortschritt', () => {
     expect(scopeGroupRatio(plain, members, lookup(c, []))).toEqual(groupRatio(views, members, completions(...c)));
   });
 });
+
+describe('Wer schreibt die Prüfung? Fortschritt nur für Teilnehmende', () => {
+  const mods = byId(mod('chemie', { participants: ['A'] }), mod('controlling'));
+  const ents = byId(entry('c1', 'chemie', '2026-11-24'), entry('k1', 'controlling', '2026-11-24'));
+  const tks = byId(task('ct', 'c1'), task('kt', 'k1'));
+  const v = activeTaskViews({ modules: mods, topics: {}, entries: ents, tasks: tks });
+  const c = completions(done('kt', 'B'));
+
+  it('Chemie zählt nur für A – B hat nur Controlling', () => {
+    expect(memberRatio(v, 'A', c)).toMatchObject({ done: 0, total: 2 });
+    expect(memberRatio(v, 'B', c)).toMatchObject({ done: 1, total: 1, pct: 100 });
+    expect(overdueFor(v, 'B', c, '2026-11-25').map((x) => x.task.id)).toEqual([]);
+  });
+
+  it('Gruppenstatus einer Chemie-Aufgabe: 0/1 statt 0/4', () => {
+    expect(taskGroupStatus('ct', members, c, ['A'])).toMatchObject({ doneMembers: [], openMembers: ['A'] });
+    expect(groupRatio(v.filter((x) => x.module.id === 'chemie'), members, c).total).toBe(1);
+  });
+
+  it('Hausaufgaben im eingeschränkten Fach zählen nur für Teilnehmende', () => {
+    const items = activeHomeworkItems({ h: { id: 'h', module_id: 'chemie', deleted_at: null } }, {}, mods);
+    const scope: ProgressScope = { tasks: [], homework: items };
+    const d: DoneLookup = { tasks: {}, homework: {} };
+    expect(scopeMemberRatio(scope, 'B', d).pct).toBeNull();
+    expect(scopeGroupRatio(scope, members, d).total).toBe(1);
+  });
+});
