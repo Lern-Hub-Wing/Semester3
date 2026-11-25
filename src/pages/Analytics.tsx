@@ -1,3 +1,4 @@
+import { useSessionsWithLive } from '../hooks/useSessionsWithLive';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { BarChart3, CheckCheck, Flame, Layers, Timer, Users } from 'lucide-react';
@@ -32,7 +33,7 @@ export function Analytics({ me }: { me: Member }) {
   const members = useActiveMembers();
   const memberIds = useActiveMemberIds();
   const modules = useModules();
-  const sessions = useFocus((s) => s.sessions);
+  const sessions = useSessionsWithLive();
   const focusAvailable = useFocus((s) => s.available);
   const today = useToday();
 

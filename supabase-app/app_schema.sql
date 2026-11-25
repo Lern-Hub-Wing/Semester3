@@ -7,6 +7,23 @@
 -- Wiederholbar ausführbar (Updates: einfach erneut ausführen).
 -- =====================================================================
 
+begin;
+
+do $guard$
+declare site boolean := false;
+begin
+  if to_regclass('public.members') is not null then
+    if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'members' and column_name = 'group_id') then
+      execute 'select exists (select 1 from public.members where group_id is null)' into site;
+    else
+      execute 'select exists (select 1 from public.members)' into site;
+    end if;
+  end if;
+  if site then
+    raise exception 'STOPP: Das ist die Datenbank der bisherigen StudySpace-SEITE. Dieses Skript gehört in das Supabase-Projekt der APP. Es wurde nichts geändert.';
+  end if;
+end $guard$;
+
 -- ===== supabase/migrations/001_schema.sql =====
 -- =====================================================================
 -- StudySpace – Migration 001: Tabellen, Constraints, Indizes, Trigger
@@ -3791,3 +3808,5 @@ begin
       where gm.user_id = uid and gm.left_at is null), '[]'::jsonb)
   );
 end $$;
+
+commit;

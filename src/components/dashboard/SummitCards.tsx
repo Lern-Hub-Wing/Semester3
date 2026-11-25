@@ -1,3 +1,4 @@
+import { useSessionsWithLive } from '../../hooks/useSessionsWithLive';
 import { useEffect, useMemo } from 'react';
 import { CalendarPlus, Flame, GraduationCap, Play } from 'lucide-react';
 import { getCountdownState, splitDuration } from '../../lib/countdown';
@@ -125,7 +126,7 @@ const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 /** Gelernte Fokuszeit (nur echte Fokusphasen) – heute und je Wochentag */
 export function useFocusWeek(memberId: string) {
-  const sessions = useFocus((s) => s.sessions);
+  const sessions = useSessionsWithLive();
   const available = useFocus((s) => s.available);
   const today = useToday();
   useEffect(() => {

@@ -6,7 +6,7 @@ import { Switch } from '../../components/ui/Switch';
 import { Button } from '../../components/ui/Button';
 import { ContrastWarning, SharedLookNote } from '../../components/focus/LookNotes';
 import { FocusBackdrop } from '../../components/focus/FocusChrome';
-import { CLOCK_FONTS, GRADIENT_PRESETS, loadClockFont } from '../../lib/studyMode';
+import { CLOCK_FONTS, GRADIENT_PRESETS, loadAllClockFonts, loadClockFont } from '../../lib/studyMode';
 import { FOCUS_COLORS } from '../../lib/focusLook';
 import { FOCUS_PRESETS } from '../../lib/focus';
 import { alpha } from '../../lib/colors';
@@ -32,6 +32,7 @@ export function ClockSettings() {
   useEffect(() => {
     void loadClockFont(look.font);
   }, [look.font]);
+  useEffect(() => loadAllClockFonts(), []);
   const glow = look.glow && look.glowStrength > 0 ? `drop-shadow(0 0 ${Math.round(3 + look.glowStrength * 0.18)}px ${alpha(look.color, 0.25 + look.glowStrength / 250)})` : undefined;
   const segPreset = settings.preset.startsWith('saved:') ? 'custom' : settings.preset;
 
@@ -82,6 +83,15 @@ export function ClockSettings() {
                 style={{ background: c }}
               />
             ))}
+            <label
+              title="Eigene Farbe"
+              className={`relative grid size-9 cursor-pointer place-items-center overflow-hidden rounded-full border border-line text-[15px] font-semibold text-white ${![...FOCUS_COLORS, '#1D2533'].includes(look.color) ? 'ring-2 ring-[var(--ss-accent)] ring-offset-2 ring-offset-[var(--ss-card)]' : ''}`}
+              style={{ background: ![...FOCUS_COLORS, '#1D2533'].includes(look.color) ? look.color : 'conic-gradient(#ff8a8a, #ffd36e, #8ef0a5, #7cc8ff, #c79bff, #ff8a8a)' }}
+            >
+              <span aria-hidden>{[...FOCUS_COLORS, '#1D2533'].includes(look.color) ? '+' : ''}</span>
+              <span className="sr-only">Eigene Farbe der Ziffern</span>
+              <input type="color" value={look.color} onChange={(e) => setLook({ color: e.target.value.toUpperCase() })} className="absolute inset-0 cursor-pointer opacity-0" />
+            </label>
           </div>
           <ContrastWarning look={look} />
         </Row>

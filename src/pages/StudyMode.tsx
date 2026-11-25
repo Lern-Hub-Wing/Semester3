@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ImagePlus, Maximize, Minimize, RotateCcw, Smartphone, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import {
   BG_COLORS, CLOCK_COLORS, CLOCK_FONTS, DEFAULT_STUDY_MODE, GRADIENT_PRESETS, clockParts, loadClockFont,
-  loadStudyMode, resizeImage, sanitizeStudyMode, saveStudyMode, type StudyModeSettings,
+  loadAllClockFonts, loadStudyMode, resizeImage, sanitizeStudyMode, saveStudyMode, type StudyModeSettings,
 } from '../lib/studyMode';
 import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, isIPhone, isStandalone, wakeLockSupported } from '../lib/fullscreen';
 import { upcomingExams, daysUntil } from '../lib/countdown';
@@ -476,6 +476,7 @@ function SettingsPanel({
   onClose: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => loadAllClockFonts(), []);
   const fontDef = CLOCK_FONTS.find((f) => f.id === settings.font)!;
   return (
     <motion.aside

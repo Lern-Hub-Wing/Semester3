@@ -47,7 +47,7 @@ export interface FocusLook {
   hideDelay: number;
 }
 
-export const FOCUS_COLORS = ['#F2F5FA', '#FFFFFF', '#C6B6FF', '#AFC5F5', '#AADCCB', '#F5C6A5', '#F4B9B6', '#E8CB9D'];
+export const FOCUS_COLORS = ['#F2F5FA', '#FFFFFF', '#C6B6FF', '#AFC5F5', '#AADCCB', '#F5C6A5', '#F4B9B6', '#E8CB9D', '#FFE08A', '#8FE3F0', '#FF9EC7'];
 export const RING_COLORS = ['', '#A9A6FF', '#8FDCC0', '#AFC5F5', '#F5C6A5', '#F4B9B6', '#FFFFFF'];
 
 export const DEFAULT_FOCUS_LOOK: FocusLook = {

@@ -1,3 +1,4 @@
+import { useSessionsWithLive } from '../hooks/useSessionsWithLive';
 import { useEffect, useMemo } from 'react';
 import { Database, Timer } from 'lucide-react';
 import { formatFocusDuration, teamFocusWeek, weekRange } from '../lib/focusWeek';
@@ -47,7 +48,7 @@ export function useLiveFocusSessions(sinceDay: string) {
  * Bewusst in Teamreihenfolge statt als Rangliste – motivieren, nicht antreiben.
  */
 export function TeamFocusWeekCard({ meId, className = '' }: { meId?: string; className?: string }) {
-  const sessions = useFocus((s) => s.sessions);
+  const sessions = useSessionsWithLive();
   const available = useFocus((s) => s.available);
   const members = useActiveMembers();
   const today = useToday();

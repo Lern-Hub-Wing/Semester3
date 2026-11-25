@@ -112,6 +112,8 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 3. Den Einladungscode an die Gruppe schicken – wer beitritt, wählt „Wer bist du?“ und bekommt seine Haken und Lernzeiten.
 4. Erst dann *Umleitung zur App* einschalten: Wer die Seite öffnet, sieht „Wir sind umgezogen“ und landet in der App. Die Daten der Seite bleiben unverändert; „Alte Seite trotzdem öffnen“ führt zurück, dort lässt sich die Umleitung wieder ausschalten.
 
+**Notfall: App-Schema versehentlich in der Datenbank der Seite ausgeführt?** Dann zeigt die Seite nichts mehr an („Diese Aktion ist nicht erlaubt“), die Daten sind aber noch da. Im SQL Editor des Projekts der **Seite** den Inhalt von [`supabase/rescue/seite_reparieren.sql`](supabase/rescue/seite_reparieren.sql) ausführen: Er schaltet die nächtlichen App-Jobs ab (sonst würde der Papierkorb endgültig geleert), entfernt die App-Regeln und spielt die Migrationen der Seite erneut ein – ohne Lerndaten zu ändern. Getestet mit `bash scripts/test-db.sh --rescue`. Seit dieser Version bricht `app_schema.sql` in der Datenbank der Seite sofort ab, ohne etwas zu ändern.
+
 Fertige Lernpläne zum Einspielen liegen in [`supabase/plans/`](supabase/plans/) (z. B. Chemie für Luk, nach 009 ausführen).
 
 Falls Supabase warnt, dass die Abfrage „destruktive Operationen“ enthält: Das betrifft nur `drop trigger/policy if exists` (Neuanlage). Mit **Run this query** bestätigen. Alle Skripte können gefahrlos mehrfach ausgeführt werden.
