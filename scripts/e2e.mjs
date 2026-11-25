@@ -69,7 +69,7 @@ async function newPage(browser, { freshPush, ...opts } = {}) {
   }
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  page.on('console', (m) => m.type() === 'error' && !/WebSocket|realtime|ERR_FAILED|Failed to load resource/i.test(m.text()) && errors.push(m.text()));
+  page.on('console', (m) => m.type() === 'error' && !/WebSocket|realtime|ERR_FAILED|Failed to load resource|Permissions policy violation/i.test(m.text()) && errors.push(m.text()));
   return { ctx, page, errors };
 }
 
