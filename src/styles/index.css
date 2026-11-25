@@ -824,6 +824,79 @@ select {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Extra-Animationen – nur mit .extra-motion auf <html>                 */
+/* Notschalter: EXTRA_MOTION in src/lib/motionFlags.ts (false = alles   */
+/* hier aus) oder Einstellungen → Darstellung → „Extra-Animationen“.     */
+/* „Bewegung reduzieren“ schaltet die Klasse ebenfalls ab.              */
+/* ------------------------------------------------------------------ */
+/* Unterseite öffnen: schiebt von rechts herein; zurück: von links */
+.extra-motion .ss-page--push {
+  animation: ss-push-in 380ms var(--ease-emph) both;
+}
+.extra-motion .ss-page--pop {
+  animation: ss-pop-in 340ms var(--ease-emph) both;
+}
+@keyframes ss-push-in {
+  from {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+}
+@keyframes ss-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+/* Listen: Einträge erscheinen kurz nacheinander (nur beim ersten Anzeigen) */
+.extra-motion .rise-list > * {
+  animation: ss-rise-sm 440ms var(--ease-emph) both;
+}
+.extra-motion .rise-list > *:nth-child(2) { animation-delay: 35ms; }
+.extra-motion .rise-list > *:nth-child(3) { animation-delay: 70ms; }
+.extra-motion .rise-list > *:nth-child(4) { animation-delay: 105ms; }
+.extra-motion .rise-list > *:nth-child(5) { animation-delay: 140ms; }
+.extra-motion .rise-list > *:nth-child(6) { animation-delay: 175ms; }
+.extra-motion .rise-list > *:nth-child(n + 7) { animation-delay: 210ms; }
+@keyframes ss-rise-sm {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+/* Antippbare Karten geben federnd nach (nicht, wenn ein Knopf darin gedrückt wird) */
+.extra-motion .press,
+.extra-motion .lift {
+  transition:
+    transform 300ms var(--ease-spring),
+    box-shadow var(--dur-page) var(--ease-out);
+}
+.extra-motion .press:active:not(:has(button:active, [role='checkbox']:active)),
+.extra-motion .lift:active:not(:has(button:active, [role='checkbox']:active)) {
+  transform: scale(0.982);
+  transition-duration: 120ms;
+}
+/* Navigation: das gewählte Symbol hüpft kurz */
+.extra-motion .nav-item[aria-current='page'] .nav-item-icon {
+  animation: ss-icon-pop 460ms var(--ease-spring);
+}
+@keyframes ss-icon-pop {
+  0% {
+    transform: scale(0.82);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+/* Aufklappen: Inhalt gleitet leicht nach */
+.extra-motion .unfold {
+  animation: ss-rise-sm 320ms var(--ease-emph) both;
+}
+
 /* Dünne, unaufdringliche Scrollbars */
 .scroll-thin {
   scrollbar-width: thin;

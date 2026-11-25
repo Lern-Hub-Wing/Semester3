@@ -1504,6 +1504,40 @@ try {
     check(errs.length === 0, `keine JavaScript-Fehler (Auto-Pause)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
   }
+
+  // --- Extra-Animationen: Seitenübergänge, zentral abschaltbar ---------------
+  {
+    {
+      const now = new Date().toISOString();
+      const due = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+      db.homework.push({ id: '77777777-7777-4777-8777-000000000011', module_id: db.modules[1].id, title: 'Animations-Test', description: 'Details', due_date: due, earliest_start: null, priority: 2, effort_minutes: null, unit_count: null, deleted_at: null, changed_by: null, version: 1, created_at: now, updated_at: now });
+    }
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 390, height: 844 } });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    check(await p.evaluate(() => document.documentElement.classList.contains('extra-motion')), 'Animationen: Extra-Animationen standardmäßig an');
+    await p.goto(`${BASE}#/einstellungen`);
+    await p.getByTestId('settings-nav').waitFor();
+    await p.goto(`${BASE}#/einstellungen/darstellung`);
+    await p.getByTestId('settings-darstellung').waitFor();
+    check((await p.locator('.ss-page--push').count()) === 1, 'Animationen: Unterseite schiebt von rechts herein');
+    await p.goBack();
+    await p.getByTestId('settings-nav').waitFor();
+    check((await p.locator('.ss-page--pop').count()) === 1, 'Animationen: Zurück schiebt von links herein');
+    await p.goto(`${BASE}#/einstellungen/darstellung`);
+    await p.getByRole('switch', { name: 'Extra-Animationen' }).click();
+    await p.waitForTimeout(200);
+    check(!(await p.evaluate(() => document.documentElement.classList.contains('extra-motion'))), 'Animationen: Schalter in den Einstellungen schaltet sie ab');
+    // Hausaufgabe antippen klappt die Details auf
+    await p.goto(`${BASE}#/hausaufgaben`);
+    const item = p.getByTestId('homework-item').filter({ hasText: 'Animations-Test' });
+    await item.waitFor();
+    await item.getByTestId('homework-toggle').click();
+    check((await item.getByRole('button', { name: 'Details ausblenden' }).count()) === 1, 'Animationen: Hausaufgabe antippen klappt Details auf');
+    check(errs.length === 0, `keine JavaScript-Fehler (Animationen)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
 } catch (err) {
   failures++;
   console.error('✗ Abbruch:', err);

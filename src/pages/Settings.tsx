@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { EXTRA_MOTION } from '../lib/motionFlags';
 import {
   Archive, ArrowDown, Clock3, Hand, CloudSun, Crown, Rocket, Scale, Search, Ticket, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
 } from 'lucide-react';
@@ -139,7 +140,7 @@ export function Settings({ section }: { section?: string }) {
         <div className="sticky top-[84px]">
           <SettingsNav active={active} />
         </div>
-        <div data-testid={`settings-${active}`}>
+        <div key={active} className="unfold" data-testid={`settings-${active}`}>
           <AppSectionHeader k={active} as="h2" />
           {SECTIONS[active].render()}
         </div>
@@ -182,7 +183,7 @@ function SettingsNav({ active }: { active?: SectionKey }) {
   const q = query.trim().toLowerCase();
   const filtered = q ? groups.map((g) => ({ ...g, rows: g.rows.filter((r) => `${r.label} ${r.keywords}`.toLowerCase().includes(q)) })).filter((g) => g.rows.length > 0) : groups;
   return (
-    <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
+    <nav aria-label="Einstellungen" className="rise-list flex flex-col gap-5" data-testid="settings-nav">
       <ProfileCard />
       <label className="settings-search relative block">
         <span className="sr-only">Einstellungen durchsuchen</span>
@@ -233,7 +234,7 @@ function useNavGroups(active?: SectionKey): NavGroup[] {
 
   const device: NavRow[] = [
     { icon: phase === 'on' ? <BellRing /> : <Bell />, tint: phase === 'on' ? TINT.teal : AREA_TINT.notifications, label: 'Benachrichtigungen', value: PUSH_LABEL[phase], to: '/einstellungen/benachrichtigungen', testId: 'settings-push', keywords: 'push mitteilung erinnerung ruhezeit' },
-    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design animation transparenz kompakt klänge ton haptik vibration fortschritt' },
+    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design animation animationen übergänge bewegung transparenz kompakt klänge ton haptik vibration fortschritt' },
     { icon: <Clock3 />, tint: AREA_TINT.focus, label: 'Uhr & Fokus', ...sec('fokus'), testId: 'settings-clock', keywords: 'uhr schrift farbe hintergrund pomodoro timer lernmodus vollbild hausaufgaben zähler design kontrast' },
     { icon: <CloudSun />, tint: TINT.blue, label: 'Wetter', value: weatherMode === 'auto' ? 'Automatisch' : weatherMode === 'off' ? 'Aus' : 'Fest', ...sec('wetter'), keywords: 'regen schnee sonne gewitter standort hintergrund' },
   ];
@@ -324,6 +325,11 @@ function Appearance() {
           ]}
         />
       </Row>
+      {EXTRA_MOTION && (
+        <Row inline label="Extra-Animationen" hint="Schiebe-Übergänge zwischen Seiten, federnde Karten, Listen, die nacheinander erscheinen.">
+          <Switch label="Extra-Animationen" checked={prefs.extraMotion} onChange={(extraMotion) => prefs.set({ extraMotion })} disabled={prefs.motion === 'reduced'} />
+        </Row>
+      )}
       <Row label="Transparenz" hint="„Einfach“ zeigt Leisten ohne Unschärfe – spart Leistung auf älteren Geräten.">
         <Segmented
           label="Transparenz"

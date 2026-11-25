@@ -16,10 +16,12 @@ export interface Prefs {
   sounds: boolean;
   /** Durchsichtigkeit der Glasflächen, 0 (milchig) … 100 (klar) */
   glassClarity: number;
+  /** Zusätzliche Animationen (Schiebe-Übergänge, Federn, Listen) – siehe lib/motionFlags.ts */
+  extraMotion: boolean;
 }
 
 const KEY = 'studyspace.prefs.v1';
-const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, sounds: true, glassClarity: GLASS_CLARITY_DEFAULT };
+const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, sounds: true, glassClarity: GLASS_CLARITY_DEFAULT, extraMotion: true };
 
 function load(): Prefs {
   try {
@@ -35,6 +37,7 @@ function load(): Prefs {
       haptics: parsed.haptics !== false,
       sounds: parsed.sounds !== false,
       glassClarity: clampClarity(parsed.glassClarity),
+      extraMotion: parsed.extraMotion !== false,
     };
   } catch {
     return DEFAULTS;

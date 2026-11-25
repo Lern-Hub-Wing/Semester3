@@ -12,3 +12,4 @@ coverage
 .idea
 screenshots-local
 dist-app
+tsconfig.tsbuildinfo
