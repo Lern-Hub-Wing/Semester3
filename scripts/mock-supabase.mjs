@@ -85,6 +85,8 @@ export async function handle(route) {
   const method = req.method();
   const single = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
   const body = req.postData() ? JSON.parse(req.postData()) : null;
+  // Papierkorb nach 7 Tagen leeren (Migration 011) – im Test ohne Wirkung, zählt nicht als Schreibzugriff
+  if (url.pathname.endsWith('/rpc/ss_purge_trash')) return route.fulfill({ status: 200, contentType: 'application/json', body: '0' });
   requests.push({ method, table, body, url: url.search });
   if (process.env.FAIL_WRITES && method !== 'GET') return route.fulfill({ status: 503, body: JSON.stringify({ message: 'Service unavailable' }) });
   const rows = db[table];

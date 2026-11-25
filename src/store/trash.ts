@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FILES_ENABLED } from '../lib/edition';
 import { useData } from './data';
 import { useHomework } from './homework';
 import type { Homework } from '../lib/homework';
@@ -26,7 +27,8 @@ export function collectTrash(d: ReturnType<typeof useData.getState>, homework: R
     out.push({ id: t.id, kind: 'Aufgabe', title: t.title, at: t.deleted_at });
   }
   for (const e of Object.values(d.study_entries)) if (e.deleted_at) out.push({ id: e.id, kind: 'Lerntag', title: e.title, at: e.deleted_at });
-  for (const a of Object.values(d.attachments)) if (a.deleted_at) out.push({ id: a.id, kind: 'Datei', title: a.original_filename, at: a.deleted_at });
+  // Dateien gibt es nicht mehr (FILES_ENABLED) – sie erscheinen auch nicht im Papierkorb
+  if (FILES_ENABLED) for (const a of Object.values(d.attachments)) if (a.deleted_at) out.push({ id: a.id, kind: 'Datei', title: a.original_filename, at: a.deleted_at });
   for (const x of Object.values(d.exams)) if (x.deleted_at) out.push({ id: x.id, kind: 'Prüfung', title: d.modules[x.module_id]?.name ?? 'Prüfung', at: x.deleted_at });
   for (const t of Object.values(d.module_topics)) if (t.archived_at) out.push({ id: t.id, kind: 'Thema', title: t.title, at: t.archived_at });
   for (const m of Object.values(d.modules)) if (m.archived_at) out.push({ id: m.id, kind: 'Modul', title: m.name, at: m.archived_at });

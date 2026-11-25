@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeftRight, Check, Copy, Crown, Gauge, KeyRound, LifeBuoy, ListChecks, LogOut, RefreshCw, Share2, ShieldCheck, Trash2, UserMinus, UserRound, Users, UsersRound } from 'lucide-react';
+import { ArrowLeftRight, Check, Copy, Crown, Gauge, KeyRound, LifeBuoy, ListChecks, LogOut, Mail, RefreshCw, Send, Share2, ShieldCheck, Trash2, UserMinus, UserRound, Users, UsersRound } from 'lucide-react';
+import { sendTestMail } from './mailTest';
 import { TINT } from '../lib/tints';
 import { getSupabase } from '../lib/supabase';
 import { describeError } from '../lib/errors';
@@ -117,6 +118,17 @@ export function AccountSection() {
           <Button size="sm" onClick={() => void signOut('global')}>
             Alle Geräte
           </Button>
+        </Row>
+      </Section>
+
+      <Section title="E-Mail testen" icon={<Mail />} tint={TINT.blue} hint="Schickt dir eine Beispiel-E-Mail „Dein Anmeldecode“ von StudySpace – so siehst du, wie unsere E-Mails aussehen.">
+        <Row stacked label="An deine Adresse">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <TextField label="E-Mail-Adresse" value={user?.email ?? ''} readOnly className="flex-1" data-testid="mail-test-to" />
+            <Button variant="glass" icon={<Send className="size-4" />} loading={busy === 'mail'} disabled={!user?.email} onClick={() => void run('mail', async () => void (await sendTestMail(sb(), user?.email ?? '')), `Test-E-Mail an ${user?.email} verschickt`)} data-testid="mail-test-send">
+              Senden
+            </Button>
+          </div>
         </Row>
       </Section>
 

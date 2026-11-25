@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { FILES_ENABLED } from '../lib/edition';
 import { AnimatePresence, motion } from 'motion/react';
 import { PresenceDiv } from './ui/PresenceDiv';
 import { Check, Circle, MoveRight, Paperclip, Pencil, Trash2, Users } from 'lucide-react';
@@ -30,6 +31,7 @@ export const TaskRow = memo(function TaskRow({ task, member, members: allMembers
   const participants = useData((s) => s.modules[s.study_entries[task.study_entry_id]?.module_id ?? '']?.participants ?? null);
   const members = useMemo(() => allMembers.filter((m) => appliesTo(participants, m.id)), [allMembers, participants]);
   const attachmentCount = useData((s) => {
+    if (!FILES_ENABLED) return 0;
     let n = 0;
     for (const a of Object.values(s.attachments)) if (!a.deleted_at && a.target_type === 'task' && a.target_id === task.id) n++;
     return n;

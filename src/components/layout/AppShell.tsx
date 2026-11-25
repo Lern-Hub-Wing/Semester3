@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, Music2, Search, Settings, Sparkles, Trash2, Users, UsersRound, Timer, Crown, LifeBuoy } from 'lucide-react';
+import { Bell, BellRing, Clock3, Search, Trash2 } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
-import { useTrashCount } from '../../store/trash';
-import { AREA_TINT } from '../../lib/tints';
 import { useAccount } from '../../app/account';
 import { Link, navigate, useLocation } from '../../lib/router';
 import { useAppName, useCurrentMember, useTaskViews } from '../../store/derived';
@@ -14,11 +12,7 @@ import { useToday } from '../../hooks/useToday';
 import { useUI } from '../../store/ui';
 import { Logo, LogoMark } from '../Logo';
 import { Greeting } from './Greeting';
-import { Modal } from '../ui/Modal';
 import { IconButton } from '../ui/Button';
-import { ProfileCard } from './ProfileCard';
-import { ListGroup, ListRow } from '../ui/List';
-import { useMusic } from '../../store/music';
 import { NAV, isActive } from './nav';
 import { LiquidTabBar } from './LiquidTabBar';
 import { haptic } from '../../lib/haptics';
@@ -60,11 +54,6 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
   const appName = useAppName();
   const me = useCurrentMember();
   const setUI = useUI((s) => s.set);
-
-  // Seitenwechsel (auch „Zurück“ im Browser) schließt das Mehr-Blatt
-  useEffect(() => {
-    if (useUI.getState().moreOpen) setUI({ moreOpen: false });
-  }, [path, setUI]);
 
   const page = usePageTransition(path);
 
@@ -154,7 +143,6 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
       </div>
 
       <LiquidTabBar />
-      {IS_APP ? <AppMoreSheet /> : <MoreSheet />}
     </div>
   );
 }
@@ -230,103 +218,7 @@ function SideAction({ icon, label, hint, onClick }: { icon: ReactNode; label: st
   );
 }
 
-/**
- * App: schlichtes „Mehr“ – Fokus und Lernmodus oben, darunter nur zwei kurze
- * Gruppen (Lernen · Konto) und Hilfe/Papierkorb. Team steht in der Tab-Leiste.
- */
-function AppMoreSheet() {
-  const open = useUI((s) => s.moreOpen);
-  const setUI = useUI((s) => s.set);
-  const modules = useData((s) => s.modules);
-  const trashCount = useTrashCount();
-  const me = useAccount((s) => s.me);
-  const group = me?.groups.find((g) => g.id === me.active_group_id);
-  const solo = group?.kind === 'solo';
-  const close = () => setUI({ moreOpen: false });
-  const go = (to: string) => () => {
-    close();
-    navigate(to);
-  };
-  const subjectCount = Object.values(modules).filter((m) => !m.archived_at).length;
-  return (
-    <Modal open={open} onClose={close} title="Mehr">
-      <div className="flex flex-col gap-5 pb-2" data-testid="more-sheet">
-        <ProfileCard onSwitch={close} />
-        <div className="grid grid-cols-2 gap-2.5">
-          <QuickAction icon={<Timer />} tint={AREA_TINT.focus} label="Fokus" hint="Timer starten" onClick={go('/fokus')} testId="more-focus" />
-          <QuickAction icon={<Clock3 />} tint={AREA_TINT.studyMode} label="Lernmodus" hint="Uhr im Vollbild" onClick={() => (close(), startStudyMode())} />
-        </div>
-        <ListGroup title="Lernen">
-          <ListRow icon={<Sparkles />} tint={AREA_TINT.plan_billing} label="KI-Lernplan" sub="Plan bis zur Prüfung erstellen" onClick={go('/ki-lernplan')} testId="more-ai" />
-          <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} testId="more-subjects" />
-          {solo ? (
-            <ListRow icon={<Users />} tint={AREA_TINT.team} label="Mit Freunden lernen" sub="Gruppe erstellen oder beitreten" onClick={go('/einstellungen/gruppe')} testId="more-team" />
-          ) : (
-            <ListRow icon={<ChartLine />} tint={AREA_TINT.stats} label="Statistiken" onClick={go('/analyse')} testId="more-stats" />
-          )}
-          <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik" onClick={go('/musik')} testId="more-music" />
-        </ListGroup>
-        <ListGroup title="Konto">
-          <ListRow icon={<UsersRound />} tint={AREA_TINT.group} label={solo ? 'Lernbereich & Gruppen' : 'Lerngruppe'} value={solo ? undefined : group?.name} onClick={go('/einstellungen/gruppe')} testId="more-group" />
-          <ListRow icon={<Crown />} tint={AREA_TINT.plan_billing} label="Tarif & Abo" onClick={go('/einstellungen/plus')} testId="more-plan" />
-          <ListRow icon={<Settings />} tint={AREA_TINT.settings} label="Einstellungen" onClick={go('/einstellungen')} testId="more-settings" />
-        </ListGroup>
-        <ListGroup>
-          <ListRow icon={<LifeBuoy />} tint={AREA_TINT.help} label="Hilfe & Feedback" onClick={go('/hilfe')} testId="more-help" />
-          <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} onClick={go('/papierkorb')} testId="more-trash" />
-        </ListGroup>
-      </div>
-    </Modal>
-  );
-}
-
-/**
- * Bisherige Seite: gleiche schlichte Struktur wie in der App – Fokus und
- * Lernmodus oben, „Lernen“ und „Lerngruppe“, Papierkorb unten. Team steht
- * in der Tab-Leiste, der Änderungsverlauf unter Einstellungen → Daten.
- */
-function MoreSheet() {
-  const open = useUI((s) => s.moreOpen);
-  const setUI = useUI((s) => s.set);
-  const modules = useData((s) => s.modules);
-  const members = useData((s) => s.members);
-  const trashCount = useTrashCount();
-  const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
-  const close = () => setUI({ moreOpen: false });
-  const go = (to: string) => () => {
-    close();
-    navigate(to);
-  };
-  const subjectCount = Object.values(modules).filter((m) => !m.archived_at).length;
-  const memberCount = Object.values(members).filter((m) => m.is_active).length;
-
-  return (
-    <Modal open={open} onClose={close} title="Mehr">
-      <div className="flex flex-col gap-5 pb-2" data-testid="more-sheet">
-        <ProfileCard onSwitch={close} />
-        <div className="grid grid-cols-2 gap-2.5">
-          <QuickAction icon={<Timer />} tint={AREA_TINT.focus} label="Fokus" hint="Timer starten" onClick={go('/fokus')} testId="more-focus" />
-          <QuickAction icon={<Clock3 />} tint={AREA_TINT.studyMode} label="Lernmodus" hint="Uhr im Vollbild" onClick={() => (close(), startStudyMode())} />
-        </div>
-        <ListGroup title="Lernen">
-          <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer & Prüfungen" value={subjectCount || undefined} onClick={go('/faecher')} testId="more-subjects" />
-          <ListRow icon={<ChartLine />} tint={AREA_TINT.stats} label="Statistiken" onClick={go('/analyse')} testId="more-stats" />
-          <ListRow icon={<FileText />} tint={AREA_TINT.export} label="Materialien" onClick={go('/materialien')} testId="more-materials" />
-          <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik" value={tracks ? `${tracks} Titel` : undefined} onClick={go('/musik')} testId="more-music" />
-        </ListGroup>
-        <ListGroup title="Lerngruppe">
-          <ListRow icon={<UsersRound />} tint={AREA_TINT.group} label="Personen" value={memberCount || undefined} onClick={go('/einstellungen/personen')} testId="more-people" />
-          <ListRow icon={<Settings />} tint={AREA_TINT.settings} label="Einstellungen" onClick={go('/einstellungen')} testId="more-settings" />
-        </ListGroup>
-        <ListGroup>
-          <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} onClick={go('/papierkorb')} testId="more-trash" />
-        </ListGroup>
-      </div>
-    </Modal>
-  );
-}
-
-function QuickAction({ icon, tint, label, hint, onClick, testId }: { icon: ReactNode; tint: string; label: string; hint: string; onClick: () => void; testId?: string }) {
+export function QuickAction({ icon, tint, label, hint, onClick, testId }: { icon: ReactNode; tint: string; label: string; hint: string; onClick: () => void; testId?: string }) {
   return (
     <motion.button
       type="button"

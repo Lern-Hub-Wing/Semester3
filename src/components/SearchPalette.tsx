@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { IS_APP } from '../lib/edition';
+import { FILES_ENABLED, IS_APP } from '../lib/edition';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { BookOpen, CalendarDays, FileText, Layers, ListChecks, Search } from 'lucide-react';
@@ -86,7 +86,7 @@ export function SearchPalette() {
         go: () => navigate(`/lernplan?ansicht=tag&datum=${e.study_date}`),
       });
     }
-    for (const a of Object.values(data.attachments)) {
+    for (const a of FILES_ENABLED ? Object.values(data.attachments) : []) {
       if (a.deleted_at || !hit(a.original_filename)) continue;
       const m = a.module_id ? modules[a.module_id] : undefined;
       out.push({ id: a.id, kind: 'Material', title: a.original_filename, meta: m?.name ?? 'Material', color: m?.color, go: () => setUI({ previewId: a.id }) });
@@ -135,7 +135,7 @@ export function SearchPalette() {
                   }
                   if (e.key === 'Enter' && results[active]) choose(results[active]);
                 }}
-                placeholder={IS_APP ? 'Fächer, Themen, Aufgaben, Hausaufgaben …' : 'Module, Themen, Aufgaben, Materialien …'}
+                placeholder={IS_APP ? 'Fächer, Themen, Aufgaben, Hausaufgaben …' : 'Module, Themen, Aufgaben, Hausaufgaben …'}
                 aria-label="Suchbegriff"
                 aria-controls="ss-search-results"
                 aria-activedescendant={results[active] ? `ss-r-${results[active].id}` : undefined}

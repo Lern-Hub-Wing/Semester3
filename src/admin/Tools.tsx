@@ -4,7 +4,8 @@ import { Button } from '../components/ui/Button';
 import { SelectField, TextField } from '../components/ui/Field';
 import { Segmented } from '../components/ui/Segmented';
 import { toast } from '../store/toast';
-import { fmtDate, rpc } from './client';
+import { adminDb, fmtDate, rpc } from './client';
+import { sendTestMail } from '../app/mailTest';
 
 /** Adresse der App (Admin liegt unter …/app/admin/) */
 export function appBase(): string {
@@ -376,6 +377,42 @@ export function LegalTab() {
         <Button variant="primary" loading={busy} disabled={!f.name.trim() || !f.email.trim() || !f.street.trim() || !f.city.trim()} onClick={() => void save()} data-testid="legal-save">
           Speichern
         </Button>
+      </Card>
+    </div>
+  );
+}
+
+/** E-Mail-Versand testen: Beispiel „Dein Anmeldecode“ über das eigene Gmail-Konto (Edge Function app-mail-test) */
+export function MailTab() {
+  const [to, setTo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState<string | null>(null);
+  const send = async () => {
+    setBusy(true);
+    try {
+      const sent = await sendTestMail(adminDb(), to);
+      setLast(sent);
+      toast.success(`Test-E-Mail an ${sent} verschickt`);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col">
+      <Title>E-Mail testen</Title>
+      <Card className="flex flex-col gap-3" testId="admin-mail-test">
+        <p className="text-[13.5px] text-muted">
+          Verschickt eine Beispiel-E-Mail „Dein Anmeldecode“ im StudySpace-Design – über euer eigenes Gmail-Konto statt über Supabase. Voraussetzung: Die Secrets <code>GMAIL_USER</code> und <code>GMAIL_APP_PASSWORD</code> sind in Supabase eingetragen und die Funktion „app-mail-test“ ist bereitgestellt (docs/APP.md, Abschnitt E-Mail).
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <TextField label="An E-Mail-Adresse" type="email" inputMode="email" autoComplete="email" value={to} onChange={(e) => setTo(e.target.value)} className="flex-1" placeholder="name@beispiel.de" />
+          <Button variant="primary" icon={<Mail className="size-4" />} loading={busy} disabled={!/^\S+@\S+\.\S+$/.test(to.trim())} onClick={() => void send()}>
+            Senden
+          </Button>
+        </div>
+        {last && <p className="text-[12.5px] text-muted">Zuletzt verschickt an {last}. Schau auch im Spam-Ordner nach.</p>}
       </Card>
     </div>
   );

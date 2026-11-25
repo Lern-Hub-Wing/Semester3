@@ -54,6 +54,8 @@ async function context(device = {}) {
   await ctx.route(`${API}/rest/v1/**`, mock.handleRest);
   await ctx.route(`${API}/realtime/**`, (r) => r.abort());
   await ctx.route(`${API}/functions/v1/**`, mock.handleFunctions);
+  // Design-Auswahl beim ersten Start überspringen (eigene Prüfung in den Seiten-Tests)
+  await ctx.addInitScript(() => localStorage.setItem('studyspace.design.chosen', '1'));
   return ctx;
 }
 const errors = [];
@@ -379,35 +381,35 @@ try {
   const mo = watch(await ctxM.newPage());
   const anna = mock.state.users.find((u) => u.email === 'anna@example.com');
   const teamGroup = mock.state.groups.find((g) => g.kind === 'team');
-  await check('Tab-Leiste: Home, Lernplan, Aufgaben, Team, Mehr', async () => {
+  await check('Tab-Leiste: Home, Lernplan, Aufgaben, Team, Einstellungen', async () => {
     await mo.goto(BASE);
     await mo.getByLabel('E-Mail').fill('anna@example.com');
     await mo.getByLabel('Passwort', { exact: true }).fill('sicheresPasswort1');
     await mo.getByRole('button', { name: 'Anmelden' }).click();
     await mo.locator('.tabbar [data-tour="nav-team"]').waitFor({ timeout: 10000 });
-    for (const t of ['nav-home', 'nav-lernplan', 'nav-hausaufgaben', 'nav-team', 'nav-mehr']) assert((await mo.locator(`.tabbar [data-tour="${t}"]`).count()) === 1, `${t} fehlt`);
+    for (const t of ['nav-home', 'nav-lernplan', 'nav-hausaufgaben', 'nav-team', 'nav-einstellungen']) assert((await mo.locator(`.tabbar [data-tour="${t}"]`).count()) === 1, `${t} fehlt`);
     assert((await mo.locator('.tabbar [data-tour="nav-fokus"]').count()) === 0, 'Fokus doppelt in der Tab-Leiste');
     await shot(mo, '11b-tableiste');
   });
-  await check('„Mehr“: jedes Ziel öffnet eine funktionierende Seite', async () => {
+  await check('Einstellungen-Tab: führt direkt in die Einstellungen, jedes Ziel öffnet eine funktionierende Seite', async () => {
     const targets = [
-      ['more-subjects', '#/faecher'], ['more-stats', '#/analyse'], ['more-music', '#/musik'], ['more-group', '#/einstellungen/gruppe'],
-      ['more-plan', '#/einstellungen/plus'], ['more-settings', '#/einstellungen'], ['more-help', '#/hilfe'], ['more-trash', '#/papierkorb'],
+      ['more-subjects', '#/faecher'], ['more-stats', '#/analyse'], ['more-ai', '#/ki-lernplan'], ['settings-music', '#/musik'], ['settings-group', '#/einstellungen/gruppe'],
+      ['settings-plus', '#/einstellungen/plus'], ['settings-help', '#/hilfe'], ['settings-trash', '#/papierkorb'],
     ];
     for (const [id, hash] of targets) {
       await mo.goto(`${BASE}#/`);
-      await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
-      await mo.getByTestId('more-sheet').waitFor();
+      await mo.locator('.tabbar [data-tour="nav-einstellungen"]').click();
+      await mo.getByTestId('settings-areas').waitFor();
+      assert((await mo.getByRole('dialog').count()) === 0, 'Einstellungen-Tab öffnet ein Blatt statt der Seite');
       await mo.getByTestId(id).click();
       await mo.waitForFunction((h) => location.hash === h, hash, { timeout: 5000 });
       await mo.locator('h1').first().waitFor({ timeout: 5000 });
       assert((await mo.getByText('nicht gefunden').count()) === 0, `${id}: nicht gefunden`);
     }
     await mo.goto(`${BASE}#/`);
-    await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
+    await mo.locator('.tabbar [data-tour="nav-einstellungen"]').click();
     await mo.waitForTimeout(500);
-    await shot(mo, '12-mehr');
-    assert((await mo.getByTestId('more-sheet').getByText('Änderungsverlauf').count()) === 0, 'Mehr ist nicht vereinfacht');
+    await shot(mo, '12-einstellungen');
   });
   await check('Team: Inhaber lädt ein, Rollen sichtbar, fremdes Profil nicht bearbeitbar', async () => {
     await mo.goto(`${BASE}#/team`);
@@ -443,9 +445,9 @@ try {
     t.tasks.push({ id: 'e2000000-0000-4000-8000-000000000003', group_id: teamGroup.id, study_entry_id: 'e1000000-0000-4000-8000-000000000002', title: 'Einzeln gelöscht', description: null, sort_order: 1, deleted_at: at, version: 1, created_at: at, updated_at: at });
     await mo.goto(`${BASE}#/`);
     await mo.reload();
-    await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
-    const count = (await mo.getByTestId('more-trash').innerText()).replace(/\D/g, '');
-    await mo.getByTestId('more-trash').click();
+    await mo.locator('.tabbar [data-tour="nav-einstellungen"]').click();
+    const count = (await mo.getByTestId('settings-trash').innerText()).replace(/\D/g, '');
+    await mo.getByTestId('settings-trash').click();
     await mo.waitForFunction(() => location.hash === '#/papierkorb');
     await mo.getByText('Gelöschter Lerntag').waitFor();
     const items = await mo.getByRole('button', { name: 'Wiederherstellen' }).count();
@@ -459,6 +461,12 @@ try {
     await mo.getByTestId('feedback-sent').waitFor();
     assert(mock.state.feedback.length === 1, 'Feedback gespeichert');
     await shot(mo, '14-hilfe');
+  });
+  await check('E-Mail testen: Beispiel-Anmeldecode an die eigene Adresse', async () => {
+    await mo.goto(`${BASE}#/einstellungen/konto`);
+    await mo.getByTestId('mail-test-send').click();
+    await mo.waitForFunction(() => document.body.innerText.includes('Test-E-Mail an'), null, { timeout: 5000 });
+    assert(mock.state.mails?.at(-1) === 'anna@example.com', `an ${mock.state.mails?.at(-1)} statt an die eigene Adresse`);
   });
   await check('Daten exportieren lädt eine Datei herunter', async () => {
     await mo.goto(`${BASE}#/einstellungen/daten`);
@@ -478,13 +486,11 @@ try {
     }
     await mo.setViewportSize({ width: 320, height: 568 });
     await mo.goto(`${BASE}#/`);
-    await mo.locator('.tabbar [data-tour="nav-mehr"]').click();
+    await mo.locator('.tabbar [data-tour="nav-einstellungen"]').click();
     await mo.waitForTimeout(400);
     const over = await mo.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    assert(over <= 1, `Mehr auf 320 px: ${over}px`);
-    await shot(mo, '15-mehr-320');
-    await mo.keyboard.press('Escape');
-    await mo.getByTestId('more-sheet').waitFor({ state: 'detached' });
+    assert(over <= 1, `Einstellungen auf 320 px: ${over}px`);
+    await shot(mo, '15-einstellungen-320');
   });
   await check('Inhaber entfernt ein Mitglied (mit Bestätigung)', async () => {
     await mo.setViewportSize({ width: 390, height: 844 });

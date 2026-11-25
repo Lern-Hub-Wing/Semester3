@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { IS_APP } from '../lib/edition';
+import { FILES_ENABLED } from '../lib/edition';
 import { ArrowDown, ArrowUp, FileText, Plus, Trash2, X } from 'lucide-react';
 import { LIMITS } from '../lib/config';
 import { checkFile, formatBytes } from '../lib/files';
@@ -343,8 +343,8 @@ export function EntryEditor() {
           )}
         </FieldWrap>
 
-        {/* Die App hat keine Datei-Uploads */}
-        {!IS_APP && (
+        {/* Keine Datei-Uploads mehr (siehe FILES_ENABLED) */}
+        {FILES_ENABLED && (
         <FieldWrap label="Dateien (optional)">
           {() =>
             entry ? (

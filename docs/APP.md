@@ -111,7 +111,7 @@ Ergebnis: Diagramm Brutto/Netto/Gewinn je Monat, Rechnung „von Brutto zu Gewin
 Die Annahmen werden nur im Browser gespeichert.
 
 ### 11. Hilfe & Feedback, Datenexport
-- Nutzer erreichen **Hilfe & Feedback** über „Mehr“, das Profilmenü und die Einstellungen (häufige Fragen, Einführung, Feedback-Formular).
+- Nutzer erreichen **Hilfe & Feedback** über das Profilmenü und die Einstellungen (häufige Fragen, Einführung, Feedback-Formular).
   Nachrichten erscheinen im Admin-Bereich unter **Feedback** (mit E-Mail nur, wenn die Person einer Antwort zugestimmt hat; höchstens 10 pro Tag und Konto).
 - **Einstellungen → Daten exportieren** lädt alle Inhalte der aktiven Lerngruppe bzw. des Lernbereichs plus Kontoangaben als JSON herunter.
 
@@ -164,9 +164,27 @@ Mit dem aktuellen `supabase-app/app_schema.sql` (erneut ausführen) kommen dazu:
 - **Rechtliches:** Nutzungsbedingungen, Datenschutzerklärung und Widerrufsbelehrung stehen in `src/app/legalText.ts` (Vorlage – vor dem Start mit echten Zahlungen rechtlich prüfen lassen). Beim ersten Öffnen und nach jeder neuen Fassung (`LEGAL_VERSION`) stimmt jede Person einmal zu; gespeichert werden Fassung und Zeitpunkt. **Impressum:** Admin → *Impressum* (Name, Anschrift, E-Mail sind Pflicht) – ohne diese Angaben zeigt die App „wird gerade eingetragen“.
 - **Umzug:** Admin → *Umzug* übernimmt die Sicherheitskopie der bisherigen Seite in eine neue Lerngruppe (Gruppenpass ohne Ablauf, als Freischaltung). Alles oder nichts in einer Transaktion; die Rohdatei wird in `site_imports` gesichert; dieselbe Datei geht nur einmal. Beitretende wählen „Wer bist du?“ (`app_claim_member`) und übernehmen Haken und Lernzeiten ihrer alten Person.
 
+### 15. E-Mails über das eigene Gmail-Konto (statt Supabase-Absender)
+So kommen E-Mails von **eurer** Adresse und im StudySpace-Design (Logo, Lila, Deutsch) – nicht vom Supabase-Standardabsender.
+1. **Gmail-Konto anlegen**, z. B. `studyspace.app@gmail.com` (kostenlos, ca. 500 E-Mails/Tag). Für eine Adresse mit eigener
+   Domain (z. B. `hallo@studyspace.de`) braucht es Google Workspace (kostenpflichtig) – das geht später genauso.
+2. Im neuen Google-Konto **Bestätigung in zwei Schritten** einschalten, dann unter *myaccount.google.com/apppasswords*
+   ein **App-Passwort** „StudySpace“ erzeugen (16 Zeichen, nur einmal sichtbar).
+3. Supabase (Projekt **App**) → *Edge Functions → Secrets*: `GMAIL_USER` = die Gmail-Adresse, `GMAIL_APP_PASSWORD` = das
+   App-Passwort, optional `MAIL_FROM_NAME` = `StudySpace`. **Nie** ins Repository, in die App oder in einen Chat.
+4. Funktion **app-mail-test** bereitstellen (Workflow „App: Edge Functions bereitstellen“ oder im Dashboard den Inhalt von
+   `supabase-app/functions/app-mail-test/index.ts` einfügen, *Verify JWT* aus).
+5. **Testen:** App → *Einstellungen → Konto → E-Mail testen* (an die eigene Adresse, höchstens 3 pro Stunde) oder
+   Admin → *E-Mail* (an jede Adresse, höchstens 20 pro Stunde). Es kommt „Willkommen bei StudySpace – dein Anmeldecode“
+   mit Logo und Beispielcode (als Test markiert; der Code funktioniert nicht).
+6. **Echte Anmelde-E-Mails** (Bestätigung, Passwort vergessen, Anmeldelink) ebenfalls über Gmail: Supabase →
+   *Authentication → Emails → SMTP Settings* wie in `supabase-app/email-templates/README.md`, Variante B (Host `smtp.gmail.com`,
+   Port `465`, Benutzer = Gmail-Adresse, Passwort = App-Passwort), danach die Vorlagen aus diesem Ordner einfügen.
+
 ### Navigation der App (Handy)
-Tab-Leiste: Home · Kalender · Aufgaben · **Team** (alleine lernen: **Statistik**) · Mehr. Fokus startet groß im Dashboard und steht oben unter „Mehr“.
-„Mehr“ enthält nur noch: Fokus, Lernmodus · KI-Lernplan, Fächer & Prüfungen, Statistiken, Musik · Lerngruppe, Tarif & Abo, Einstellungen · Hilfe & Feedback, Papierkorb.
+Tab-Leiste: Home · Lernplan · Aufgaben · **Team** (alleine lernen: **Statistik**) · **Einstellungen**. Es gibt kein „Mehr“-Blatt:
+Der letzte Tab führt direkt in die Einstellungen; ganz oben stehen dort Fokus, Lernmodus, Fächer & Prüfungen, Statistiken und
+der KI-Lernplan, darunter Konto, Lerngruppe, Tarif, Gerät, Daten (inkl. Papierkorb) und Hilfe.
 Mitglieder sind echte Konten: Name und Farbe ändert jede Person nur für sich; der Inhaber lädt ein und kann Mitglieder entfernen.
 Mitteilungen werden nicht beworben: Wer sie möchte, schaltet sie unter **Einstellungen → Benachrichtigungen** ein (Abschnitt 12).
 

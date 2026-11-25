@@ -13,6 +13,7 @@ import { Button } from '../components/ui/Button';
 import { LogoMark } from '../components/Logo';
 import { api } from './api';
 import { useAccount } from './account';
+import { useDesignChosen } from '../lib/accents';
 
 /**
  * Geführte Einführung: Ein Lichtkegel wandert zu den echten Bedienelementen,
@@ -32,7 +33,7 @@ let autoStarted = false;
 
 /** Einführung (erneut) starten – z. B. aus den Einstellungen. */
 export function startTour() {
-  useUI.getState().set?.({ moreOpen: false, searchOpen: false });
+  useUI.getState().set?.({ searchOpen: false });
   navigate('/');
   useTour.setState({ open: true, step: 0 });
 }
@@ -85,11 +86,11 @@ function useSteps(): Step[] {
       },
       {
         id: 'subjects',
-        targets: ['[data-tour="nav-faecher"]', '[data-tour="nav-mehr"]'],
+        targets: ['[data-tour="nav-faecher"]', '[data-tour="nav-einstellungen"]'],
         icon: <BookOpen />,
         title: 'Starte mit deinen Fächern',
         text: 'Lege deine Fächer an und trage die Prüfungstermine ein. Daraus entstehen Countdown und Fortschritt.',
-        fallbackText: 'Unter „Mehr“ findest du Fächer & Prüfungen. Lege dort deine Fächer an und trage die Prüfungstermine ein.',
+        fallbackText: 'Unter „Einstellungen“ findest du ganz oben Fächer & Prüfungen. Lege dort deine Fächer an und trage die Prüfungstermine ein.',
       },
       {
         id: 'hero',
@@ -192,7 +193,7 @@ function useSteps(): Step[] {
             icon: <ChartLine />,
             title: 'Deine Statistik',
             text: 'Wie viel du gelernt hast, wo du stehst und was als Nächstes ansteht.',
-            fallbackText: 'Unter „Mehr“ → Statistiken siehst du, wie viel du gelernt hast und wo du stehst.',
+            fallbackText: 'Unter „Einstellungen“ → Statistiken siehst du, wie viel du gelernt hast und wo du stehst.',
           },
       {
         id: 'search',
@@ -236,10 +237,12 @@ export function TourHost() {
   const me = useAccount((s) => s.me);
   const phase = useData((s) => s.phase);
   const open = useTour((s) => s.open);
+  const chosen = useDesignChosen();
 
   useEffect(() => {
     // nur einmal je Sitzung automatisch – sonst startet sie nach einem Seitenwechsel (z. B. Fokus) von vorn
-    if (!me || me.tutorial_done || phase !== 'ready' || autoStarted || useTour.getState().open) return;
+    // erst nach der Design-Auswahl beim ersten Start (sonst liegen beide übereinander)
+    if (!me || me.tutorial_done || phase !== 'ready' || autoStarted || useTour.getState().open || !chosen) return;
     try {
       if (localStorage.getItem(localKey(me.user_id)) === 'done') return;
     } catch {
@@ -251,7 +254,7 @@ export function TourHost() {
       startTour();
     }, 1400);
     return () => clearTimeout(t);
-  }, [me, phase]);
+  }, [me, phase, chosen]);
 
   return <AnimatePresence>{open && <TourOverlay key="tour" />}</AnimatePresence>;
 }

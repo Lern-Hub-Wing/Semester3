@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react';
-import { IS_APP } from '../lib/edition';
+import { FILES_ENABLED } from '../lib/edition';
 import { motion } from 'motion/react';
 import { Download, ExternalLink, FileText, ImageIcon, Trash2, Upload } from 'lucide-react';
 import type { Attachment, AttachmentTarget } from '../lib/types';
@@ -24,7 +24,7 @@ export function useAttachments(filter: (a: Attachment) => boolean, deps: unknown
 /** Uploadbereich: Drag & Drop am Desktop, großer Button auf dem Smartphone. */
 export function FileDrop(props: { target: UploadTarget | null; disabled?: boolean; onUploaded?: () => void }) {
   // Die App hat keine Datei-Uploads
-  if (IS_APP) return null;
+  if (!FILES_ENABLED) return null;
   return <FileDropInner {...props} />;
 }
 
@@ -109,7 +109,7 @@ function FileDropInner({ target, disabled, onUploaded }: { target: UploadTarget 
 
 /** Liste der Anhänge eines Ziels (Modul, Thema, Lerntag oder Aufgabe). */
 export function AttachmentList(props: { targetType: AttachmentTarget; targetId: string; compact?: boolean }) {
-  if (IS_APP) return null;
+  if (!FILES_ENABLED) return null;
   return <AttachmentListInner {...props} />;
 }
 

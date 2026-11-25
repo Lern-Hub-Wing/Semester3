@@ -2,12 +2,13 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EXTRA_MOTION } from '../lib/motionFlags';
 import { ACCENTS } from '../lib/accents';
 import {
-  Archive, ArrowDown, Clock3, Hand, CloudSun, Crown, Rocket, Scale, Search, Ticket, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
+  Archive, ArrowDown, ChartLine, Sparkles, Timer, Clock3, Hand, CloudSun, Crown, Rocket, Scale, Search, Ticket, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
 import { validateImport, type ValidationResult } from '../lib/backup';
-import { Link } from '../lib/router';
+import { Link, navigate } from '../lib/router';
+import { startStudyMode } from '../lib/studyModeStart';
 import { isHapticsSupported } from '../lib/haptics';
 import { useData, useSyncStatus } from '../store/data';
 import { useAllMembers, useAppName, useModules } from '../store/derived';
@@ -17,7 +18,7 @@ import { createExport, downloadJson, runImport } from '../store/backup';
 import { resync } from '../store/sync';
 import { toast } from '../store/toast';
 import { useDebouncedCallback } from '../hooks/useDebounced';
-import { PageHeader } from '../components/layout/AppShell';
+import { PageHeader, QuickAction } from '../components/layout/AppShell';
 import { ListGroup, ListRow } from '../components/ui/List';
 import { ProfileCard } from '../components/layout/ProfileCard';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -119,7 +120,7 @@ export function Settings({ section }: { section?: string }) {
       return (
         <div>
           <PageHeader title="Einstellungen" />
-          <SettingsNav />
+          <SettingsNav areas />
         </div>
       );
     return (
@@ -178,7 +179,7 @@ interface NavGroup {
 }
 
 /** Übersicht aller Einstellungen als gruppierte Liste mit Suche und dem jeweils aktuellen Stand */
-function SettingsNav({ active }: { active?: SectionKey }) {
+function SettingsNav({ active, areas = false }: { active?: SectionKey; areas?: boolean }) {
   const groups = useNavGroups(active);
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -186,6 +187,7 @@ function SettingsNav({ active }: { active?: SectionKey }) {
   return (
     <nav aria-label="Einstellungen" className="rise-list flex flex-col gap-5" data-testid="settings-nav">
       <ProfileCard />
+      {areas && !q && <SettingsAreas />}
       <label className="settings-search relative block">
         <span className="sr-only">Einstellungen durchsuchen</span>
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-faint" aria-hidden />
@@ -215,6 +217,33 @@ function SettingsNav({ active }: { active?: SectionKey }) {
   );
 }
 
+/**
+ * Handy: Der letzte Tab führt direkt hierher (kein „Mehr“-Blatt mehr).
+ * Darum stehen ganz oben die Bereiche ohne eigenen Tab – Fokus, Lernmodus, Fächer, Statistik.
+ */
+function SettingsAreas() {
+  const modules = useModules();
+  const me = useAccount((s) => s.me);
+  const solo = IS_APP && me?.groups.find((g) => g.id === me.active_group_id)?.kind === 'solo';
+  return (
+    <div className="flex flex-col gap-3" data-testid="settings-areas">
+      <div className="grid grid-cols-2 gap-2.5">
+        <QuickAction icon={<Timer />} tint={AREA_TINT.focus} label="Fokus" hint="Timer starten" onClick={() => navigate('/fokus')} testId="more-focus" />
+        <QuickAction icon={<Clock3 />} tint={AREA_TINT.studyMode} label="Lernmodus" hint="Uhr im Vollbild" onClick={startStudyMode} testId="more-study" />
+      </div>
+      <ListGroup title="Bereiche">
+        <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer & Prüfungen" value={modules.length || undefined} to="/faecher" testId="more-subjects" />
+        {solo ? (
+          <ListRow icon={<Users />} tint={AREA_TINT.team} label="Mit Freunden lernen" sub="Gruppe erstellen oder beitreten" to="/einstellungen/gruppe" testId="more-team" />
+        ) : (
+          <ListRow icon={<ChartLine />} tint={AREA_TINT.stats} label="Statistiken" to="/analyse" testId="more-stats" />
+        )}
+        {IS_APP && <ListRow icon={<Sparkles />} tint={AREA_TINT.plan_billing} label="KI-Lernplan" sub="Plan bis zur Prüfung erstellen" to="/ki-lernplan" testId="more-ai" />}
+      </ListGroup>
+    </div>
+  );
+}
+
 function useNavGroups(active?: SectionKey): NavGroup[] {
   const phase = usePush((s) => s.phase);
   const theme = usePrefs((s) => s.theme);
@@ -235,13 +264,13 @@ function useNavGroups(active?: SectionKey): NavGroup[] {
 
   const device: NavRow[] = [
     { icon: phase === 'on' ? <BellRing /> : <Bell />, tint: phase === 'on' ? TINT.teal : AREA_TINT.notifications, label: 'Benachrichtigungen', value: PUSH_LABEL[phase], to: '/einstellungen/benachrichtigungen', testId: 'settings-push', keywords: 'push mitteilung erinnerung ruhezeit' },
-    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design farbe akzent akzentfarbe blau grün animation animationen übergänge bewegung transparenz kompakt klänge ton haptik vibration fortschritt' },
+    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design farbe akzent akzentfarbe lila graphit schwarz weiß animation animationen übergänge bewegung transparenz kompakt klänge ton haptik vibration fortschritt' },
     { icon: <Clock3 />, tint: AREA_TINT.focus, label: 'Uhr & Fokus', ...sec('fokus'), testId: 'settings-clock', keywords: 'uhr schrift farbe hintergrund pomodoro timer lernmodus vollbild hausaufgaben zähler design kontrast' },
     { icon: <CloudSun />, tint: TINT.blue, label: 'Wetter', value: weatherMode === 'auto' ? 'Automatisch' : weatherMode === 'off' ? 'Aus' : 'Fest', ...sec('wetter'), keywords: 'regen schnee sonne gewitter standort hintergrund' },
   ];
   const music: NavRow = { icon: <Music2 />, tint: AREA_TINT.music, label: 'Musik-Bibliothek', value: musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`, to: '/musik', testId: 'settings-music', keywords: 'lofi youtube lieder' };
   const subjects: NavRow = { icon: <BookOpen />, tint: AREA_TINT.subjects, label: 'Fächer', value: modules.length, ...sec('faecher'), keywords: 'module reihenfolge farbe archiv' };
-  const trash: NavRow = { icon: <Trash2 />, tint: AREA_TINT.trash, label: 'Papierkorb', value: trashCount || undefined, to: '/papierkorb', keywords: 'gelöscht wiederherstellen' };
+  const trash: NavRow = { icon: <Trash2 />, tint: AREA_TINT.trash, label: 'Papierkorb', value: trashCount || undefined, to: '/papierkorb', testId: 'settings-trash', keywords: 'gelöscht wiederherstellen' };
   const history: NavRow = { icon: <History />, tint: AREA_TINT.history, label: 'Änderungsverlauf', to: '/verlauf', keywords: 'aktivität protokoll' };
   const about: NavRow = { icon: <Info />, tint: AREA_TINT.info, label: 'Über StudySpace', value: config.version, ...sec('info'), keywords: 'version verbindung' };
 
@@ -303,8 +332,8 @@ function Appearance() {
           ]}
         />
       </Row>
-      <Row stacked label="Akzentfarbe" hint="Zum Ausprobieren – gilt nur auf diesem Gerät.">
-        <div role="radiogroup" aria-label="Akzentfarbe" className="flex flex-wrap gap-2" data-testid="accent-picker">
+      <Row stacked label="Design" hint="Lila ist der StudySpace-Klassiker, Graphit die schlichte Schwarz-Weiß-Variante. Nur auf diesem Gerät.">
+        <div role="radiogroup" aria-label="Design" className="flex flex-wrap gap-2" data-testid="accent-picker">
           {ACCENTS.map((a) => (
             <button
               key={a.id}
