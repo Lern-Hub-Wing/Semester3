@@ -15,6 +15,30 @@ if [[ "${1:-}" == "--app" ]]; then
   # zweiter Durchlauf über das erzeugte Gesamtskript: wiederholbar?
   FILES+=("$ROOT/supabase-app/app_schema.sql")
   for f in "$ROOT"/supabase-app/tests/[1-9]*_test.sql; do FILES+=("$f"); done
+elif [[ "${1:-}" == "--rescue" ]]; then
+  # Unfall nachstellen: App-Schema in der Datenbank der SEITE ausgeführt → Reparatur → alle Seiten-Tests
+  M="$ROOT/supabase/migrations"
+  FILES=(
+    "$ROOT/supabase/tests/00_supabase_stubs.sql" "$ROOT/supabase-app/tests/00_auth_stubs.sql"
+    "$M/001_schema.sql" "$M/002_security.sql" "$M/003_storage.sql" "$M/004_push_focus.sql" "$M/005_homework.sql"
+    "$M/006_server_read_access.sql" "$M/007_music.sql" "$M/008_focus_realtime.sql" "$M/009_exam_participants.sql" "$M/010_moved_to_app.sql"
+    "$ROOT/supabase/seed.sql" "$ROOT/supabase/demo.sql"
+    "$ROOT/supabase/rescue/test_before.sql"
+    "$ROOT/supabase/rescue/test_guard.sql"
+    "$ROOT/supabase-app/migrations/0001_tenancy.sql" "$ROOT/supabase-app/migrations/0002_admin.sql" "$ROOT/supabase-app/migrations/0003_plans.sql"
+    "$ROOT/supabase-app/migrations/0004_feedback.sql" "$ROOT/supabase-app/migrations/0005_push.sql" "$ROOT/supabase-app/migrations/0006_ai_plan.sql"
+    "$ROOT/supabase-app/migrations/0007_move_codes_legal.sql"
+    "$ROOT/supabase/rescue/test_broken.sql"
+    "$ROOT/supabase/rescue/seite_reparieren.sql"
+    "$ROOT/supabase/rescue/seite_reparieren.sql"
+    "$ROOT/supabase/rescue/test_after.sql"
+    "$ROOT/supabase/tests/10_behaviour_test.sql"
+    "$ROOT/supabase/tests/20_push_focus_test.sql"
+    "$ROOT/supabase/tests/30_homework_test.sql"
+    "$ROOT/supabase/tests/40_server_access_test.sql"
+    "$ROOT/supabase/tests/50_music_test.sql"
+    "$ROOT/supabase/tests/70_participants_test.sql"
+  )
 else
 FILES=(
   "$ROOT/supabase/tests/00_supabase_stubs.sql"
