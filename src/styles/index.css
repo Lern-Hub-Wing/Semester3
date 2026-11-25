@@ -2184,3 +2184,15 @@ select.field:hover {
   overflow-y: clip;
   overflow-clip-margin: 0.06em;
 }
+
+/* Android (Chrome): Die Lichtbrechung der Glas-Leisten ist ein SVG-Filter im backdrop-filter.
+   Safari ignoriert ihn (iPhone bleibt unverändert), Chrome berechnet ihn bei JEDEM Scroll-Bild neu –
+   auf 120-Hz-Handys der Hauptgrund für Ruckeln. Unschärfe und Sättigung bleiben, nur die Brechung entfällt. */
+.android * {
+  --lg-filter: saturate(1.5) !important;
+}
+/* Bergnebel und Sternenfunkeln ruhen beim Scrollen nicht mit – auf Android ganz anhalten */
+.android .landscape .ls-mist,
+.android .landscape .ls-stars {
+  animation: none !important;
+}
