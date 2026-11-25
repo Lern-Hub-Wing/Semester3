@@ -1,3 +1,4 @@
+import { useSessionsWithLive } from '../../hooks/useSessionsWithLive';
 import { useEffect, useMemo } from 'react';
 import { ArrowLeftRight, UserRound } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
@@ -20,7 +21,7 @@ export function ProfileCard({ onSwitch }: { onSwitch?: () => void }) {
   const me = useCurrentMember();
   const select = useSession((s) => s.select);
   const progress = useProgress();
-  const sessions = useFocus((s) => s.sessions);
+  const sessions = useSessionsWithLive();
   const focusAvailable = useFocus((s) => s.available);
   const today = useToday();
   const groupName = useAccount((s) => s.me?.groups.find((g) => g.id === s.me?.active_group_id)?.name);

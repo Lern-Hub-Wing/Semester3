@@ -4,7 +4,7 @@
  */
 import { isHexColor } from './colors';
 
-export type ClockFont = 'inter' | 'thin' | 'rounded' | 'mono' | 'serif' | 'digital' | 'grotesk';
+export type ClockFont = 'inter' | 'thin' | 'rounded' | 'mono' | 'serif' | 'digital' | 'grotesk' | 'clean' | 'geo' | 'future' | 'elegant' | 'hand' | 'soft' | 'bold';
 export type ClockBackground = 'mountains' | 'solid' | 'gradient' | 'aurora' | 'image';
 
 export interface StudyModeSettings {
@@ -41,6 +41,13 @@ export const CLOCK_FONTS: { id: ClockFont; label: string; family: string; min: n
   { id: 'mono', label: 'Mono', family: "'JetBrains Mono Variable', ui-monospace, monospace", min: 100, max: 800, defaultWeight: 400 },
   { id: 'serif', label: 'Klassisch', family: "'Playfair Display Variable', Georgia, serif", min: 400, max: 900, defaultWeight: 500 },
   { id: 'digital', label: 'Digital', family: "'Orbitron Variable', ui-monospace, monospace", min: 400, max: 900, defaultWeight: 600 },
+  { id: 'clean', label: 'Klar', family: "'Montserrat Variable', system-ui, sans-serif", min: 100, max: 900, defaultWeight: 600 },
+  { id: 'geo', label: 'Geometrisch', family: "'Outfit Variable', system-ui, sans-serif", min: 100, max: 900, defaultWeight: 500 },
+  { id: 'future', label: 'Futur', family: "'Sora Variable', system-ui, sans-serif", min: 100, max: 800, defaultWeight: 500 },
+  { id: 'elegant', label: 'Elegant', family: "'Fraunces Variable', Georgia, serif", min: 100, max: 900, defaultWeight: 400 },
+  { id: 'hand', label: 'Handschrift', family: "'Caveat Variable', cursive", min: 400, max: 700, defaultWeight: 600 },
+  { id: 'soft', label: 'Weich', family: "'Comfortaa Variable', ui-rounded, system-ui, sans-serif", min: 300, max: 700, defaultWeight: 600 },
+  { id: 'bold', label: 'Kräftig', family: "'Bricolage Grotesque Variable', system-ui, sans-serif", min: 200, max: 800, defaultWeight: 700 },
 ];
 
 export const GRADIENT_PRESETS: { id: string; label: string; colors: [string, string, string]; angle: number }[] = [
@@ -50,10 +57,22 @@ export const GRADIENT_PRESETS: { id: string; label: string; colors: [string, str
   { id: 'ozean', label: 'Ozean', colors: ['#0B2A3C', '#1F6F8B', '#A6DED7'], angle: 145 },
   { id: 'wald', label: 'Wald', colors: ['#0E1F17', '#2F5D46', '#C3D7AD'], angle: 150 },
   { id: 'morgen', label: 'Morgen', colors: ['#FDE2E4', '#E2ECE9', '#BEE1E6'], angle: 135 },
+  { id: 'polar', label: 'Polarlicht', colors: ['#071A24', '#13625E', '#7FE0C3'], angle: 165 },
+  { id: 'lavendel', label: 'Lavendel', colors: ['#1E1638', '#5B3F94', '#D7B4F0'], angle: 150 },
+  { id: 'gletscher', label: 'Gletscher', colors: ['#0A1F3A', '#2F6FC0', '#BFE1FF'], angle: 160 },
+  { id: 'kirsche', label: 'Kirschblüte', colors: ['#2A0E1E', '#7A1F4B', '#F28BA8'], angle: 155 },
+  { id: 'wueste', label: 'Wüste', colors: ['#2E1B10', '#A85A1F', '#F2C879'], angle: 150 },
+  { id: 'neon', label: 'Neon', colors: ['#10002B', '#5B21B6', '#22D3EE'], angle: 140 },
+  { id: 'tiefsee', label: 'Tiefsee', colors: ['#01060F', '#0B1F3A', '#1D4E89'], angle: 170 },
+  { id: 'sonnenuntergang', label: 'Sonnenuntergang', colors: ['#1B1033', '#C2416B', '#FDB46C'], angle: 165 },
+  { id: 'moos', label: 'Moos', colors: ['#0B140D', '#2D4A2B', '#93B57C'], angle: 155 },
+  { id: 'graphit', label: 'Graphit', colors: ['#0D0F14', '#262B36', '#4B5263'], angle: 160 },
+  { id: 'pfirsich', label: 'Pfirsich', colors: ['#FFE5D9', '#FFCAD4', '#F4ACB7'], angle: 135 },
+  { id: 'minze', label: 'Minze', colors: ['#E3F8F2', '#BDE8DA', '#8FD3C2'], angle: 140 },
 ];
 
-export const CLOCK_COLORS = ['#FFFFFF', '#F2F5FA', '#AFC5F5', '#CBB8F5', '#AADCCB', '#F5C6A5', '#F4B9B6', '#E8CB9D', '#1D2533'];
-export const BG_COLORS = ['#000000', '#0C1018', '#151B27', '#1B2440', '#2B1E3F', '#0E1F17', '#F6F8FC', '#FFFFFF'];
+export const CLOCK_COLORS = ['#FFFFFF', '#F2F5FA', '#AFC5F5', '#CBB8F5', '#AADCCB', '#F5C6A5', '#F4B9B6', '#E8CB9D', '#FFE08A', '#8FE3F0', '#FF9EC7', '#1D2533'];
+export const BG_COLORS = ['#000000', '#0C1018', '#151B27', '#1B2440', '#2B1E3F', '#0E1F17', '#3A1428', '#2E1B10', '#F6F8FC', '#FFFFFF'];
 
 export const DEFAULT_STUDY_MODE: StudyModeSettings = {
   format: 'hms',
@@ -191,6 +210,11 @@ export async function resizeImage(file: File, maxSide = 1920, quality = 0.82): P
   }
 }
 
+/** Alle Schriften laden (für die Vorschau in der Schriftauswahl) */
+export function loadAllClockFonts(): void {
+  for (const f of CLOCK_FONTS) void loadClockFont(f.id);
+}
+
 /** Lädt die gewählte Schriftart erst bei Bedarf (kleineres Start-Bundle). */
 export function loadClockFont(font: ClockFont): Promise<unknown> {
   switch (font) {
@@ -204,6 +228,20 @@ export function loadClockFont(font: ClockFont): Promise<unknown> {
       return import('@fontsource-variable/playfair-display');
     case 'digital':
       return import('@fontsource-variable/orbitron');
+    case 'clean':
+      return import('@fontsource-variable/montserrat');
+    case 'geo':
+      return import('@fontsource-variable/outfit');
+    case 'future':
+      return import('@fontsource-variable/sora');
+    case 'elegant':
+      return import('@fontsource-variable/fraunces');
+    case 'hand':
+      return import('@fontsource-variable/caveat');
+    case 'soft':
+      return import('@fontsource-variable/comfortaa');
+    case 'bold':
+      return import('@fontsource-variable/bricolage-grotesque');
     default:
       return Promise.resolve();
   }

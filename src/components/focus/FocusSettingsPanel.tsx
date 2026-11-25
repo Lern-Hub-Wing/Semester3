@@ -1,10 +1,10 @@
 import { ContrastWarning, SharedLookNote } from './LookNotes';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ImagePlus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { FOCUS_PRESETS, RHYTHM_LIMITS, type Rhythm } from '../../lib/focus';
 import { FOCUS_COLORS, RING_COLORS, saveFocusImage, loadFocusImage } from '../../lib/focusLook';
-import { CLOCK_FONTS, GRADIENT_PRESETS, BG_COLORS, resizeImage } from '../../lib/studyMode';
+import { CLOCK_FONTS, GRADIENT_PRESETS, BG_COLORS, loadAllClockFonts, resizeImage } from '../../lib/studyMode';
 import { focusActions, rhythmOf, useFocus } from '../../store/focus';
 import { useModules } from '../../store/derived';
 import { toast } from '../../store/toast';
@@ -87,7 +87,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Swatches({ colors, value, onChange, label }: { colors: string[]; value: string; onChange: (c: string) => void; label: string }) {
+function Swatches({ colors, value, onChange, label, custom = true }: { colors: string[]; value: string; onChange: (c: string) => void; label: string; custom?: boolean }) {
+  const own = !!value && !colors.includes(value);
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
       {colors.map((c) => (
@@ -103,6 +104,17 @@ function Swatches({ colors, value, onChange, label }: { colors: string[]; value:
           style={{ background: c || 'conic-gradient(#a9a6ff, #7fd6b6, #8cbcff, #a9a6ff)' }}
         />
       ))}
+      {custom && (
+        <label
+          title="Eigene Farbe"
+          className={`relative grid size-8 cursor-pointer place-items-center overflow-hidden rounded-full border text-[15px] font-semibold text-white ${own ? 'border-white ring-2 ring-white/40' : 'border-white/25'}`}
+          style={{ background: own ? value : 'conic-gradient(#ff8a8a, #ffd36e, #8ef0a5, #7cc8ff, #c79bff, #ff8a8a)' }}
+        >
+          {!own && <span aria-hidden>+</span>}
+          <span className="sr-only">Eigene Farbe für {label}</span>
+          <input type="color" value={value || '#ffffff'} onChange={(e) => onChange(e.target.value.toUpperCase())} className="absolute inset-0 cursor-pointer opacity-0" />
+        </label>
+      )}
     </div>
   );
 }
@@ -178,6 +190,7 @@ function RhythmTab() {
 }
 
 function DisplayTab() {
+  useEffect(() => loadAllClockFonts(), []);
   const look = useFocus((s) => s.look);
   const setLook = useFocus((s) => s.setLook);
   const font = CLOCK_FONTS.find((f) => f.id === look.font) ?? CLOCK_FONTS[0]!;
@@ -225,7 +238,7 @@ function DisplayTab() {
         {look.ring && (
           <>
             <GlassSlider label="Ringstärke" value={look.ringWidth} min={2} max={24} onChange={(ringWidth) => setLook({ ringWidth })} display={`${look.ringWidth} px`} />
-            <Swatches label="Ringfarbe" colors={RING_COLORS} value={look.ringColor} onChange={(ringColor) => setLook({ ringColor })} />
+            <Swatches label="Ringfarbe" custom={false} colors={RING_COLORS} value={look.ringColor} onChange={(ringColor) => setLook({ ringColor })} />
           </>
         )}
         <Row label="Prozent anzeigen">
@@ -324,6 +337,26 @@ function BackgroundTab() {
               >
                 {g.label}
               </button>
+            ))}
+          </div>
+        )}
+        {look.background === 'gradient' && (
+          <div className="flex items-center gap-2">
+            <span className="text-[12.5px] text-white/70">Eigener Verlauf</span>
+            {look.gradient.map((c, i) => (
+              <label key={i} className="relative size-8 cursor-pointer overflow-hidden rounded-full border border-white/25" style={{ background: c }}>
+                <span className="sr-only">Verlaufsfarbe {i + 1}</span>
+                <input
+                  type="color"
+                  value={c}
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  onChange={(e) => {
+                    const next = [...look.gradient] as typeof look.gradient;
+                    next[i] = e.target.value.toUpperCase();
+                    setLook({ gradient: next });
+                  }}
+                />
+              </label>
             ))}
           </div>
         )}

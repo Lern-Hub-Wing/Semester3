@@ -1429,6 +1429,38 @@ try {
     const i = db.app_settings.findIndex((r) => r.key === 'moved_to_app');
     if (i >= 0) db.app_settings.splice(i, 1);
   }
+
+  // --- Live-Lernzeit: laufender Timer zählt sofort mit + neue Schriften -----
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 } });
+    await c.addInitScript(() => {
+      const t0 = Date.now() - 3 * 60_000;
+      const timer = { phase: 'focus', long: false, round: 1, durationSec: 1500, endsAt: t0 + 1500_000, pausedRemainingSec: null, startedAt: t0, elapsedBeforePauseSec: 0, finished: false, moduleId: null };
+      if (!sessionStorage.getItem('e2e.live')) {
+        localStorage.setItem('studyspace.focus.v1', JSON.stringify({ timer }));
+        sessionStorage.setItem('e2e.live', '1');
+      }
+    });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.goto(`${BASE}#/einstellungen`);
+    await p.getByTestId('settings-nav').waitFor();
+    await p.waitForTimeout(800);
+    const card = await p.getByTestId('settings-nav').locator('section, div').first().innerText();
+    const saved = Math.floor((db.focus_sessions ?? []).filter((x) => x.member_id.endsWith('01')).reduce((n, x) => n + x.duration_seconds, 0) / 60);
+    const shown = Number((card.match(/Lernzeit diese Woche\s*(\d+)\s*Min/) ?? [])[1]);
+    check(shown >= saved + 3 && shown <= saved + 4, `Live-Lernzeit: laufende Fokusphase zählt sofort mit (gespeichert ${saved} Min. + 3 laufend → ${shown} Min.)`);
+    await p.goto(`${BASE}#/einstellungen/fokus`);
+    await p.getByTestId('clock-preview').waitFor();
+    check((await p.getByRole('radiogroup', { name: 'Schrift der Uhr' }).getByRole('radio').count()) >= 14, 'Uhr & Fokus: mindestens 14 Schriften');
+    await p.getByRole('radio', { name: /Handschrift/ }).click();
+    await p.waitForTimeout(600);
+    const fam = await p.getByTestId('clock-preview').locator('.num').evaluate((el) => getComputedStyle(el).fontFamily);
+    check(/Caveat/.test(fam), `Uhr & Fokus: neue Schrift wird geladen (${fam.slice(0, 30)})`);
+    check(errs.length === 0, `keine JavaScript-Fehler (Live-Lernzeit)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
 } catch (err) {
   failures++;
   console.error('✗ Abbruch:', err);
