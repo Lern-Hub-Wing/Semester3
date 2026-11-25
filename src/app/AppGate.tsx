@@ -10,6 +10,9 @@ import { AuthFrame, AuthScreen, BlockedScreen, RecoveryScreen, Splash } from './
 import { Button } from '../components/ui/Button';
 import { WelcomeScreen } from './WelcomeScreen';
 import { TourHost } from './Tour';
+import { ConsentScreen } from './Legal';
+import { LEGAL_VERSION } from './legalText';
+import { ClaimMemberDialog } from './ClaimMember';
 
 /**
  * Tür zur App: erst anmelden, dann Lerngruppe – danach die gewohnte
@@ -64,12 +67,16 @@ export function AppGate({ children }: { children: ReactNode }) {
   if (!me) return <Splash />;
   if (me.status === 'blocked') return <BlockedScreen />;
   if (!me.session_ok) return <BlockedScreen revoked />;
+  // Nutzungsbedingungen: einmal zustimmen, bei neuer Fassung erneut (ohne Migration 0007 fehlt das Feld → kein Hindernis)
+  if (me.terms_version !== undefined && me.terms_version !== LEGAL_VERSION) return <ConsentScreen again={me.terms_version !== null} />;
   if (!inGroup || showInvite) return <WelcomeScreen />;
   return (
     <>
       {children}
       {/* Geführte Einführung beim ersten Besuch (überspringbar) */}
       <TourHost />
+      {/* Umgezogene Lerngruppe: „Wer bist du?“ */}
+      <ClaimMemberDialog />
     </>
   );
 }

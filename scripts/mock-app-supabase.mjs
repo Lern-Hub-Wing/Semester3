@@ -117,6 +117,8 @@ export function createAppMock() {
       has_plus: level(u) === 'group',
       plus_until: null,
       is_admin: !!u.admin,
+      // Zustimmung: nur wenn gesetzt (sonst wie eine ältere Datenbank ohne Migration 0007)
+      ...(u.terms !== undefined ? { terms_version: u.terms } : {}),
       groups: state.memberships
         .filter((m) => m.user_id === uid && !m.left_at)
         .map((m) => {
@@ -168,7 +170,40 @@ export function createAppMock() {
       return null;
     },
     app_tutorial_done: (uid) => ((user(uid).tutorial_done = true), null),
-    admin_set_config: (uid, a) => ((state.betaEnabled = a.p_value === true), null),
+    admin_set_config: (uid, a) => {
+      if (a.p_key === 'legal_imprint') state.imprint = a.p_value;
+      else state.betaEnabled = a.p_value === true;
+      return null;
+    },
+    app_accept_terms: (uid, a) => ((user(uid).terms = a.p_version), null),
+    app_legal_info: () => ({ imprint: state.imprint ?? null }),
+    app_redeem_code: (uid, a, route) => {
+      const c = String(a.p_code).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (c.length !== 8) return { kind: 'invalid', message: 'Code ungültig. Codes haben 8 Zeichen, z. B. ABCD-2345.' };
+      const g = state.groups.find((x) => x.code === c && x.kind === 'team');
+      if (g) return { kind: 'group', group_id: rpc.app_join_group(uid, { p_code: c, p_display_name: a.p_display_name }, route), name: g.name, claimable: 0 };
+      const pc = (state.codes ?? []).find((x) => x.code.replace('-', '') === c);
+      if (!pc || pc.revoked_at || pc.uses >= pc.max_uses) return { kind: 'invalid', message: 'Code ungültig, abgelaufen oder schon aufgebraucht.' };
+      pc.uses++;
+      const u = user(uid);
+      u.ents ??= [];
+      const ends_at = pc.days ? new Date(Date.now() + pc.days * 864e5).toISOString() : null;
+      u.ents.push({ id: randomUUID(), plan: pc.plan, source: 'code', ends_at });
+      return { kind: 'plan', plan: pc.plan, ends_at };
+    },
+    admin_create_codes: (uid, a) => {
+      state.codes ??= [];
+      const out = [];
+      for (let i = 0; i < (a.p_count ?? 1); i++) {
+        const raw = code();
+        const row = { id: randomUUID(), code: `${raw.slice(0, 4)}-${raw.slice(4)}`, plan: a.p_plan, days: a.p_days, max_uses: a.p_max_uses ?? 1, uses: 0, expires_at: null, note: a.p_note, created_at: now(), revoked_at: null };
+        state.codes.push(row);
+        out.push(row);
+      }
+      return out;
+    },
+    admin_codes: () => (state.codes ?? []).map((c) => ({ ...c, redeemed_by: [] })),
+    admin_revoke_code: (uid, a) => ((state.codes.find((c) => c.id === a.p_id).revoked_at = now()), null),
     app_create_group: (uid, a, route) => {
       if (level(user(uid)) !== 'group') return err(route, 400, 'Zum Erstellen einer Lerngruppe wird ein Gruppenpass benötigt.', 'plus_required');
       const g = { id: randomUUID(), name: a.p_name, owner: uid, code: code(), kind: 'team' };

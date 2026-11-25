@@ -103,7 +103,7 @@ export interface Attachment extends Versioned {
   deleted_at: Timestamp | null;
 }
 
-export type SettingKey = 'app_name' | 'group_goal_title' | 'motivation_enabled';
+export type SettingKey = 'app_name' | 'group_goal_title' | 'motivation_enabled' | 'moved_to_app';
 
 export interface AppSetting {
   key: SettingKey;

@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const shared = ['001_schema.sql', '002_security.sql', '004_push_focus.sql', '005_homework.sql', '006_server_read_access.sql', '007_music.sql', '008_focus_realtime.sql'];
+const shared = ['001_schema.sql', '002_security.sql', '004_push_focus.sql', '005_homework.sql', '006_server_read_access.sql', '007_music.sql', '008_focus_realtime.sql', '009_exam_participants.sql'];
 const own = readdirSync(join(root, 'supabase-app/migrations')).filter((f) => f.endsWith('.sql')).sort();
 export const appSchemaFiles = [...shared.map((f) => `supabase/migrations/${f}`), ...own.map((f) => `supabase-app/migrations/${f}`)];
 

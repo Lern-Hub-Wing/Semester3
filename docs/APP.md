@@ -157,6 +157,13 @@ Pro Konto höchstens 5 KI-Pläne am Tag (`update public.app_config set value = '
 `0` schaltet die KI ab). Nur mit Zugang (Testphase, Solo, Gruppe). Ohne Schlüssel oder bei Störungen erstellt die App den Plan
 nach festen Lernregeln und kennzeichnet ihn ehrlich als „Nach Lernregeln erstellt“. Verbrauch: Tabelle `ai_usage`.
 
+### 14. Umzug von der Seite, Codes, Rechtliches (Migration 0007)
+Mit dem aktuellen `supabase-app/app_schema.sql` (erneut ausführen) kommen dazu:
+- **Wer schreibt diese Prüfung?** Fächer mit Teilnehmenden sind in der App **serverseitig** geschützt (Row Level Security): Wer nicht eingetragen ist, kann Fach, Prüfungen, Lernplan, Aufgaben, Haken, Hausaufgaben, Fokuszeiten und Verlauf dazu nicht abrufen oder ändern. Mitteilungen gehen nur an die Eingetragenen.
+- **Codes:** Admin → *Codes* erstellt Tarif-Codes (Gruppenpass oder Solo, Laufzeit, Einlösungen, Anzahl) und versendet sie über Teilen, E-Mail oder Link (`/app/#/code/ABCD-2345`). Nutzer lösen in *Einstellungen → Code einlösen* oder im Willkommensbildschirm ein – ein Feld für Einladungs- und Tarif-Codes. Eingelöste Codes sind Freischaltungen (Quelle `code`), nie Umsatz. Höchstens 10 Fehlversuche in 15 Minuten.
+- **Rechtliches:** Nutzungsbedingungen, Datenschutzerklärung und Widerrufsbelehrung stehen in `src/app/legalText.ts` (Vorlage – vor dem Start mit echten Zahlungen rechtlich prüfen lassen). Beim ersten Öffnen und nach jeder neuen Fassung (`LEGAL_VERSION`) stimmt jede Person einmal zu; gespeichert werden Fassung und Zeitpunkt. **Impressum:** Admin → *Impressum* (Name, Anschrift, E-Mail sind Pflicht) – ohne diese Angaben zeigt die App „wird gerade eingetragen“.
+- **Umzug:** Admin → *Umzug* übernimmt die Sicherheitskopie der bisherigen Seite in eine neue Lerngruppe (Gruppenpass ohne Ablauf, als Freischaltung). Alles oder nichts in einer Transaktion; die Rohdatei wird in `site_imports` gesichert; dieselbe Datei geht nur einmal. Beitretende wählen „Wer bist du?“ (`app_claim_member`) und übernehmen Haken und Lernzeiten ihrer alten Person.
+
 ### Navigation der App (Handy)
 Tab-Leiste: Home · Kalender · Aufgaben · **Team** (alleine lernen: **Statistik**) · Mehr. Fokus startet groß im Dashboard und steht oben unter „Mehr“.
 „Mehr“ enthält nur noch: Fokus, Lernmodus · KI-Lernplan, Fächer & Prüfungen, Statistiken, Musik · Lerngruppe, Tarif & Abo, Einstellungen · Hilfe & Feedback, Papierkorb.

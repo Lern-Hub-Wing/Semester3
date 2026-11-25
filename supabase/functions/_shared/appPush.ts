@@ -64,6 +64,8 @@ export function planAppHomework(input: {
   moduleNames: Map<string, string>;
   memberNames: Map<string, string>;
   groupNames: Map<string, string>;
+  /** Wer schreibt die Prüfung? (Fach → Mitglieds-IDs; leer = alle) */
+  moduleParticipants?: Map<string, string[] | null>;
 }): AppPlanned[] {
   const nowMs = input.now.getTime();
   const local = berlinParts(input.now);
@@ -92,6 +94,8 @@ export function planAppHomework(input: {
       if (at < since || nowMs - at > APP_HOMEWORK_WINDOW_MS) continue;
       const hw = hwById.get(ev.entity_id);
       if (!hw || hw.group_id !== ev.group_id || hw.deleted_at || hw.due_date < today) continue;
+      const writers = input.moduleParticipants?.get(hw.module_id);
+      if (writers && writers.length > 0 && (!mine || !writers.includes(mine))) continue; // Fach, das diese Person nicht schreibt
       if (dev.sent.has(`homework:${hw.id}`) || items.some((i) => i.id === hw.id)) continue;
       items.push({
         id: hw.id,

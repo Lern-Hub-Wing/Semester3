@@ -2161,3 +2161,18 @@ select.field:hover {
   background: rgb(255 255 255 / 0.35);
   box-shadow: inset 0 0 0 0.5px rgb(20 18 43 / 0.14);
 }
+
+/* Android: flüssiges Scrollen – Karten ohne Live-Unschärfe (Kopf-/Tab-Leiste bleiben Glas),
+   Hintergrund-Lichter ruhen, Bilder werden nicht bei jedem Bild neu berechnet */
+.android .card,
+.android main .glass:not(.glass-strong) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: color-mix(in srgb, var(--ss-card) 94%, transparent);
+}
+.android .ambient > span {
+  animation: none !important;
+}
+.android .sheen::after {
+  display: none;
+}

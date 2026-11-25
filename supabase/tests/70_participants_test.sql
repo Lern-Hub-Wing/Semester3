@@ -35,3 +35,11 @@ select ss_test.assert((select count(*) from public.study_entries where module_id
 -- jedes Thema: genau ein Theorie- und ein Übungstag, alle vor Weihnachten
 select ss_test.assert((select bool_and(n = 2 and last < date '2026-12-24') from (select count(*) n, max(study_date) last from public.study_entries where topic_id is not null and module_id = 'c4e10000-0000-4000-8000-000000000001' group by topic_id) x), 'Themen vor Weihnachten, je 2 Tage');
 rollback;
+
+-- Migration 010: Umzug in die App (Umleitung per gemeinsamer Einstellung)
+begin;
+set local role anon;
+insert into public.app_settings (key, value) values ('moved_to_app', '{"url": "https://example.com/app/", "at": "2026-11-25T10:00:00Z"}')
+on conflict (key) do update set value = excluded.value;
+select ss_test.assert((select value ->> 'url' from public.app_settings where key = 'moved_to_app') = 'https://example.com/app/', 'Umleitung gespeichert');
+rollback;

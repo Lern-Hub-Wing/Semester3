@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { config } from './lib/config';
 import { IS_APP } from './lib/edition';
@@ -28,6 +28,7 @@ import type { Member } from './lib/types';
 import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
 import { MountainFlight } from './components/landscape/MountainFlight';
+import { MovedScreen, movedTarget, stayOnSite } from './components/layout/MovedScreen';
 import { rememberReturnPath, returnPath } from './lib/focusReturn';
 import { PushMemberSwitch, PushOnboarding } from './components/PushOnboarding';
 import { BadgeSync } from './components/BadgeSync';
@@ -136,6 +137,11 @@ function Main() {
   useEffect(() => {
     if (!IS_APP && phase === 'ready' && activeId && (!me || !me.is_active)) select(null);
   }, [phase, activeId, me, select]);
+
+  // Umzug: Die Seite leitet auf die App um (Einstellungen → Umzug in die App)
+  const movedTo = useData((s) => (IS_APP ? null : movedTarget(s.app_settings.moved_to_app?.value)));
+  const [stay, setStay] = useState(stayOnSite);
+  if (movedTo && !stay) return <MovedScreen target={movedTo} onStay={() => setStay(true)} />;
 
   return (
     <LayoutGroup>

@@ -577,6 +577,69 @@ try {
     await c.getByTestId('admin-users').getByText('anna@example.com').waitFor();
   });
 
+  let promo = '';
+  await check('Admin: Codes erstellen und senden', async () => {
+    await c.getByRole('radio', { name: 'Codes' }).or(c.getByRole('button', { name: 'Codes' })).first().click();
+    await c.getByTestId('admin-codes').waitFor();
+    await c.getByLabel('Laufzeit (Tage)').fill('60');
+    await c.getByTestId('codes-create').click();
+    await c.getByTestId('codes-fresh').waitFor();
+    promo = (await c.getByTestId('codes-fresh').locator('.font-mono').first().innerText()).trim();
+    assert(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(promo), `Code im Format XXXX-XXXX (${promo})`);
+    assert((await c.getByTestId('codes-fresh').getByRole('button', { name: 'Senden' }).count()) === 1, 'Senden-Knopf');
+    await shot(c, '12-admin-codes');
+  });
+  await check('Admin: Impressum eintragen (Pflichtfelder)', async () => {
+    await c.getByRole('radio', { name: 'Impressum' }).or(c.getByRole('button', { name: 'Impressum' })).first().click();
+    await c.getByTestId('admin-legal').waitFor();
+    assert(await c.getByTestId('legal-save').isDisabled(), 'ohne Pflichtfelder nicht speicherbar');
+    await c.getByLabel('Name / Firma *').fill('Test Betreiber');
+    await c.getByLabel('E-Mail *').fill('kontakt@example.com');
+    await c.getByLabel('Straße und Hausnummer *').fill('Musterweg 1');
+    await c.getByLabel('PLZ und Ort *').fill('12345 Musterstadt');
+    await c.getByTestId('legal-save').click();
+    await c.waitForTimeout(400);
+    assert(mock.state.imprint?.name === 'Test Betreiber', 'Impressum gespeichert');
+  });
+  await check('Admin: Umzug-Bereich mit Datei-Vorschau', async () => {
+    await c.getByRole('radio', { name: 'Umzug' }).or(c.getByRole('button', { name: 'Umzug' })).first().click();
+    await c.getByTestId('admin-move').waitFor();
+    await c.getByTestId('move-file').setInputFiles({ name: 'studyspace-umzug.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ format: 'studyspace-umzug', tables: { members: [{ id: 'm1', name: 'Luk' }, { id: 'm2', name: 'Mathis' }], modules: [{ id: 'x' }], homework: [] } })) });
+    await c.getByTestId('move-preview').waitFor();
+    assert((await c.getByLabel('Wer bist du auf der Seite?').locator('option').count()) === 3, 'Personen aus der Datei wählbar');
+    assert(await c.getByTestId('move-run').isDisabled(), 'erst mit E-Mail und Person');
+  });
+  await check('Nutzungsbedingungen: Zustimmung vor dem Weiterlernen', async () => {
+    mock.state.users.find((u) => u.email === 'anna@example.com').terms = null;
+    await a.goto(`${BASE}#/`);
+    await a.reload();
+    await a.getByTestId('consent-screen').waitFor();
+    assert(await a.getByTestId('consent-accept').isDisabled(), 'erst nach dem Haken');
+    await a.getByRole('button', { name: 'Impressum' }).click();
+    await a.getByTestId('imprint').getByText('Test Betreiber').first().waitFor();
+    await a.keyboard.press('Escape');
+    await a.getByTestId('consent-check').check();
+    await a.getByTestId('consent-accept').click();
+    await a.getByTestId('consent-screen').waitFor({ state: 'detached' });
+    assert(mock.state.users.find((u) => u.email === 'anna@example.com').terms === '2026-11-25', 'Fassung gespeichert');
+  });
+  await check('Code einlösen in den Einstellungen', async () => {
+    await a.goto(`${BASE}#/einstellungen/code`);
+    await a.getByTestId('redeem-form').waitFor();
+    await a.getByTestId('redeem-code').fill('zzzz zzzz');
+    await a.getByTestId('redeem-submit').click();
+    await a.getByText('Code ungültig, abgelaufen oder schon aufgebraucht.').waitFor();
+    await a.getByTestId('redeem-code').fill(promo.toLowerCase());
+    await a.getByTestId('redeem-submit').click();
+    await a.getByTestId('redeem-success').waitFor();
+    await shot(a, '13-code-eingeloest');
+  });
+  await check('Rechtliches in den Einstellungen', async () => {
+    await a.goto(`${BASE}#/einstellungen/rechtliches`);
+    await a.getByTestId('legal-open-datenschutz').click();
+    await a.getByTestId('legal-datenschutz').getByText('Deine Rechte', { exact: false }).waitFor();
+  });
+
   await check('Keine Skriptfehler', async () => assert(errors.length === 0, errors.join(' | ')));
 } finally {
   await browser.close();

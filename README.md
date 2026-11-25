@@ -102,8 +102,15 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 7 | [`supabase/migrations/007_music.sql`](supabase/migrations/007_music.sql) | Gemeinsame Musik-Bibliothek (siehe Schritt 14) |
 | 8 | [`supabase/migrations/008_focus_realtime.sql`](supabase/migrations/008_focus_realtime.sql) | optional: Lernzeiten der anderen erscheinen sofort statt nach spätestens einer Minute (ändert keine Daten) |
 | 9 | [`supabase/migrations/009_exam_participants.sql`](supabase/migrations/009_exam_participants.sql) | „Wer schreibt diese Prüfung?“: Fächer nur für einzelne Personen sichtbar (ändert keine Daten; siehe unten) |
+| 10 | [`supabase/migrations/010_moved_to_app.sql`](supabase/migrations/010_moved_to_app.sql) | Umzug in die App: erlaubt die Umleitung der Seite auf die App (ändert keine Daten; siehe „Umzug in die App“) |
 
 **Wer schreibt diese Prüfung? (009)** Beim Anlegen oder Bearbeiten einer Prüfung bzw. eines Fachs lässt sich auswählen, wer die Prüfung schreibt. Dann sehen nur diese Personen das Fach mit Prüfung, Lernplan, Aufgaben und Hausaufgaben und bekommen Erinnerungen dazu; alle anderen sehen es gar nicht. Standard ist „Alle“. Wichtig: Die Seite hat keine Anmeldung – das ist eine Anzeige-Regel, kein Passwortschutz. Eingeschränkte Fächer werden nicht im Gerätespeicher zwischengespeichert. Erst die Seite mit dieser Version ausliefern, dann 009 ausführen.
+
+**Umzug in die App (010).** Einstellungen → *Umzug in die App*:
+1. *Sicherheitskopie herunterladen* – eine Datei mit allem (Personen, Fächer, Prüfungen, Lernplan, Haken, Hausaufgaben, Lernzeiten, Musik, „Wer schreibt?“, Papierkorb). Hochgeladene Dateien bleiben auf der Seite.
+2. In der App registrieren, im App-Admin unter *Umzug* die Datei hochladen und sich als Person wählen. Die Datei wird dort zusätzlich gesichert.
+3. Den Einladungscode an die Gruppe schicken – wer beitritt, wählt „Wer bist du?“ und bekommt seine Haken und Lernzeiten.
+4. Erst dann *Umleitung zur App* einschalten: Wer die Seite öffnet, sieht „Wir sind umgezogen“ und landet in der App. Die Daten der Seite bleiben unverändert; „Alte Seite trotzdem öffnen“ führt zurück, dort lässt sich die Umleitung wieder ausschalten.
 
 Fertige Lernpläne zum Einspielen liegen in [`supabase/plans/`](supabase/plans/) (z. B. Chemie für Luk, nach 009 ausführen).
 
