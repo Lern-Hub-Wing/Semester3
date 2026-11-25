@@ -132,7 +132,7 @@ export function Analytics({ me }: { me: Member }) {
   return (
     <div>
       <PageHeader
-        title="Analyse"
+        title="Statistiken"
         actions={
           <Segmented
             accent

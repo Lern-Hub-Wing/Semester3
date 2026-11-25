@@ -88,7 +88,7 @@ export function SemesterTimeline({ compact, className = '' }: Props) {
                     <button type="button" onClick={() => navigate(`/faecher/${r.module.id}`)} className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl py-1.5 text-left">
                       <span className="size-2.5 shrink-0 rounded-full" style={{ background: r.module.color, boxShadow: `0 0 8px ${r.module.color}` }} aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="line-clamp-2 text-[12.5px] font-medium leading-snug [overflow-wrap:anywhere] group-hover:text-accent sm:text-[13.5px]" title={r.module.name}>{r.module.name}</span>
+                        <span className="line-clamp-2 text-[12.5px] font-medium leading-snug hyphens-auto [overflow-wrap:break-word] group-hover:text-accent sm:text-[13.5px]" title={r.module.name}>{r.module.name}</span>
                         {!compact && <span className="num block text-[11px] text-muted">{r.group.pct === null ? 'keine Aufgaben' : `Gruppe ${r.group.pct} %`}</span>}
                       </span>
                     </button>
