@@ -413,8 +413,9 @@ select {
 
 /* Gleich breite Ziffern für Countdown und Prozentwerte */
 .num {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum', 'cv11';
+  /* gleich breite UND gleich hohe Ziffern (keine Mediävalziffern wie bei Klassisch/Elegant) */
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum', 'cv11';
 }
 
 .safe-bottom {
@@ -2175,4 +2176,11 @@ select.field:hover {
 }
 .android .sheen::after {
   display: none;
+}
+
+/* Rollende Ziffern: nur oben/unten abschneiden (Rolleffekt), seitlich nie – breite Schriften bleiben ganz */
+.digit-slot {
+  overflow-x: visible;
+  overflow-y: clip;
+  overflow-clip-margin: 0.06em;
 }
