@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
-  Ban, ChartColumn, Euro, Rocket, Scale, Ticket, MessageSquare, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
+  Ban, ChartColumn, Euro, Mail, Rocket, Scale, Ticket, MessageSquare, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
 } from 'lucide-react';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
@@ -13,7 +13,7 @@ import { toast } from '../store/toast';
 import { config } from '../lib/config';
 import { LoginScreen, MfaScreen, SetupScreen } from './AdminLogin';
 import { FinanceSimulator } from './Finance';
-import { CodesTab, LegalTab, MoveTab } from './Tools';
+import { CodesTab, LegalTab, MailTab, MoveTab } from './Tools';
 import { Switch } from '../components/ui/Switch';
 import {
   adminAuth, adminDb, euro, fmtDate, PLAN_LABEL, rpc, SOURCE_LABEL, type AdminGroup, type AdminUser, type Entitlement, type Stats,
@@ -93,7 +93,7 @@ export function AdminApp() {
 
 // ---------------------------------------------------------------------
 
-type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'codes' | 'move' | 'legal' | 'feedback' | 'audit';
+type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'codes' | 'move' | 'legal' | 'mail' | 'feedback' | 'audit';
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('overview');
@@ -125,6 +125,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             { value: 'codes', label: 'Codes', icon: <Ticket className="size-4" /> },
             { value: 'move', label: 'Umzug', icon: <Rocket className="size-4" /> },
             { value: 'legal', label: 'Impressum', icon: <Scale className="size-4" /> },
+            { value: 'mail', label: 'E-Mail', icon: <Mail className="size-4" /> },
             { value: 'feedback', label: 'Feedback', icon: <MessageSquare className="size-4" /> },
             { value: 'audit', label: 'Protokoll', icon: <History className="size-4" /> },
           ]}
@@ -137,6 +138,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         {tab === 'codes' && <CodesTab />}
         {tab === 'move' && <MoveTab />}
         {tab === 'legal' && <LegalTab />}
+        {tab === 'mail' && <MailTab />}
         {tab === 'feedback' && <FeedbackTab />}
         {tab === 'audit' && <AuditTab />}
       </div>

@@ -8,7 +8,6 @@ interface UIState {
   moveTaskId: UUID | null;
   previewId: UUID | null;
   searchOpen: boolean;
-  moreOpen: boolean;
   /** Hausaufgaben-Editor: id = bearbeiten, sonst neu */
   homeworkEditor: { open: boolean; session: number; id?: UUID };
   openEntryEditor: (opts?: { entryId?: UUID; date?: ISODate; moduleId?: UUID; topicId?: UUID | null }) => void;
@@ -21,7 +20,6 @@ export const useUI = create<UIState>((set) => ({
   moveTaskId: null,
   previewId: null,
   searchOpen: false,
-  moreOpen: false,
   homeworkEditor: { open: false, session: 0 },
   openEntryEditor: (opts = {}) => set((s) => ({ entryEditor: { open: true, session: s.entryEditor.session + 1, ...opts } })),
   closeEntryEditor: () => set((s) => ({ entryEditor: { ...s.entryEditor, open: false } })),

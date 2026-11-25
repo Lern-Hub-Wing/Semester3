@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { config } from './lib/config';
-import { IS_APP } from './lib/edition';
+import { FILES_ENABLED, IS_APP } from './lib/edition';
+import { purgeTrashOnce } from './lib/trashPurge';
+import { DesignChooser } from './components/DesignChooser';
 import { AppGate, PlusBanner } from './app/AppGate';
 import { useAccount } from './app/account';
 import { Splash } from './app/AuthScreen';
@@ -42,7 +44,6 @@ const Modules = lazy(() => import('./pages/Modules').then((m) => ({ default: m.M
 const ModuleDetail = lazy(() => import('./pages/Modules').then((m) => ({ default: m.ModuleDetail })));
 const Team = lazy(() => import('./pages/Team').then((m) => ({ default: m.Team })));
 const MemberDetail = lazy(() => import('./pages/Team').then((m) => ({ default: m.MemberDetail })));
-const Materials = lazy(() => import('./pages/Materials').then((m) => ({ default: m.Materials })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Trash = lazy(() => import('./pages/Trash').then((m) => ({ default: m.Trash })));
 const HelpPage = lazy(() => import('./app/HelpPage').then((m) => ({ default: m.HelpPage })));
@@ -90,7 +91,8 @@ function Routes({ me, path }: { me: Member; path: string }) {
   // Prüfungen gehören seit 4.1 zu den Fächern – alte Links führen dorthin
   if (path === '/pruefungen') return <RedirectTo to="/faecher" />;
   // Die App hat keine Dateien – alte Links führen zum Dashboard
-  if (path === '/materialien') return IS_APP ? <RedirectTo to="/" /> : <Materials />;
+  // Materialien (Datei-Uploads) gibt es nicht mehr – alte Links führen zum Dashboard
+  if (path === '/materialien') return <RedirectTo to="/" />;
   if (path === '/einstellungen') return <Settings />;
   if ((p = matchPath('/einstellungen/:section', path))) return <Settings section={p.section} />;
   if (path === '/hausaufgaben') return <Homework me={me} />;
@@ -133,6 +135,8 @@ function Main() {
     installSpotlight();
     // Timer/Zähler pausieren, wenn StudySpace verlassen wird (Tab, App, Sperrbildschirm)
     installAutoPause();
+    // Papierkorb: Einträge älter als 7 Tage endgültig entfernen (Server prüft das Alter)
+    purgeTrashOnce();
     if (!IS_APP) void initPush();
   }, []);
 
@@ -204,6 +208,8 @@ function Main() {
       <MountainFlight />
       {me && <CelebrationWatcher />}
       {me && <HomeworkFinishWatcher />}
+      {/* Erster Start auf diesem Gerät: Design wählen (Lila oder Graphit) */}
+      {me && me.is_active && <DesignChooser />}
       {me && <FocusWatcher />}
       {!IS_APP && me && me.is_active && <PushOnboarding me={me} />}
       {!IS_APP && me && me.is_active && <PushMemberSwitch me={me} members={members} />}
@@ -213,7 +219,7 @@ function Main() {
       {me && <MiniPlayer />}
       <MoveTaskDialog />
       <SearchPalette />
-      {!IS_APP && <AttachmentPreview />}
+      {FILES_ENABLED && <AttachmentPreview />}
     </LayoutGroup>
   );
 }

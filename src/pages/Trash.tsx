@@ -10,6 +10,9 @@ import { PageHeader } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { TRASH_DAYS, trashDaysLeft } from '../lib/trashPurge';
+
+const daysLeftLabel = (n: number) => (n === 0 ? 'Wird in Kürze endgültig gelöscht' : n === 1 ? 'Noch 1 Tag wiederherstellbar' : `Noch ${n} Tage wiederherstellbar`);
 
 interface Item {
   id: string;
@@ -31,7 +34,7 @@ const ICONS: Record<TrashKind, ReactNode> = {
   Modul: <BookOpen />,
 };
 
-/** Papierkorb: Nichts wird sofort endgültig gelöscht. Wiederherstellen behält alle Haken. */
+/** Papierkorb: Gelöschtes bleibt 7 Tage wiederherstellbar (mit allen Haken), danach wird es endgültig entfernt. */
 export function Trash() {
   const d = useData();
   const homework = useHomework((s) => s.homework);
@@ -72,7 +75,7 @@ export function Trash() {
 
   return (
     <div>
-      <PageHeader title="Papierkorb" />
+      <PageHeader title="Papierkorb" subtitle={`Gelöschtes bleibt ${TRASH_DAYS} Tage hier und lässt sich mit allen Haken wiederherstellen. Danach wird es endgültig entfernt.`} />
       {items.length === 0 ? (
         <Card>
           <EmptyState icon={<Trash2 className="size-6" />} title="Der Papierkorb ist leer" />
@@ -87,6 +90,12 @@ export function Trash() {
                 <p className="truncate text-xs text-muted">
                   {i.kind} · {i.meta} · gelöscht {formatInstant(i.at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 </p>
+                {/* Archivierte Fächer/Themen bleiben dauerhaft – nur Gelöschtes läuft ab */}
+                {i.kind !== 'Modul' && i.kind !== 'Thema' && (
+                  <p className="text-[11.5px] font-medium text-faint" data-testid="trash-days-left">
+                    {daysLeftLabel(trashDaysLeft(i.at))}
+                  </p>
+                )}
               </div>
               <Button size="sm" icon={i.kind === 'Modul' || i.kind === 'Thema' ? <Archive className="size-4" /> : <RotateCcw className="size-4" />} onClick={() => void i.restore()}>
                 Wiederherstellen

@@ -1,5 +1,5 @@
-import { IS_APP } from '../../lib/edition';
-import { BookOpen, CalendarDays, ChartLine, Ellipsis, FileText, House, Music2, NotebookPen, Settings, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
+import { FILES_ENABLED } from '../../lib/edition';
+import { BookOpen, CalendarDays, ChartLine, FileText, House, Music2, NotebookPen, Settings, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -25,12 +25,12 @@ const ALL_NAV: NavItem[] = [
 ];
 
 /** In der App gibt es keine Dateien (keine Materialien-Seite). */
-export const NAV: NavItem[] = IS_APP ? ALL_NAV.filter((n) => n.to !== '/materialien') : ALL_NAV;
+export const NAV: NavItem[] = FILES_ENABLED ? ALL_NAV : ALL_NAV.filter((n) => n.to !== '/materialien');
 
 
 /**
  * App: Team bzw. Statistik (alleine lernen) gehört in die Tab-Leiste; der Fokus
- * startet groß im Dashboard und steht ganz oben unter „Mehr“.
+ * startet groß im Dashboard und steht ganz oben in den Einstellungen.
  */
 export function appMobileNav(solo: boolean): NavItem[] {
   return [
@@ -38,7 +38,8 @@ export function appMobileNav(solo: boolean): NavItem[] {
     { to: '/lernplan', label: 'Lernplan', icon: CalendarDays },
     { to: '/hausaufgaben', label: 'Aufgaben', icon: SquareCheckBig },
     solo ? { to: '/analyse', label: 'Statistik', icon: ChartLine } : { to: '/team', label: 'Team', icon: Users },
-    { to: '#mehr', label: 'Mehr', icon: Ellipsis },
+    // Kein „Mehr“-Blatt mehr: der letzte Tab führt direkt in die Einstellungen (dort auch Fächer, Statistik, Fokus …)
+    { to: '/einstellungen', label: 'Einstellungen', icon: Settings },
   ];
 }
 

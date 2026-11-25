@@ -103,6 +103,7 @@ Im Supabase-Dashboard links **SQL Editor** öffnen → **New query**. Dann **nac
 | 8 | [`supabase/migrations/008_focus_realtime.sql`](supabase/migrations/008_focus_realtime.sql) | optional: Lernzeiten der anderen erscheinen sofort statt nach spätestens einer Minute (ändert keine Daten) |
 | 9 | [`supabase/migrations/009_exam_participants.sql`](supabase/migrations/009_exam_participants.sql) | „Wer schreibt diese Prüfung?“: Fächer nur für einzelne Personen sichtbar (ändert keine Daten; siehe unten) |
 | 10 | [`supabase/migrations/010_moved_to_app.sql`](supabase/migrations/010_moved_to_app.sql) | Umzug in die App: erlaubt die Umleitung der Seite auf die App (ändert keine Daten; siehe „Umzug in die App“) |
+| 11 | [`supabase/migrations/011_trash_7_days.sql`](supabase/migrations/011_trash_7_days.sql) | Papierkorb leert sich nach 7 Tagen (Schonfrist: Was beim Ausführen schon drin liegt, bleibt noch 7 Tage). Täglich per pg_cron und beim Öffnen der Seite. Archivierte Fächer und Dateien werden nie automatisch gelöscht |
 
 **Wer schreibt diese Prüfung? (009)** Beim Anlegen oder Bearbeiten einer Prüfung bzw. eines Fachs lässt sich auswählen, wer die Prüfung schreibt. Dann sehen nur diese Personen das Fach mit Prüfung, Lernplan, Aufgaben und Hausaufgaben und bekommen Erinnerungen dazu; alle anderen sehen es gar nicht. Standard ist „Alle“. Wichtig: Die Seite hat keine Anmeldung – das ist eine Anzeige-Regel, kein Passwortschutz. Eingeschränkte Fächer werden nicht im Gerätespeicher zwischengespeichert. Erst die Seite mit dieser Version ausliefern, dann 009 ausführen.
 
@@ -306,7 +307,7 @@ Auch hier ist **nur eine Datei** nötig:
 
 1. Supabase-Dashboard → **SQL Editor** → **New query**
 2. Inhalt von [`supabase/migrations/007_music.sql`](supabase/migrations/007_music.sql) einfügen → **Run** (Warnung zu `drop … if exists` mit **Run this query** bestätigen)
-3. StudySpace neu laden → **Musik** (Seitenleiste, auf dem Handy unter „Mehr“, oder Einstellungen → Musik-Bibliothek)
+3. StudySpace neu laden → **Musik** (Seitenleiste oder Einstellungen → Musik-Bibliothek)
 
 Was die Migration macht:
 
@@ -335,7 +336,7 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | Ich möchte … | So geht's |
 |---|---|
 | die Person wechseln | Avatar oben rechts → andere Person wählen. Bei jedem Öffnen (und nach mehr als 15 Minuten im Hintergrund) fragt StudySpace automatisch „Wer lernt heute?“ |
-| zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder Finger auf der Leiste halten und ziehen: die Glaslinse folgt, beim Loslassen wird gewechselt. Weitere Seiten unter „Mehr“ |
+| zwischen Seiten wechseln (Handy) | Tab-Leiste unten antippen – oder Finger auf der Leiste halten und ziehen: die Glaslinse folgt, beim Loslassen wird gewechselt. Der letzte Tab „Einstellungen“ enthält ganz oben Fokus, Lernmodus, Fächer und Statistik |
 | haptisches Feedback ein-/ausschalten | Einstellungen → Erscheinungsbild → „Haptisches Feedback“ (nur auf Geräten mit Vibration, z. B. Android; iOS Safari unterstützt die Vibration API nicht – dort gibt es eine visuelle Rückmeldung) |
 | Leisten ohne Unschärfe (ältere Geräte) | Einstellungen → Erscheinungsbild → „Transparenz: Einfach“ (der frühere Regler „Durchsichtigkeit“ entfällt mit dem flachen 4.0-Design) |
 | Klänge ein-/ausschalten | Einstellungen → Erscheinungsbild → „Klänge“ (leise Töne beim Antippen, Auswählen, Abhaken; auf dem iPhone gilt der Stummschalter) |
@@ -344,15 +345,15 @@ Ohne Internet zeigt StudySpace den zuletzt geladenen Stand und weist deutlich da
 | Benachrichtigungen einrichten | Nach der ersten Personenwahl erscheint eine Einführung; sonst Einstellungen → Benachrichtigungen. iPhone: vorher „Zum Home-Bildschirm“ |
 | konzentriert mit Timer lernen | „Fokus“ in der Navigation oder die Fokus-Karte im Dashboard öffnet direkt die Vollbildansicht. Start drücken (Standard: kein Autostart). Unten: Ton, Phase neu starten, Start/Pause, Pause überspringen bzw. Session beenden, Einstellungen. Rhythmus: Kurz 15/5, Klassisch 25/5, Intensiv 50/10 oder Individuell; lange Pause nach N Runden (Standard 4); eigene Vorlagen speichern. Unter „Anzeige“/„Bild“/„Steuerung“: Schrift, Größe, Stärke, Sekunden, Farbe, Leuchten, Position, Animation, Ring, Prozent, Fortschrittslinie, Hintergrund (Berge, Polarlicht, Verlauf, Farbe, eigenes Bild, Weichzeichnen, Abdunkeln, Bewegung), Steuerleiste oben/unten, automatisches Ausblenden, Lautstärke, Mitteilung beim Phasenwechsel, automatischer Phasenwechsel und Autostart. Nur echte Fokuszeit (ohne Pausen) wird gespeichert und in der Analyse gezählt |
 | Prüfungstermin eintragen | „Fächer“ → oben „Prüfung“ oder im Fach „Prüfungstermin eintragen“ bzw. „Termin“. Bearbeiten: auf den Termin am Fach tippen (den früheren Tab „Prüfungen“ gibt es nicht mehr, alte Links führen zu den Fächern) |
-| eine Hausaufgabe eintragen | „Hausaufgaben“ → „Neue Hausaufgabe“ (oder „+ Hausaufgabe“ im Dashboard). Pflicht: Titel, Modul, Abgabe. Optional unter „Weitere Angaben“: Beschreibung, Unteraufgaben, Aufwand, frühester Beginn, Priorität, Anhänge (nach dem ersten Speichern). „Arbeitseinheiten einplanen“ zeigt Vorschläge mit Kalender – Daten lassen sich vor dem Speichern ändern |
+| eine Hausaufgabe eintragen | „Hausaufgaben“ → „Neue Hausaufgabe“ (oder „+ Hausaufgabe“ im Dashboard). Pflicht: Titel, Modul, Abgabe. Optional unter „Weitere Angaben“: Beschreibung, Unteraufgaben, Aufwand, frühester Beginn, Priorität. „Arbeitseinheiten einplanen“ zeigt Vorschläge mit Kalender – Daten lassen sich vor dem Speichern ändern |
 | sehen, wann ich an einer Hausaufgabe arbeiten kann | Lernplan → Monat oder Woche: jede Hausaufgabe erscheint als farbige Leiste vom Beginn (frühester Beginn, sonst Tag des Eintragens) bis zum Abgabetag mit Fähnchen „Abgabe“. Antippen öffnet die Hausaufgabe |
 | die Semester-Übersicht sehen | Lernplan → Ansicht „Timeline“ (oder Dashboard → Semester-Timeline) |
-| den Lernmodus starten | Dashboard ganz unten → „Lernmodus starten“ (oder Seitenleiste bzw. „Mehr“ → „Lernmodus“). Handy quer halten: Die Uhr läuft sekundengenau im Vollbild, alle Bedienelemente blenden sich nach 3,5 s aus. Antippen blendet sie wieder ein. Unter ⚙ „Darstellung anpassen“: Ziffern (HH:MM oder HH:MM:SS), 24/12 Stunden, Schriftart, Stärke, Größe, Farbe, Leuchten, Hintergrund (Polarlicht, Farbverlauf, Farbe oder eigenes Bild), Datum und nächste Prüfung. **iPhone:** Safari erlaubt Webseiten kein Vollbild – dafür StudySpace über „Teilen → Zum Home-Bildschirm“ hinzufügen und von dort öffnen |
+| den Lernmodus starten | Dashboard ganz unten → „Lernmodus starten“ (oder Seitenleiste bzw. Einstellungen → „Lernmodus“). Handy quer halten: Die Uhr läuft sekundengenau im Vollbild, alle Bedienelemente blenden sich nach 3,5 s aus. Antippen blendet sie wieder ein. Unter ⚙ „Darstellung anpassen“: Ziffern (HH:MM oder HH:MM:SS), 24/12 Stunden, Schriftart, Stärke, Größe, Farbe, Leuchten, Hintergrund (Polarlicht, Farbverlauf, Farbe oder eigenes Bild), Datum und nächste Prüfung. **iPhone:** Safari erlaubt Webseiten kein Vollbild – dafür StudySpace über „Teilen → Zum Home-Bildschirm“ hinzufügen und von dort öffnen |
 | einen Lerntag planen | Kalender-Plus-Symbol oben oder „Neuer Lerntag“ im Lernplan |
 | einen Lerntag verschieben | Desktop: im Monat/Woche per Drag & Drop · Smartphone: Lerntag bearbeiten → Datum |
 | eine einzelne Aufgabe verschieben | ⋮ an der Aufgabe → „Verschieben …“ |
 | Namen/Farben ändern | Team → Person antippen, oder Einstellungen → Personen |
-| etwas wiederherstellen | Papierkorb (Seitenleiste bzw. „Mehr“) |
+| etwas wiederherstellen | Papierkorb (Seitenleiste bzw. Einstellungen → Daten). Gelöschtes bleibt 7 Tage, danach wird es endgültig entfernt (Migration 011) |
 | suchen | ⌘K / Strg+K oder Lupe |
 | sichern | Einstellungen → Daten & Sicherheit → Datenexport |
 

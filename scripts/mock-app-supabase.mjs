@@ -133,6 +133,7 @@ export function createAppMock() {
   const rpc = {
     app_me: (uid) => me(uid),
     app_touch: () => null,
+    app_purge_trash: () => null,
     app_usage: (uid) => {
       const g = activeGroup(uid);
       const n = (t) => state.tables[t].filter((r) => r.group_id === g && !r.deleted_at).length;
@@ -388,6 +389,11 @@ export function createAppMock() {
   async function handleFunctions(route) {
     const req = route.request();
     const body = req.postData() ? JSON.parse(req.postData()) : {};
+    // Test-E-Mail über Gmail: im Test nur protokollieren
+    if (req.url().includes('/functions/v1/app-mail-test')) {
+      (state.mails ??= []).push(body.to);
+      return ok(route, { ok: true, to: body.to });
+    }
     // KI-Lernplan: antwortet wie die Edge Function (Einheiten je Fach aus den Themen)
     if (req.url().includes('/functions/v1/app-ai-plan')) {
       state.aiRequests = (state.aiRequests ?? 0) + 1;

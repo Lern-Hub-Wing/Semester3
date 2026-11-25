@@ -48,13 +48,15 @@ function fakeNotificationPermission() {
   };
 }
 
-async function newPage(browser, { freshPush, ...opts } = {}) {
+async function newPage(browser, { freshPush, freshDesign, ...opts } = {}) {
   const ctx = await browser.newContext({ deviceScaleFactor: 1, serviceWorkers: 'block', ...opts });
   await ctx.route(`${API}/rest/v1/**`, handle);
   await ctx.route(`${API}/realtime/**`, (r) => r.abort());
   await ctx.route(`${API}/functions/v1/**`, handleFunctions);
   // Die Push-Einführung nur in den Tests dafür zeigen (sonst überdeckt sie die übrigen Abläufe)
   if (!freshPush) await ctx.addInitScript(() => localStorage.setItem('studyspace.push.onboarding', 'dismissed'));
+  // Design-Auswahl beim ersten Start nur im Test dafür zeigen
+  if (!freshDesign) await ctx.addInitScript(() => localStorage.setItem('studyspace.design.chosen', '1'));
   await ctx.addInitScript(() => {
     if (typeof navigator.vibrate === 'function') {
       window.__vibrations = [];
@@ -189,19 +191,14 @@ async function mobileDesignChecks(p, name) {
   check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Wischen über den Inhalt wechselt keine Seite`);
   await nav.getByRole('link', { name: 'Home' }).click();
   await p.waitForTimeout(300);
-  // „Mehr“: gruppierte Liste statt vieler Kacheln, auf kleinen Geräten vollständig erreichbar
-  await nav.getByRole('button', { name: 'Mehr' }).click();
-  const more = p.getByTestId('more-sheet');
-  await more.waitFor();
-  const groups = await more.locator('.list-group').count();
-  const lastRow = more.getByRole('button', { name: /Papierkorb/ });
-  await lastRow.scrollIntoViewIfNeeded();
-  const lr = await lastRow.boundingBox();
-  check(groups === 3 && lr && lr.y + lr.height <= (p.viewportSize()?.height ?? 0), `Mehr (${name}): drei Gruppen, letzter Eintrag erreichbar (${groups})`);
-  check((await more.getByRole('button', { name: /Änderungsverlauf|^Team/ }).count()) === 0 && (await more.getByTestId('more-focus').count()) === 1, `Mehr (${name}): schlicht wie in der App (Fokus oben, Team in der Tab-Leiste)`);
-  await more.getByRole('button', { name: /Statistiken/ }).click();
+  // Letzter Tab führt direkt in die Einstellungen (kein „Mehr“-Blatt, das sich versehentlich schließt)
+  await nav.locator('[data-tour="nav-einstellungen"]').first().click();
+  await p.getByTestId('settings-areas').waitFor();
+  check(new URL(p.url()).hash === '#/einstellungen' && (await p.getByRole('dialog').count()) === 0, `Einstellungen-Tab (${name}): öffnet direkt die Einstellungen, kein Blatt`);
+  check((await p.getByTestId('more-focus').count()) === 1 && (await p.getByTestId('more-subjects').count()) === 1, `Einstellungen-Tab (${name}): Fokus, Lernmodus und Fächer ganz oben`);
+  await p.getByTestId('more-stats').click();
   await p.waitForTimeout(400);
-  check(new URL(p.url()).hash === '#/analyse' && (await p.getByTestId('more-sheet').count()) === 0, `Mehr (${name}): Eintrag öffnet die Seite und schließt das Menü`);
+  check(new URL(p.url()).hash === '#/analyse', `Einstellungen-Tab (${name}): „Statistiken“ öffnet die Seite`);
   await nav.getByRole('link', { name: 'Home' }).click();
   await p.waitForTimeout(300);
   const touchAction = await bar.evaluate((el) => getComputedStyle(el).touchAction);
@@ -413,7 +410,7 @@ try {
   check(JSON.stringify(removed) === JSON.stringify(['Zusammenfassung wiederholen']), `Nur die entfernte Aufgabe liegt im Papierkorb (${JSON.stringify(removed)})`);
 
   // Seiten durchklicken (keine Laufzeitfehler)
-  for (const [path, name] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan-monat'], ['#/faecher', 'faecher'], [`#/faecher/${db.modules[4].id}`, 'modul-controlling'], ['#/materialien', 'materialien'], ['#/einstellungen', 'einstellungen'], ['#/verlauf', 'verlauf']]) {
+  for (const [path, name] of [['#/', 'dashboard'], ['#/lernplan', 'lernplan-monat'], ['#/faecher', 'faecher'], [`#/faecher/${db.modules[4].id}`, 'modul-controlling'], ['#/einstellungen', 'einstellungen'], ['#/verlauf', 'verlauf']]) {
     await page.goto(`${BASE}${path}`);
     await page.waitForTimeout(500);
     check(!(await hasHorizontalOverflow(page)), `L: kein horizontaler Überlauf (${name}, 1440 px)`);
@@ -600,7 +597,7 @@ try {
       await p.goto(`${BASE}#/einstellungen`);
       const nav = p.getByTestId('settings-nav');
       await nav.waitFor();
-      check((await nav.locator('.list-group').count()) === 4 && (await p.getByRole('radio', { name: 'Dunkel' }).count()) === 0, 'Einstellungen (Handy): gruppierte Übersicht ohne Bedienelemente');
+      check((await nav.locator('.list-group').count()) === 5 && (await p.getByRole('radio', { name: 'Dunkel' }).count()) === 0, 'Einstellungen (Handy): gruppierte Übersicht (Bereiche + 4 Gruppen) ohne Bedienelemente');
       await nav.getByRole('link', { name: /Darstellung & Bedienung/ }).click();
       await p.getByTestId('settings-darstellung').waitFor();
       check((await p.getByRole('link', { name: 'Einstellungen' }).count()) >= 1, 'Einstellungen (Handy): Unterseite mit Zurück-Link');
@@ -1491,6 +1488,36 @@ try {
     await c.close();
   }
 
+  // --- Erster Start: Design wählen (Lila oder Graphit) -------------------------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 390, height: 844 }, freshDesign: true });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    const chooser = p.getByTestId('design-chooser');
+    await chooser.waitFor();
+    check((await chooser.getByRole('radio').count()) === 2 && (await chooser.getByRole('radio', { name: /^Lila/ }).getAttribute('aria-checked')) === 'true', 'Design-Auswahl: Lila und Graphit, Lila vorausgewählt');
+    await chooser.getByRole('radio', { name: /^Graphit/ }).click();
+    check(await p.evaluate(() => document.documentElement.dataset.accent === 'graphit'), 'Design-Auswahl: Graphit wirkt sofort als Vorschau');
+    await p.getByTestId('design-chooser-done').click();
+    await chooser.waitFor({ state: 'detached' });
+    await p.reload();
+    await p.waitForTimeout(1800);
+    check((await p.getByTestId('design-chooser').count()) === 0 && (await p.evaluate(() => document.documentElement.dataset.accent === 'graphit')), 'Design-Auswahl: nur beim ersten Start, Wahl bleibt gespeichert');
+    // Papierkorb: Hinweis auf 7 Tage und Restzeit je Eintrag
+    db.study_entries.push({ id: '77777777-7777-4777-8777-000000000021', module_id: db.modules[0].id, study_date: '2026-12-01', title: 'Gelöscht vor 2 Tagen', description: null, topic_id: null, sort_order: 9, deleted_at: new Date(Date.now() - 2 * 86400000).toISOString(), changed_by: null, version: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    await p.goto(`${BASE}#/papierkorb`);
+    await p.reload();
+    // Nach dem Neuladen ggf. erneut die Person wählen
+    const pick = p.getByRole('button', { name: 'Als Person 1 lernen' });
+    if (await pick.isVisible().catch(() => false)) await pick.click();
+    await p.goto(`${BASE}#/papierkorb`);
+    await p.getByText('Gelöscht vor 2 Tagen').waitFor();
+    check((await p.getByText('Gelöschtes bleibt 7 Tage hier', { exact: false }).count()) === 1, 'Papierkorb: Hinweis, dass nach 7 Tagen endgültig gelöscht wird');
+    check((await p.getByTestId('trash-days-left').filter({ hasText: 'Noch 5 Tage wiederherstellbar' }).count()) === 1, 'Papierkorb: Restzeit je Eintrag (noch 5 Tage)');
+    check(errs.length === 0, `keine JavaScript-Fehler (Design-Auswahl/Papierkorb)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
   // --- Extra-Animationen: Seitenübergänge, zentral abschaltbar ---------------
   {
     {
@@ -1516,10 +1543,10 @@ try {
     await p.waitForTimeout(200);
     check(!(await p.evaluate(() => document.documentElement.classList.contains('extra-motion'))), 'Animationen: Schalter in den Einstellungen schaltet sie ab');
     // Akzentfarbe zum Ausprobieren
-    await p.getByTestId('accent-picker').getByRole('radio', { name: 'Tannengrün' }).click();
-    check(await p.evaluate(() => document.documentElement.dataset.accent === 'tanne' && getComputedStyle(document.documentElement).getPropertyValue('--ss-accent').trim() === '#1d6e52'), 'Akzentfarbe: Tannengrün färbt die Oberfläche');
+    await p.getByTestId('accent-picker').getByRole('radio', { name: 'Graphit' }).click();
+    check(await p.evaluate(() => document.documentElement.dataset.accent === 'graphit' && getComputedStyle(document.documentElement).getPropertyValue('--ss-accent').trim() === '#1d1d1f'), 'Design: Graphit färbt die Oberfläche');
     await p.getByTestId('accent-picker').getByRole('radio', { name: 'Lila' }).click();
-    check(await p.evaluate(() => !document.documentElement.dataset.accent), 'Akzentfarbe: zurück auf Lila (Standard)');
+    check(await p.evaluate(() => !document.documentElement.dataset.accent), 'Design: zurück auf Lila (Standard)');
     // Hausaufgabe antippen klappt die Details auf
     await p.goto(`${BASE}#/hausaufgaben`);
     const item = p.getByTestId('homework-item').filter({ hasText: 'Animations-Test' });
