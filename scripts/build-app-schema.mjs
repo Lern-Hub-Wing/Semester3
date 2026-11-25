@@ -22,7 +22,25 @@ const header = `-- =============================================================
 -- Wiederholbar ausführbar (Updates: einfach erneut ausführen).
 -- =====================================================================
 `;
-const out = header + appSchemaFiles.map((f) => `\n-- ===== ${f} =====\n` + readFileSync(join(root, f), 'utf8')).join('\n');
+// Schutz: niemals in der Datenbank der bisherigen Seite ausführen (dort gibt es Personen ohne Lerngruppe)
+const guard = `
+do $guard$
+declare site boolean := false;
+begin
+  if to_regclass('public.members') is not null then
+    if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'members' and column_name = 'group_id') then
+      execute 'select exists (select 1 from public.members where group_id is null)' into site;
+    else
+      execute 'select exists (select 1 from public.members)' into site;
+    end if;
+  end if;
+  if site then
+    raise exception 'STOPP: Das ist die Datenbank der bisherigen StudySpace-SEITE. Dieses Skript gehört in das Supabase-Projekt der APP. Es wurde nichts geändert.';
+  end if;
+end $guard$;
+`;
+// Alles in EINER Transaktion: bricht etwas ab (z. B. der Schutz oben), bleibt die Datenbank unverändert
+const out = header + '\nbegin;\n' + guard + appSchemaFiles.map((f) => `\n-- ===== ${f} =====\n` + readFileSync(join(root, f), 'utf8')).join('\n') + '\ncommit;\n';
 const target = join(root, 'supabase-app/app_schema.sql');
 if (process.argv.includes('--check')) {
   let current = '';
