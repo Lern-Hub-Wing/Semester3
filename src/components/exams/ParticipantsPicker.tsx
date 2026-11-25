@@ -2,6 +2,7 @@ import { Check, Users } from 'lucide-react';
 import type { UUID } from '../../lib/types';
 import { useActiveMembers } from '../../store/derived';
 import { Avatar } from '../ui/Avatar';
+import { IS_APP } from '../../lib/edition';
 
 /**
  * „Wer schreibt diese Prüfung?“ (nur bisherige Seite)
@@ -48,7 +49,9 @@ export function ParticipantsPicker({ value, onChange }: { value: UUID[]; onChang
       <p className="text-[12px] leading-snug text-muted">
         {all
           ? 'Alle sehen das Fach, die Prüfung und den Lernplan.'
-          : 'Nur die gewählten Personen sehen das Fach mit Prüfung und Lernplan – die anderen gar nicht. Hinweis: Die Seite hat keine Anmeldung, das ist eine Anzeige-Regel und kein Passwortschutz.'}
+          : IS_APP
+            ? 'Nur die gewählten Personen sehen das Fach mit Prüfung und Lernplan – für alle anderen ist es auf dem Server gesperrt.'
+            : 'Nur die gewählten Personen sehen das Fach mit Prüfung und Lernplan – die anderen gar nicht. Hinweis: Die Seite hat keine Anmeldung, das ist eine Anzeige-Regel und kein Passwortschutz.'}
       </p>
     </fieldset>
   );

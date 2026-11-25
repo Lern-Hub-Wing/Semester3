@@ -3,7 +3,8 @@ import type { AuthChangeEvent, EmailOtpType, Provider, Session } from '@supabase
 import { getSupabase } from '../lib/supabase';
 import { config } from '../lib/config';
 import { describeError } from '../lib/errors';
-import { api, extractInviteCode, type Me } from './api';
+import { api, extractInviteCode, extractPromoCode, type Me } from './api';
+import { rememberPromoFromUrl } from './pendingCode';
 import { setRemember } from './authStorage';
 
 /**
@@ -49,6 +50,13 @@ export function inviteLink(code: string): string {
 }
 
 function rememberInviteFromUrl() {
+  // Tarif-Code-Link (#/code/ABCD-2345): merken und im Code-Feld vorausfüllen
+  const promo = extractPromoCode(window.location.hash);
+  if (promo) {
+    rememberPromoFromUrl(promo);
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/einstellungen/code`);
+    return;
+  }
   const code = extractInviteCode(window.location.hash);
   if (code && window.location.hash.includes('beitreten')) {
     try {

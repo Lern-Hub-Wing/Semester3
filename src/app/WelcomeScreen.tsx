@@ -10,6 +10,7 @@ import { TextField } from '../components/ui/Field';
 import { AuthFrame } from './AuthScreen';
 import { PlanCheckout } from './PlanCheckout';
 import { api, formatCode, isValidCode, normalizeCode } from './api';
+import { formatAnyCode, takePendingPromo, useRedeem } from './RedeemCode';
 import { clearPendingInvite, reloadIntoGroup, signOut, useAccount } from './account';
 
 type Choice = 'menu' | 'join' | 'solo' | 'group';
@@ -152,10 +153,11 @@ function ExistingSpaces() {
 function JoinPanel() {
   const me = useAccount((s) => s.me);
   const invite = useAccount((s) => s.pendingInvite);
-  const [code, setCode] = useState(invite ? formatCode(invite) : '');
+  const [code, setCode] = useState(() => (invite ? formatCode(invite) : formatAnyCode(takePendingPromo())));
   const [name, setName] = useState(me?.display_name ?? '');
   const [preview, setPreview] = useState<{ name: string; members: number; has_plus: boolean } | null>(null);
-  const { busy, error, setError, run } = useRun();
+  // Ein Feld für Einladungen UND Tarif-Codes
+  const { busy, error, setError, redeem, done } = useRedeem();
   const clean = normalizeCode(code);
 
   useEffect(() => {
@@ -174,13 +176,13 @@ function JoinPanel() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!isValidCode(clean)) return setError('Der Code hat 8 Zeichen, z. B. ABCD-2345.');
-    void run(() => api.joinGroup(getSupabase(), clean, name.trim() || undefined));
+    void redeem(clean, name.trim() || undefined);
   };
 
   return (
     <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate data-testid="join-panel">
       <TextField
-        label="Einladungscode"
+        label="Einladungs- oder Tarif-Code"
         value={code}
         onChange={(e) => setCode(formatCode(e.target.value))}
         placeholder="ABCD-2345"
@@ -204,6 +206,11 @@ function JoinPanel() {
       )}
       <TextField label="Dein Name in der Gruppe" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="nickname" />
       {error && <ErrorText>{error}</ErrorText>}
+      {done?.kind === 'plan' && (
+        <p className="rounded-2xl bg-[color-mix(in_srgb,var(--ss-success)_14%,transparent)] px-3.5 py-3 text-[14px]" role="status" data-testid="join-plan-unlocked">
+          <strong className="font-semibold">{done.plan === 'plus_grant' ? 'Gruppenpass' : 'Solo'} freigeschaltet.</strong> Geh zurück und wähle „{done.plan === 'plus_grant' ? 'Eigene Lerngruppe erstellen' : 'Alleine lernen'}“.
+        </p>
+      )}
       <Button type="submit" variant="primary" size="lg" loading={busy} disabled={!isValidCode(clean)} data-testid="join-submit">
         Kostenlos beitreten
       </Button>

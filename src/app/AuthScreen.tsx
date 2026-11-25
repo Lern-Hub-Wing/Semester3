@@ -109,11 +109,38 @@ function AppleIcon() {
 type Mode = 'signin' | 'signup' | 'reset' | 'check-mail';
 
 /** Anmelden, Registrieren und „Passwort vergessen“. */
+const LAST_EMAIL_KEY = 'studyspace.app.lastEmail';
+function lastEmail(): string {
+  try {
+    return localStorage.getItem(LAST_EMAIL_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Anmeldung merken: E-Mail fürs nächste Mal vorausfüllen und dem Browser die
+ * Zugangsdaten zum Speichern anbieten (Chrome/Android: „Passwort speichern?“).
+ */
+function rememberLogin(email: string, password: string, remember: boolean) {
+  try {
+    if (remember) localStorage.setItem(LAST_EMAIL_KEY, email.trim());
+    else localStorage.removeItem(LAST_EMAIL_KEY);
+  } catch {
+    /* egal */
+  }
+  const w = window as unknown as { PasswordCredential?: new (d: { id: string; password: string; name?: string }) => Credential };
+  if (remember && w.PasswordCredential && navigator.credentials?.store) {
+    void navigator.credentials.store(new w.PasswordCredential({ id: email.trim(), password })).catch(() => undefined);
+  }
+}
+
 export function AuthScreen() {
   const urlError = useAccount((s) => s.error);
   const invite = useAccount((s) => s.pendingInvite);
   const [mode, setMode] = useState<Mode>('signin');
-  const [email, setEmail] = useState('');
+  // Zuletzt genutzte E-Mail vorausfüllen (nur bei „Angemeldet bleiben“)
+  const [email, setEmail] = useState(() => (getRemember() ? lastEmail() : ''));
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [remember, setRememberState] = useState(getRemember());
@@ -150,6 +177,7 @@ export function AuthScreen() {
       void run('email', async () => {
         try {
           await signInWithPassword(email, password, remember);
+          rememberLogin(email, password, remember);
         } catch (err) {
           const c = (err ?? {}) as { code?: string; message?: string };
           // Konto noch nicht bestätigt → Bestätigungs-Mail direkt erneut anbieten

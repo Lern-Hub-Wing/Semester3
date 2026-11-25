@@ -2140,3 +2140,39 @@ select.field:hover {
   background: linear-gradient(135deg, #7c6ff0 0%, #b56cf0 45%, #f0789a 80%, #f6a25b 100%);
   box-shadow: 0 8px 22px -10px rgb(181 108 240 / 0.8);
 }
+
+/* Vollbild-Uhren auf hellem Hintergrund (gemeinsames Uhr-Design): dunkle Beschriftung und Knöpfe für ausreichenden Kontrast */
+.focus-scope[data-light='true'] {
+  color: #14122b !important;
+}
+.focus-scope[data-light='true'] :is(.text-white, .text-white\/80, .text-white\/75, .text-white\/70, .text-white\/55):not(.focus-panel *) {
+  color: rgb(20 18 43 / 0.84);
+}
+.focus-scope[data-light='true'] .focus-bar {
+  background: rgb(255 255 255 / 0.62);
+  box-shadow:
+    inset 0 0 0 0.5px rgb(20 18 43 / 0.14),
+    0 20px 50px -24px rgb(20 18 43 / 0.35);
+}
+.focus-scope[data-light='true'] .focus-btn[aria-pressed='true'] {
+  background: rgb(20 18 43 / 0.08);
+}
+.focus-scope[data-light='true'] .focus-disc {
+  background: rgb(255 255 255 / 0.35);
+  box-shadow: inset 0 0 0 0.5px rgb(20 18 43 / 0.14);
+}
+
+/* Android: flüssiges Scrollen – Karten ohne Live-Unschärfe (Kopf-/Tab-Leiste bleiben Glas),
+   Hintergrund-Lichter ruhen, Bilder werden nicht bei jedem Bild neu berechnet */
+.android .card,
+.android main .glass:not(.glass-strong) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: color-mix(in srgb, var(--ss-card) 94%, transparent);
+}
+.android .ambient > span {
+  animation: none !important;
+}
+.android .sheen::after {
+  display: none;
+}

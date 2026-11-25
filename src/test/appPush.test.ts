@@ -79,3 +79,15 @@ describe('App: Mitteilung „neue Hausaufgabe“', () => {
     expect(planAppHomework({ ...b, devices: [dev('d-dia', 'u-dia')] })).toEqual([]);
   });
 });
+
+describe('App: Wer schreibt die Prüfung? (Mitteilungen)', () => {
+  it('Hausaufgabe in einem Fach nur für Luk geht nicht an Diana', () => {
+    const r = planAppHomework({
+      ...base(),
+      activity: [{ id: 1, group_id: G1, occurred_at: ago(1), actor_member_id: null, entity_id: 'hw1' }],
+      moduleParticipants: new Map([['mod1', ['m-luk']]]),
+      devices: [dev('d-luk', 'u-luk'), dev('d-dia', 'u-dia')],
+    });
+    expect(r.map((n) => n.deviceId)).toEqual(['d-luk']);
+  });
+});

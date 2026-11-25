@@ -452,6 +452,8 @@ function planAppHomework(input) {
 			if (at < since || nowMs - at > 1296e5) continue;
 			const hw = hwById.get(ev.entity_id);
 			if (!hw || hw.group_id !== ev.group_id || hw.deleted_at || hw.due_date < today) continue;
+			const writers = input.moduleParticipants?.get(hw.module_id);
+			if (writers && writers.length > 0 && (!mine || !writers.includes(mine))) continue;
 			if (dev.sent.has(`homework:${hw.id}`) || items.some((i) => i.id === hw.id)) continue;
 			items.push({
 				id: hw.id,
@@ -777,7 +779,7 @@ async function dispatch() {
 	}
 	const [devicesRes, modules, members, groups] = await Promise.all([
 		db.from("push_devices").select("id, user_id, endpoint, p256dh, auth, prefs, created_at, failure_count").eq("enabled", true).in("user_id", userIds),
-		db.from("modules").select("id, name").in("group_id", groupIds),
+		db.from("modules").select("*").in("group_id", groupIds),
 		db.from("members").select("id, name").in("group_id", groupIds),
 		db.from("groups").select("id, name").in("id", groupIds)
 	]);
@@ -813,7 +815,8 @@ async function dispatch() {
 		devices: infos,
 		moduleNames: new Map((modules.data ?? []).map((m) => [m.id, m.name])),
 		memberNames: new Map((members.data ?? []).map((m) => [m.id, m.name])),
-		groupNames: new Map((groups.data ?? []).map((g) => [g.id, g.name]))
+		groupNames: new Map((groups.data ?? []).map((g) => [g.id, g.name])),
+		moduleParticipants: new Map((modules.data ?? []).map((m) => [m.id, Array.isArray(m.participants) ? m.participants : null]))
 	});
 	const byId = new Map(devices.map((d) => [d.id, d]));
 	let sent = 0;

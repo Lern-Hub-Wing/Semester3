@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  Archive, ArrowDown, Crown, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
+  Archive, ArrowDown, Clock3, Hand, CloudSun, Crown, Rocket, Scale, Search, Ticket, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
 } from 'lucide-react';
 import type { Member, Module } from '../lib/types';
 import { config, LIMITS } from '../lib/config';
@@ -42,23 +42,25 @@ import { myPlanLabel } from '../app/api';
 import { AREA_TINT, TINT } from '../lib/tints';
 import { useTrashCount } from '../store/trash';
 import { exportMyData } from '../app/exportData';
+import { ClockSettings } from './settings/ClockSettings';
+import { useWeather } from '../store/weather';
+import { RedeemSection } from '../app/RedeemCode';
+import { LegalSection } from '../app/Legal';
+import { MoveToAppSection } from './settings/MoveToApp';
 
 const SECTIONS = {
   konto: { title: 'Konto', render: () => <AccountSection /> },
   gruppe: { title: 'Lerngruppe', render: () => <GroupSection /> },
   plus: { title: 'Tarif & Abo', render: () => <PlusSection /> },
-  darstellung: {
-    title: 'Darstellung & Bedienung',
-    render: () => (
-      <div className="flex flex-col gap-[var(--gap-grid)]">
-        <Appearance />
-        <WeatherSettings />
-      </div>
-    ),
-  },
+  code: { title: 'Code einlösen', render: () => <RedeemSection /> },
+  darstellung: { title: 'Darstellung & Bedienung', render: () => <Appearance /> },
+  fokus: { title: 'Uhr & Fokus', render: () => <ClockSettings /> },
+  wetter: { title: 'Wetter', render: () => <WeatherSettings /> },
   personen: { title: 'Personen', render: () => <People /> },
   faecher: { title: 'Fächer', render: () => <ModulesSection /> },
   daten: { title: IS_APP ? 'Daten exportieren' : 'Sicherung & Import', render: () => (IS_APP ? <AppDataSection /> : <DataSection />) },
+  umzug: { title: 'Umzug in die App', render: () => <MoveToAppSection /> },
+  rechtliches: { title: 'Rechtliches', render: () => <LegalSection /> },
   info: { title: 'Über StudySpace', render: () => (IS_APP ? <AppGeneral /> : <General />) },
 } as const;
 type SectionKey = keyof typeof SECTIONS;
@@ -68,10 +70,15 @@ const SECTION_META: Record<SectionKey, { icon: ReactNode; tint: string; desc: st
   konto: { icon: <UserRound />, tint: AREA_TINT.account, desc: 'Name, Anmeldung und Sicherheit deines Kontos.' },
   gruppe: { icon: <Users />, tint: AREA_TINT.group, desc: 'Mitglieder, Einladungen und deine Lernbereiche.' },
   plus: { icon: <Crown />, tint: AREA_TINT.plan_billing, desc: 'Dein Zugang, Laufzeit und was enthalten ist.' },
-  darstellung: { icon: <Palette />, tint: AREA_TINT.appearance, desc: 'Aussehen, Bewegung und Wetter – nur auf diesem Gerät.' },
-  personen: { icon: <Users />, tint: AREA_TINT.group, desc: 'Personen der Lerngruppe.' },
+  code: { icon: <Ticket />, tint: TINT.teal, desc: 'Einladung zu einer Lerngruppe oder Tarif-Code einlösen.' },
+  darstellung: { icon: <Palette />, tint: AREA_TINT.appearance, desc: 'Aussehen, Bewegung, Klänge – nur auf diesem Gerät.' },
+  fokus: { icon: <Clock3 />, tint: AREA_TINT.focus, desc: 'Ein Design für Fokus, Lernmodus und Hausaufgaben-Zähler.' },
+  wetter: { icon: <CloudSun />, tint: TINT.blue, desc: 'Wetter im Hintergrund – nur auf diesem Gerät.' },
+  umzug: { icon: <Rocket />, tint: TINT.indigo, desc: 'Lerngruppe mit allen Daten in die App übertragen.' },
+  rechtliches: { icon: <Scale />, tint: TINT.gray, desc: 'Nutzungsbedingungen, Datenschutz, Impressum, Widerruf.' },
+  personen: { icon: <Users />, tint: AREA_TINT.group, desc: 'Namen, Farben und Reihenfolge – gelten für alle.' },
   faecher: { icon: <BookOpen />, tint: AREA_TINT.subjects, desc: 'Reihenfolge, Farben und Archiv eurer Fächer.' },
-  daten: { icon: <Download />, tint: AREA_TINT.export, desc: 'Alle Inhalte als Datei herunterladen.' },
+  daten: { icon: <Download />, tint: AREA_TINT.export, desc: IS_APP ? 'Alle Inhalte als Datei herunterladen.' : 'Sicherung herunterladen oder einspielen.' },
   info: { icon: <Info />, tint: AREA_TINT.info, desc: 'Version, Verbindung und Datenschutz.' },
 };
 
@@ -90,7 +97,9 @@ function AppSectionHeader({ k, as: Tag = 'h1' }: { k: SectionKey; as?: 'h1' | 'h
   );
 }
 /** Bisherige Seite: ohne Konto/Gruppe/Plus. App: ohne Personen (kommen per Einladung) und ohne Import. */
-const AVAILABLE: SectionKey[] = IS_APP ? ['konto', 'gruppe', 'plus', 'faecher', 'darstellung', 'daten', 'info'] : ['darstellung', 'personen', 'faecher', 'daten', 'info'];
+const AVAILABLE: SectionKey[] = IS_APP
+  ? ['konto', 'gruppe', 'plus', 'code', 'faecher', 'darstellung', 'fokus', 'wetter', 'daten', 'rechtliches', 'info']
+  : ['darstellung', 'fokus', 'wetter', 'personen', 'faecher', 'daten', 'umzug', 'info'];
 const isSection = (k: string | undefined): k is SectionKey => !!k && (AVAILABLE as string[]).includes(k);
 
 /**
@@ -116,7 +125,7 @@ export function Settings({ section }: { section?: string }) {
         <Link to="/einstellungen" className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
           <ArrowLeft className="size-4" aria-hidden /> Einstellungen
         </Link>
-        {IS_APP ? <AppSectionHeader k={key} /> : <h1 className="display mb-5 text-[28px]">{SECTIONS[key].title}</h1>}
+        <AppSectionHeader k={key} />
         {SECTIONS[key].render()}
       </div>
     );
@@ -131,7 +140,7 @@ export function Settings({ section }: { section?: string }) {
           <SettingsNav active={active} />
         </div>
         <div data-testid={`settings-${active}`}>
-          {IS_APP ? <AppSectionHeader k={active} as="h2" /> : <h2 className="title mb-4 text-[22px]">{SECTIONS[active].title}</h2>}
+          <AppSectionHeader k={active} as="h2" />
           {SECTIONS[active].render()}
         </div>
       </div>
@@ -150,110 +159,135 @@ const PUSH_LABEL: Record<string, string> = {
   'not-configured': 'Nicht verfügbar',
 };
 
-/** Übersicht aller Einstellungen als gruppierte Liste mit dem jeweils aktuellen Stand */
-function SettingsNav({ active }: { active?: SectionKey }) {
-  if (IS_APP) return <AppSettingsNav active={active} />;
-  return <SiteSettingsNav active={active} />;
+interface NavRow {
+  icon: ReactNode;
+  tint: string;
+  label: string;
+  value?: ReactNode;
+  to: string;
+  active?: boolean;
+  testId?: string;
+  /** Suchbegriffe (zusätzlich zum Titel) */
+  keywords: string;
+}
+interface NavGroup {
+  title?: string;
+  rows: NavRow[];
 }
 
-/** App: Konto, Lerngruppe und Plus zuerst; keine Push-Anbindung, keine Personenverwaltung. */
-function AppSettingsNav({ active }: { active?: SectionKey }) {
-  const theme = usePrefs((s) => s.theme);
-  const modules = useModules();
-  const me = useAccount((s) => s.me);
-  const email = useAccount((s) => s.session?.user.email);
-  const group = me?.groups.find((g) => g.id === me.active_group_id);
-  const trashCount = useTrashCount();
-  const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
-  const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
-  const solo = group?.kind === 'solo';
-  const phase = usePush((s) => s.phase);
-  useEffect(() => {
-    void initPush();
-  }, []);
+/** Übersicht aller Einstellungen als gruppierte Liste mit Suche und dem jeweils aktuellen Stand */
+function SettingsNav({ active }: { active?: SectionKey }) {
+  const groups = useNavGroups(active);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const filtered = q ? groups.map((g) => ({ ...g, rows: g.rows.filter((r) => `${r.label} ${r.keywords}`.toLowerCase().includes(q)) })).filter((g) => g.rows.length > 0) : groups;
   return (
     <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
       <ProfileCard />
-      <ListGroup title="Konto">
-        <ListRow icon={<UserRound />} tint={AREA_TINT.account} label="Konto" value={email} {...row('konto')} testId="settings-account" />
-        <ListRow icon={<Users />} tint={AREA_TINT.group} label={solo ? 'Lernbereich & Gruppen' : 'Lerngruppe'} value={solo ? undefined : group?.name} {...row('gruppe')} testId="settings-group" />
-        <ListRow icon={<Crown />} tint={AREA_TINT.plan_billing} label="Tarif & Abo" value={me ? myPlanLabel(me) : undefined} {...row('plus')} testId="settings-plus" />
-      </ListGroup>
-      <ListGroup title="Lernen">
-        <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer" value={modules.length} {...row('faecher')} />
-        <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik-Bibliothek" value={`${tracks} Titel`} to="/musik" testId="settings-music" />
-      </ListGroup>
-      <ListGroup title="Dieses Gerät">
-        <ListRow
-          icon={phase === 'on' ? <BellRing /> : <Bell />}
-          tint={phase === 'on' ? TINT.teal : AREA_TINT.notifications}
-          label="Benachrichtigungen"
-          value={PUSH_LABEL[phase]}
-          to="/einstellungen/benachrichtigungen"
-          testId="settings-push"
+      <label className="settings-search relative block">
+        <span className="sr-only">Einstellungen durchsuchen</span>
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-faint" aria-hidden />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Suchen, z. B. „dunkel“, „Uhr“, „Wetter“"
+          className="h-11 w-full rounded-2xl border border-line bg-[var(--ss-card)] pl-10 pr-3 text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ss-accent)]"
+          data-testid="settings-search"
+          enterKeyHint="search"
         />
-        <ListRow icon={<Palette />} tint={AREA_TINT.appearance} label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
-      </ListGroup>
-      <ListGroup title="Daten">
-        <ListRow icon={<Download />} tint={AREA_TINT.export} label="Daten exportieren" {...row('daten')} testId="settings-export" />
-        <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} to="/papierkorb" />
-        <ListRow icon={<History />} tint={AREA_TINT.history} label="Änderungsverlauf" to="/verlauf" />
-      </ListGroup>
-      <ListGroup title="Hilfe">
-        <ListRow icon={<LifeBuoy />} tint={AREA_TINT.help} label="Hilfe & Feedback" to="/hilfe" testId="settings-help" />
-        <ListRow icon={<Info />} tint={AREA_TINT.info} label="Über StudySpace" value={config.version} {...row('info')} />
-      </ListGroup>
+      </label>
+      {filtered.map((g, i) => (
+        <ListGroup key={g.title ?? i} title={g.title}>
+          {g.rows.map((r) => (
+            <ListRow key={r.to} icon={r.icon} tint={r.tint} label={r.label} value={r.value} to={r.to} active={r.active} testId={r.testId} />
+          ))}
+        </ListGroup>
+      ))}
+      {q && filtered.length === 0 && (
+        <p className="px-1 text-[14px] text-muted" data-testid="settings-search-empty">
+          Nichts gefunden zu „{query.trim()}“.
+        </p>
+      )}
     </nav>
   );
 }
 
-function SiteSettingsNav({ active }: { active?: SectionKey }) {
+function useNavGroups(active?: SectionKey): NavGroup[] {
   const phase = usePush((s) => s.phase);
   const theme = usePrefs((s) => s.theme);
   const members = useAllMembers();
   const modules = useModules();
   const musicAvailable = useMusic((s) => s.available);
   const tracks = useMusic((s) => Object.values(s.tracks).filter((t) => !t.deleted_at).length);
+  const trashCount = useTrashCount();
+  const weatherMode = useWeather((s) => s.mode);
+  const me = useAccount((s) => s.me);
+  const email = useAccount((s) => s.session?.user.email);
   useEffect(() => {
     void initPush();
   }, []);
+  const sec = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
+  const group = me?.groups.find((g) => g.id === me.active_group_id);
+  const solo = group?.kind === 'solo';
+
+  const device: NavRow[] = [
+    { icon: phase === 'on' ? <BellRing /> : <Bell />, tint: phase === 'on' ? TINT.teal : AREA_TINT.notifications, label: 'Benachrichtigungen', value: PUSH_LABEL[phase], to: '/einstellungen/benachrichtigungen', testId: 'settings-push', keywords: 'push mitteilung erinnerung ruhezeit' },
+    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design animation transparenz kompakt klänge ton haptik vibration fortschritt' },
+    { icon: <Clock3 />, tint: AREA_TINT.focus, label: 'Uhr & Fokus', ...sec('fokus'), testId: 'settings-clock', keywords: 'uhr schrift farbe hintergrund pomodoro timer lernmodus vollbild hausaufgaben zähler design kontrast' },
+    { icon: <CloudSun />, tint: TINT.blue, label: 'Wetter', value: weatherMode === 'auto' ? 'Automatisch' : weatherMode === 'off' ? 'Aus' : 'Fest', ...sec('wetter'), keywords: 'regen schnee sonne gewitter standort hintergrund' },
+  ];
+  const music: NavRow = { icon: <Music2 />, tint: AREA_TINT.music, label: 'Musik-Bibliothek', value: musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`, to: '/musik', testId: 'settings-music', keywords: 'lofi youtube lieder' };
+  const subjects: NavRow = { icon: <BookOpen />, tint: AREA_TINT.subjects, label: 'Fächer', value: modules.length, ...sec('faecher'), keywords: 'module reihenfolge farbe archiv' };
+  const trash: NavRow = { icon: <Trash2 />, tint: AREA_TINT.trash, label: 'Papierkorb', value: trashCount || undefined, to: '/papierkorb', keywords: 'gelöscht wiederherstellen' };
+  const history: NavRow = { icon: <History />, tint: AREA_TINT.history, label: 'Änderungsverlauf', to: '/verlauf', keywords: 'aktivität protokoll' };
+  const about: NavRow = { icon: <Info />, tint: AREA_TINT.info, label: 'Über StudySpace', value: config.version, ...sec('info'), keywords: 'version verbindung' };
+
+  if (IS_APP)
+    return [
+      {
+        title: 'Konto',
+        rows: [
+          { icon: <UserRound />, tint: AREA_TINT.account, label: 'Konto', value: email, ...sec('konto'), testId: 'settings-account', keywords: 'name e-mail passwort anmeldung abmelden löschen angemeldet bleiben' },
+          { icon: <Users />, tint: AREA_TINT.group, label: solo ? 'Lernbereich & Gruppen' : 'Lerngruppe', value: solo ? undefined : group?.name, ...sec('gruppe'), testId: 'settings-group', keywords: 'mitglieder einladen einladungscode beitreten verlassen' },
+          { icon: <Crown />, tint: AREA_TINT.plan_billing, label: 'Tarif & Abo', value: me ? myPlanLabel(me) : undefined, ...sec('plus'), testId: 'settings-plus', keywords: 'solo gruppe kaufen kündigen preis' },
+          { icon: <Ticket />, tint: TINT.teal, label: 'Code einlösen', ...sec('code'), testId: 'settings-code', keywords: 'gutschein einladung tarif freischalten' },
+        ],
+      },
+      { title: 'Lernen', rows: [subjects, music] },
+      { title: 'Dieses Gerät', rows: device },
+      { title: 'Daten', rows: [{ icon: <Download />, tint: AREA_TINT.export, label: 'Daten exportieren', ...sec('daten'), testId: 'settings-export', keywords: 'sicherung download json' }, trash, history] },
+      {
+        title: 'Hilfe & Rechtliches',
+        rows: [
+          { icon: <LifeBuoy />, tint: AREA_TINT.help, label: 'Hilfe & Feedback', to: '/hilfe', testId: 'settings-help', keywords: 'support fehler frage' },
+          { icon: <Scale />, tint: TINT.gray, label: 'Rechtliches', ...sec('rechtliches'), testId: 'settings-legal', keywords: 'agb nutzungsbedingungen datenschutz impressum widerruf vertrag' },
+          about,
+        ],
+      },
+    ];
+
   const activeMembers = members.filter((m) => m.is_active).length;
-  const trashCount = useTrashCount();
-  const row = (k: SectionKey) => ({ to: `/einstellungen/${k}`, active: active === k });
-  return (
-    <nav aria-label="Einstellungen" className="flex flex-col gap-5" data-testid="settings-nav">
-      <ProfileCard />
-      <ListGroup title="Dieses Gerät">
-        <ListRow
-          icon={phase === 'on' ? <BellRing /> : <Bell />}
-          tint={phase === 'on' ? TINT.teal : AREA_TINT.notifications}
-          label="Benachrichtigungen"
-          value={PUSH_LABEL[phase]}
-          to="/einstellungen/benachrichtigungen"
-          testId="settings-push"
-        />
-        <ListRow icon={<Palette />} tint={AREA_TINT.appearance} label="Darstellung & Bedienung" value={theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell'} {...row('darstellung')} />
-      </ListGroup>
-      <ListGroup title="Lerngruppe">
-        <ListRow icon={<Users />} tint={AREA_TINT.group} label="Personen" value={activeMembers} {...row('personen')} />
-        <ListRow icon={<BookOpen />} tint={AREA_TINT.subjects} label="Fächer" value={modules.length} {...row('faecher')} />
-        <ListRow icon={<Music2 />} tint={AREA_TINT.music} label="Musik-Bibliothek" value={musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`} to="/musik" testId="settings-music" />
-      </ListGroup>
-      <ListGroup title="Daten">
-        <ListRow icon={<Download />} tint={AREA_TINT.export} label="Sicherung & Import" {...row('daten')} />
-        <ListRow icon={<Trash2 />} tint={AREA_TINT.trash} label="Papierkorb" value={trashCount || undefined} to="/papierkorb" />
-        <ListRow icon={<History />} tint={AREA_TINT.history} label="Änderungsverlauf" to="/verlauf" />
-      </ListGroup>
-      <ListGroup>
-        <ListRow icon={<Info />} tint={AREA_TINT.info} label="Über StudySpace" value={config.version} {...row('info')} />
-      </ListGroup>
-    </nav>
-  );
+  return [
+    { title: 'Dieses Gerät', rows: device },
+    { title: 'Lerngruppe', rows: [{ icon: <Users />, tint: AREA_TINT.group, label: 'Personen', value: activeMembers, ...sec('personen'), keywords: 'namen farben mitglieder' }, subjects, music] },
+    {
+      title: 'Daten',
+      rows: [
+        { icon: <Download />, tint: AREA_TINT.export, label: 'Sicherung & Import', ...sec('daten'), keywords: 'export download json backup' },
+        { icon: <Rocket />, tint: TINT.indigo, label: 'Umzug in die App', ...sec('umzug'), testId: 'settings-move', keywords: 'app übertragen konto sicherheitskopie' },
+        trash,
+        history,
+      ],
+    },
+    { rows: [about] },
+  ];
 }
 
 function Appearance() {
   const prefs = usePrefs();
   return (
+    <div className="flex flex-col gap-[var(--gap-grid)]">
     <Section title="Erscheinungsbild" icon={<Palette />} tint={TINT.violet} hint="Diese Einstellungen gelten nur für dieses Gerät.">
       <Row label="Darstellung" hint="System übernimmt die Geräteeinstellung.">
         <Segmented
@@ -304,6 +338,8 @@ function Appearance() {
       <Row inline label="Kompakte Darstellung" hint="Kleinere Abstände und Schrift.">
         <Switch label="Kompakte Darstellung" checked={prefs.compact} onChange={(compact) => prefs.set({ compact })} />
       </Row>
+    </Section>
+    <Section title="Bedienung" icon={<Hand />} tint={TINT.teal}>
       <Row inline label="Klänge" hint="Leise Töne beim Antippen, Auswählen und Abhaken. Auf dem iPhone gilt der Stummschalter.">
         <Switch label="Klänge" checked={prefs.sounds} onChange={(sounds) => prefs.set({ sounds })} />
       </Row>
@@ -314,6 +350,7 @@ function Appearance() {
         </Row>
       )}
     </Section>
+    </div>
   );
 }
 

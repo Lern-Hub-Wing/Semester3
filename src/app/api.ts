@@ -107,6 +107,38 @@ export interface Me {
   tutorial_done: boolean;
   is_admin: boolean;
   groups: GroupInfo[];
+  /** Zugestimmte Fassung der Nutzungsbedingungen (fehlt ohne Migration 0007) */
+  terms_version?: string | null;
+  /** Noch nicht verbundene Personen der aktiven Gruppe (nach dem Umzug von der Seite) */
+  claimable?: number;
+}
+
+export type RedeemResult =
+  | { kind: 'group'; group_id: string; name: string; claimable: number }
+  | { kind: 'plan'; plan: 'solo_grant' | 'plus_grant'; ends_at: string | null }
+  | { kind: 'invalid'; message: string };
+
+export interface Imprint {
+  name: string;
+  street: string;
+  city: string;
+  country?: string;
+  email: string;
+  phone?: string;
+  responsible?: string;
+  vat_id?: string;
+}
+
+export interface ClaimableMember {
+  id: string;
+  name: string;
+  color: string;
+}
+
+/** Fehlt eine Datenbankfunktion (Migration noch nicht eingespielt)? */
+export function isMissingFunction(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return e?.code === 'PGRST202' || e?.code === '42883' || /Could not find the function|does not exist/i.test(e?.message ?? '');
 }
 
 export interface Usage {
@@ -154,6 +186,13 @@ export const api = {
   betaPurchase: (sb: SupabaseClient, plan: PaidPlan) => rpc<{ entitlement_id: string; ends_at: string; group_id: string | null }>(sb, 'app_beta_purchase', { p_plan: plan }),
   betaCancel: (sb: SupabaseClient, entitlementId: string) => rpc<void>(sb, 'app_beta_cancel', { p_entitlement: entitlementId }),
   tutorialDone: (sb: SupabaseClient) => rpc<void>(sb, 'app_tutorial_done'),
+  /** Ein Feld für alles: Einladungscode oder Tarif-Code */
+  redeemCode: (sb: SupabaseClient, code: string, displayName?: string) =>
+    rpc<RedeemResult>(sb, 'app_redeem_code', { p_code: code.trim().slice(0, 40), p_display_name: displayName ?? null }),
+  claimableMembers: (sb: SupabaseClient) => rpc<ClaimableMember[]>(sb, 'app_claimable_members'),
+  claimMember: (sb: SupabaseClient, memberId: string) => rpc<void>(sb, 'app_claim_member', { p_member: memberId }),
+  acceptTerms: (sb: SupabaseClient, version: string) => rpc<void>(sb, 'app_accept_terms', { p_version: version }),
+  legalInfo: (sb: SupabaseClient) => rpc<{ imprint: Imprint | null } | null>(sb, 'app_legal_info'),
   async groupMembers(sb: SupabaseClient, groupId: string): Promise<GroupMember[]> {
     const { data, error } = await sb
       .from('group_members')
@@ -176,6 +215,14 @@ export function normalizeCode(input: string): string {
 
 export function isValidCode(code: string): boolean {
   return /^[A-HJ-NP-Z2-9]{8}$/.test(normalizeCode(code));
+}
+
+/** Tarif-Code aus einem Link „#/code/ABCD-2345“ herauslösen */
+export function extractPromoCode(text: string): string | null {
+  const m = text.match(/#\/code\/([A-Za-z0-9-]{8,10})/);
+  if (!m) return null;
+  const c = normalizeCode(m[1]);
+  return isValidCode(c) ? formatCode(c) : null;
 }
 
 /** Code aus Text, Link oder „#/beitreten/CODE“ herauslösen. */

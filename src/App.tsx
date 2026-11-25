@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { config } from './lib/config';
 import { IS_APP } from './lib/edition';
@@ -28,6 +28,7 @@ import type { Member } from './lib/types';
 import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
 import { MountainFlight } from './components/landscape/MountainFlight';
+import { MovedScreen, movedTarget, stayOnSite } from './components/layout/MovedScreen';
 import { rememberReturnPath, returnPath } from './lib/focusReturn';
 import { PushMemberSwitch, PushOnboarding } from './components/PushOnboarding';
 import { BadgeSync } from './components/BadgeSync';
@@ -66,6 +67,7 @@ function FocusView() {
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 const Music = lazy(() => import('./pages/Music').then((m) => ({ default: m.Music })));
 const Homework = lazy(() => import('./pages/Homework').then((m) => ({ default: m.Homework })));
+const HomeworkFocus = lazy(() => import('./pages/HomeworkFocus').then((m) => ({ default: m.HomeworkFocus })));
 const StudyMode = lazy(() => import('./pages/StudyMode').then((m) => ({ default: m.StudyMode })));
 
 function RedirectTo({ to }: { to: string }) {
@@ -110,6 +112,9 @@ function Main() {
   const members = useActiveMembers();
 
   const isFocus = path === '/fokus' || path === '/fokus/vollbild';
+  // Hausaufgaben-Zähler: eigene Vollbild-Ebene wie der Fokus
+  const hwFocusId = path.startsWith('/hausaufgaben/fokus/') ? path.slice('/hausaufgaben/fokus/'.length) : null;
+  const overlay = isFocus || hwFocusId !== null;
 
   // Letzte Seite merken: „Fokus schließen“ führt dorthin zurück
   useEffect(() => rememberReturnPath(path), [path]);
@@ -133,6 +138,11 @@ function Main() {
     if (!IS_APP && phase === 'ready' && activeId && (!me || !me.is_active)) select(null);
   }, [phase, activeId, me, select]);
 
+  // Umzug: Die Seite leitet auf die App um (Einstellungen → Umzug in die App)
+  const movedTo = useData((s) => (IS_APP ? null : movedTarget(s.app_settings.moved_to_app?.value)));
+  const [stay, setStay] = useState(stayOnSite);
+  if (movedTo && !stay) return <MovedScreen target={movedTo} onStay={() => setStay(true)} />;
+
   return (
     <LayoutGroup>
       <AnimatePresence mode="wait">
@@ -148,11 +158,11 @@ function Main() {
             <StudyMode />
           </Suspense>
         ) : (
-          <AppShell key="app" inert={isFocus}>
+          <AppShell key="app" inert={overlay}>
             {IS_APP && <PlusBanner />}
             <Suspense fallback={<PageSkeleton />}>
               {/* Unter dem Fokus bleibt die vorige Seite stehen */}
-              <Routes me={me} path={isFocus ? returnPath() : path} />
+              <Routes me={me} path={overlay ? returnPath() : path} />
             </Suspense>
           </AppShell>
         )}
@@ -169,6 +179,22 @@ function Main() {
             transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
           >
             <FocusView />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {me && me.is_active && hwFocusId && (
+          <motion.div
+            key={`hwfocus-${hwFocusId}`}
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Suspense fallback={<div className="fixed inset-0 bg-[#0b0c1c]" />}>
+              <HomeworkFocus homeworkId={hwFocusId} me={me} />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

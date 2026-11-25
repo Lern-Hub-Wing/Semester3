@@ -5,7 +5,7 @@
 import { isHexColor } from './colors';
 
 export type ClockFont = 'inter' | 'thin' | 'rounded' | 'mono' | 'serif' | 'digital' | 'grotesk';
-export type ClockBackground = 'solid' | 'gradient' | 'aurora' | 'image';
+export type ClockBackground = 'mountains' | 'solid' | 'gradient' | 'aurora' | 'image';
 
 export interface StudyModeSettings {
   /** Ziffern: Stunden:Minuten oder Stunden:Minuten:Sekunden */
@@ -99,7 +99,7 @@ export function sanitizeStudyMode(input: unknown): StudyModeSettings {
     glow: bool(o.glow, d.glow),
     secondsStyle: oneOf(o.secondsStyle, ['same', 'small'] as const, d.secondsStyle),
     animateDigits: bool(o.animateDigits, d.animateDigits),
-    background: oneOf(o.background, ['solid', 'gradient', 'aurora', 'image'] as const, d.background),
+    background: oneOf(o.background, ['mountains', 'solid', 'gradient', 'aurora', 'image'] as const, d.background),
     bgColor: color(o.bgColor, d.bgColor),
     gradient: [color(g[0], d.gradient[0]), color(g[1], d.gradient[1]), color(g[2], d.gradient[2])],
     gradientAngle: clamp(o.gradientAngle, 0, 360, d.gradientAngle),

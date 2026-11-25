@@ -108,7 +108,7 @@ const RULES: Record<TableName, Record<string, Rule>> = {
     deleted_at: tsRule(),
   },
   app_settings: {
-    key: (v) => ['app_name', 'group_goal_title', 'motivation_enabled'].includes(v as string),
+    key: (v) => ['app_name', 'group_goal_title', 'motivation_enabled', 'moved_to_app'].includes(v as string),
     value: (v) => v !== undefined && JSON.stringify(v).length <= 4000,
   },
 };

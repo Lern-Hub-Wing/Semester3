@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
-  Ban, ChartColumn, Euro, MessageSquare, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
+  Ban, ChartColumn, Euro, Rocket, Scale, Ticket, MessageSquare, Crown, History, LogOut, RefreshCw, RotateCcw, Search, ShieldCheck, ShieldOff, Trash2, UserMinus, Users, UsersRound,
 } from 'lucide-react';
 import { LogoMark } from '../components/Logo';
 import { Ambient } from '../components/layout/Ambient';
@@ -13,6 +13,7 @@ import { toast } from '../store/toast';
 import { config } from '../lib/config';
 import { LoginScreen, MfaScreen, SetupScreen } from './AdminLogin';
 import { FinanceSimulator } from './Finance';
+import { CodesTab, LegalTab, MoveTab } from './Tools';
 import { Switch } from '../components/ui/Switch';
 import {
   adminAuth, adminDb, euro, fmtDate, PLAN_LABEL, rpc, SOURCE_LABEL, type AdminGroup, type AdminUser, type Entitlement, type Stats,
@@ -92,7 +93,7 @@ export function AdminApp() {
 
 // ---------------------------------------------------------------------
 
-type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'feedback' | 'audit';
+type Tab = 'overview' | 'finance' | 'users' | 'groups' | 'codes' | 'move' | 'legal' | 'feedback' | 'audit';
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('overview');
@@ -110,24 +111,32 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             Abmelden
           </Button>
         </header>
+        <div className="scroll-thin -mx-4 mb-6 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Segmented
           label="Bereich"
           value={tab}
           onChange={setTab}
-          className="mb-6 w-full md:w-auto"
+          className="w-max"
           options={[
             { value: 'overview', label: 'Übersicht', icon: <ChartColumn className="size-4" /> },
             { value: 'finance', label: 'Finanzen', icon: <Euro className="size-4" /> },
             { value: 'users', label: 'Benutzer', icon: <Users className="size-4" /> },
             { value: 'groups', label: 'Gruppen', icon: <UsersRound className="size-4" /> },
+            { value: 'codes', label: 'Codes', icon: <Ticket className="size-4" /> },
+            { value: 'move', label: 'Umzug', icon: <Rocket className="size-4" /> },
+            { value: 'legal', label: 'Impressum', icon: <Scale className="size-4" /> },
             { value: 'feedback', label: 'Feedback', icon: <MessageSquare className="size-4" /> },
             { value: 'audit', label: 'Protokoll', icon: <History className="size-4" /> },
           ]}
         />
+        </div>
         {tab === 'overview' && <Overview />}
         {tab === 'finance' && <FinanceTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'groups' && <GroupsTab />}
+        {tab === 'codes' && <CodesTab />}
+        {tab === 'move' && <MoveTab />}
+        {tab === 'legal' && <LegalTab />}
         {tab === 'feedback' && <FeedbackTab />}
         {tab === 'audit' && <AuditTab />}
       </div>

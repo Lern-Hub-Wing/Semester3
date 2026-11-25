@@ -1131,7 +1131,7 @@ try {
     await p.getByTestId('mountain-flight').waitFor({ state: 'detached', timeout: 4000 });
     const greet = (await p.getByTestId('greeting').first().innerText()).trim();
     check(/^(Guten (Morgen|Mittag|Tag|Abend)|Gute Nacht), Person 1$/.test(greet), `Begrüßung nach Tageszeit mit Namen („${greet}“)`);
-    await p.goto(`${BASE}#/einstellungen/darstellung`);
+    await p.goto(`${BASE}#/einstellungen/wetter`);
     await p.getByTestId('weather-mode').waitFor();
     check((await p.getByTestId('weather-mode').getByRole('radio', { checked: true }).getAttribute('data-value')) === 'auto', 'Wetter: Standard ist „Automatisch“');
     await p.getByTestId('weather-share-location').click();
@@ -1151,7 +1151,7 @@ try {
     check(painted > 200, `Wetter: Regen wird gezeichnet (${painted} Bildpunkte)`);
     check((await p.evaluate(() => getComputedStyle(document.querySelector('[data-testid="weather-layer"]')).pointerEvents)) === 'none', 'Wetter: Ebene blockiert keine Klicks');
     for (const [mode, expected] of [['night', 'clear-night'], ['thunder', 'thunder'], ['off', null]]) {
-      await p.goto(`${BASE}#/einstellungen/darstellung`);
+      await p.goto(`${BASE}#/einstellungen/wetter`);
       await p.getByTestId('weather-mode').locator(`[data-value="${mode}"]`).click();
       await p.goto(`${BASE}#/`);
       await p.getByTestId('dashboard-hero').waitFor();
@@ -1297,6 +1297,137 @@ try {
     // Ausgangszustand für weitere Läufe wiederherstellen
     saved.participants = null;
     db.exams.splice(examsBefore);
+  }
+
+  // --- Hausaufgaben-Zähler + gemeinsames Uhr-Design ------------------------
+  {
+    const now = new Date().toISOString();
+    const due = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    db.homework.push({ id: '77777777-7777-4777-8777-000000000001', module_id: db.modules[4].id, title: 'Übungsblatt Kostenrechnung', description: null, due_date: due, earliest_start: null, priority: 2, effort_minutes: null, unit_count: null, deleted_at: null, changed_by: null, version: 1, created_at: now, updated_at: now });
+    db.homework_parts.push({ id: '77777777-7777-4777-8777-000000000002', homework_id: '77777777-7777-4777-8777-000000000001', kind: 'subtask', title: 'Aufgabe 1', planned_date: null, sort_order: 1, deleted_at: null, changed_by: null, version: 1, created_at: now, updated_at: now });
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 800 } });
+    // Gemeinsames Design: Fokus-Design mit Schrift „Mono“ und hellem Hintergrund
+    await c.addInitScript(() => localStorage.setItem('studyspace.focuslook.v1', JSON.stringify({ font: 'mono', background: 'solid', bgColor: '#FFFFFF', color: '#1D2533' })));
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.goto(`${BASE}#/hausaufgaben`);
+    const item = p.getByTestId('homework-item').filter({ hasText: 'Übungsblatt Kostenrechnung' });
+    await item.waitFor();
+    check((await item.getByTestId('homework-start-quick').count()) === 1, 'Hausaufgaben: Knopf „Loslegen“ an jeder Hausaufgabe');
+    await item.getByRole('button', { name: 'Details anzeigen' }).click();
+    check((await item.getByTestId('homework-start').innerText()).includes('Loslegen'), 'Hausaufgaben: „Loslegen“ neben „Bearbeiten“');
+    await item.getByTestId('homework-start').click();
+    const hf = p.getByTestId('hwfocus');
+    await hf.waitFor();
+    const t1 = await p.getByTestId('hwfocus-time').getAttribute('data-value');
+    await p.waitForTimeout(2200);
+    const t2 = await p.getByTestId('hwfocus-time').getAttribute('data-value');
+    check(t1 !== t2 && /^\d\d:\d\d$/.test(t2 ?? ''), `Zähler: zählt hoch (${t1} → ${t2})`);
+    const fam = await p.getByTestId('hwfocus-time').evaluate((el) => getComputedStyle(el).fontFamily);
+    check(/JetBrains/i.test(fam), `Zähler: nutzt das gemeinsame Uhr-Design (${fam.slice(0, 30)})`);
+    check((await hf.getAttribute('data-light')) === 'true', 'Zähler: heller Hintergrund → dunkle Beschriftung (Kontrast)');
+    const titleColor = await p.getByTestId('hwfocus-title').evaluate((el) => getComputedStyle(el).color);
+    check(/rgba?\((1\d|2\d|\d),/.test(titleColor), `Zähler: Titel dunkel auf hellem Grund (${titleColor})`);
+    await p.getByTestId('hwfocus-toggle').click();
+    check((await hf.getAttribute('data-running')) === 'false', 'Zähler: Pause');
+    await p.getByRole('button', { name: 'Schritte' }).click();
+    await p.getByRole('dialog', { name: 'Schritte der Hausaufgabe' }).waitFor();
+    check((await p.getByRole('dialog', { name: 'Schritte der Hausaufgabe' }).getByText('Aufgabe 1').count()) === 1, 'Zähler: Schritte der Hausaufgabe abhakbar');
+    await p.getByRole('button', { name: 'Schritte schließen' }).click();
+    // Schließen: Zähler bleibt erhalten → Karte zeigt „Weiter“
+    await p.getByRole('button', { name: 'Zähler schließen (läuft weiter)' }).click();
+    await p.waitForURL(/#\/hausaufgaben$/);
+    await item.waitFor();
+    check((await item.getByTestId('homework-start').innerText()).includes('Weiter'), 'Hausaufgaben: laufender Zähler → „Weiter (…)“');
+    await item.getByTestId('homework-start').click();
+    await hf.waitFor();
+    await p.getByRole('button', { name: 'Fertig – Lernzeit speichern' }).click();
+    const askDlg = p.getByRole('alertdialog', { name: 'Hausaufgabe abhaken?' });
+    await askDlg.waitFor();
+    await askDlg.getByRole('button', { name: 'Ja, abhaken' }).click();
+    await p.waitForURL(/#\/hausaufgaben$/);
+    await p.waitForTimeout(400);
+    check(db.homework_completions.some((x) => x.target_id === '77777777-7777-4777-8777-000000000001' && x.is_completed), 'Zähler: „Ja, abhaken“ hakt die Hausaufgabe ab');
+    // Lernmodus zeigt dasselbe Design
+    await p.goto(`${BASE}#/lernmodus`);
+    await p.getByTestId('study-clock').waitFor();
+    const sfam = await p.getByTestId('study-clock').evaluate((el) => getComputedStyle(el).fontFamily);
+    const sbg = await p.getByTestId('study-bg').getAttribute('data-bg');
+    check(/JetBrains/i.test(sfam) && sbg === 'solid', `Lernmodus: gleiches Design wie Fokus und Zähler (${sbg})`);
+    check(errs.length === 0, `keine JavaScript-Fehler (Zähler)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+    db.homework.splice(0);
+    db.homework_parts.splice(0);
+    db.homework_completions.splice(0);
+  }
+
+  // --- Einstellungen: Suche, Uhr & Fokus, Umzug in die App + Umleitung ------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 900 }, acceptDownloads: true });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.goto(`${BASE}#/einstellungen`);
+    const search = p.getByTestId('settings-search');
+    await search.fill('wetter');
+    const nav = p.getByTestId('settings-nav');
+    check((await nav.locator('.list-row').count()) === 1 && (await nav.getByText('Wetter', { exact: true }).count()) === 1, 'Einstellungen: Suche findet „Wetter“');
+    await search.fill('xyz123');
+    check((await p.getByTestId('settings-search-empty').count()) === 1, 'Einstellungen: Suche ohne Treffer zeigt Hinweis');
+    await search.fill('');
+    await p.goto(`${BASE}#/einstellungen/fokus`);
+    await p.getByTestId('clock-preview').waitFor();
+    await p.getByRole('radio', { name: /Mono/ }).first().click();
+    const lookFont = await p.evaluate(() => JSON.parse(localStorage.getItem('studyspace.focuslook.v1') ?? '{}').font);
+    check(lookFont === 'mono', `Uhr & Fokus: Schrift gilt für alle Uhren (${lookFont})`);
+    // Umzug: Sicherheitskopie herunterladen
+    await p.goto(`${BASE}#/einstellungen/umzug`);
+    await p.getByTestId('move-section').waitFor();
+    const dlP = p.waitForEvent('download');
+    await p.getByTestId('move-backup').click();
+    const dl = await dlP;
+    const json = JSON.parse(await (await import('node:fs/promises')).readFile(await dl.path(), 'utf8'));
+    check(json.format === 'studyspace-umzug' && json.tables.members.length === db.members.length && Array.isArray(json.tables.homework) && Array.isArray(json.tables.focus_sessions), `Umzug: Sicherheitskopie mit allen Tabellen (${Object.keys(json.tables).length})`);
+    check(/^studyspace-umzug-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename()), 'Umzug: Dateiname mit Datum');
+    await p.getByTestId('move-counts').waitFor();
+    // Umleitung einschalten (mit Bestätigung)
+    await p.getByRole('switch', { name: 'Umleitung zur App' }).click();
+    await p.getByTestId('move-confirm').click();
+    await p.waitForTimeout(500);
+    const moved = db.app_settings.find((r) => r.key === 'moved_to_app');
+    check(!!moved && /\/Semester3\/app\/$/.test(moved.value.url), `Umzug: Umleitung gespeichert (${moved?.value?.url})`);
+    // Neuer Besuch: „Wir sind umgezogen“
+    const other = await newPage(browser, { viewport: { width: 390, height: 844 } });
+    await other.page.route('**/Semester3/app/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>App</title><p id="app">App</p>' }));
+    await other.page.goto(BASE);
+    await other.page.getByTestId('moved-screen').waitFor();
+    check(true, 'Umzug: Besucher sehen „Wir sind umgezogen“');
+    await other.page.getByTestId('moved-stay').click();
+    await other.page.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
+    check(true, 'Umzug: „Alte Seite trotzdem öffnen“ funktioniert');
+    await other.page.reload();
+    await other.page.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
+    const third = await newPage(browser, { viewport: { width: 390, height: 844 } });
+    await third.page.route('**/Semester3/app/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>App</title><p id="app">App</p>' }));
+    await third.page.goto(BASE);
+    await third.page.getByTestId('moved-go').click();
+    await third.page.waitForURL(/\/Semester3\/app\/$/);
+    check(true, 'Umzug: „Zur App“ leitet zur App');
+    // Umleitung wieder aus
+    await p.reload();
+    await p.getByTestId('moved-stay').click();
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.goto(`${BASE}#/einstellungen/umzug`);
+    await p.getByRole('switch', { name: 'Umleitung zur App' }).click();
+    await p.waitForTimeout(500);
+    check(db.app_settings.find((r) => r.key === 'moved_to_app')?.value === false, 'Umzug: Umleitung lässt sich ausschalten');
+    check(errs.length === 0 && other.errors.length === 0 && third.errors.length === 0, `keine JavaScript-Fehler (Umzug)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await other.ctx.close();
+    await third.ctx.close();
+    await c.close();
+    const i = db.app_settings.findIndex((r) => r.key === 'moved_to_app');
+    if (i >= 0) db.app_settings.splice(i, 1);
   }
 } catch (err) {
   failures++;

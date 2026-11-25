@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ImagePlus, Maximize, Minimize, RotateCcw, Smartphone, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import {
-  BG_COLORS, CLOCK_COLORS, CLOCK_FONTS, DEFAULT_STUDY_MODE, GRADIENT_PRESETS, clockParts, loadClockFont, loadStudyImage,
-  loadStudyMode, resizeImage, sanitizeStudyMode, saveStudyImage, saveStudyMode, type StudyModeSettings,
+  BG_COLORS, CLOCK_COLORS, CLOCK_FONTS, DEFAULT_STUDY_MODE, GRADIENT_PRESETS, clockParts, loadClockFont,
+  loadStudyMode, resizeImage, sanitizeStudyMode, saveStudyMode, type StudyModeSettings,
 } from '../lib/studyMode';
 import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, isIPhone, isStandalone, wakeLockSupported } from '../lib/fullscreen';
 import { upcomingExams, daysUntil } from '../lib/countdown';
@@ -15,6 +15,11 @@ import { useNow } from '../hooks/useNow';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { toast } from '../store/toast';
 import { Segmented } from '../components/ui/Segmented';
+import { Landscape } from '../components/landscape/Landscape';
+import { useFocus } from '../store/focus';
+import { loadFocusImage, saveFocusImage } from '../lib/focusLook';
+import { splitStudyPatch, withSharedLook } from '../lib/clockLook';
+import { ContrastWarning, SharedLookNote } from '../components/focus/LookNotes';
 
 const HIDE_AFTER_MS = 3500;
 
@@ -25,8 +30,16 @@ const HIDE_AFTER_MS = 3500;
  * – Uhrzeit wird bei jedem Tick aus der echten Uhrzeit berechnet (sekundengenau).
  */
 export function StudyMode() {
-  const [settings, setSettings] = useState<StudyModeSettings>(loadStudyMode);
-  const [image, setImage] = useState<string | null>(loadStudyImage);
+  // Gemeinsames Uhr-Design (Fokus, Lernmodus, Hausaufgaben-Zähler) + eigene Lernmodus-Einstellungen
+  const look = useFocus((s) => s.look);
+  const [own, setOwn] = useState<StudyModeSettings>(loadStudyMode);
+  const settings = useMemo(() => withSharedLook(own, look), [own, look]);
+  const [image, setImage] = useState<string | null>(loadFocusImage);
+  useEffect(() => {
+    const on = () => setImage(loadFocusImage());
+    window.addEventListener('studyspace:focus-image', on);
+    return () => window.removeEventListener('studyspace:focus-image', on);
+  }, []);
   const now = useNow(1000);
   const reduce = useReducedMotion();
   const touch = useMediaQuery('(pointer: coarse)');
@@ -39,11 +52,14 @@ export function StudyMode() {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const update = useCallback((patch: Partial<StudyModeSettings>) => {
-    setSettings((prev) => {
-      const next = sanitizeStudyMode({ ...prev, ...patch });
-      saveStudyMode(next);
-      return next;
-    });
+    const split = splitStudyPatch(patch);
+    if (Object.keys(split.look).length) useFocus.getState().setLook(split.look);
+    if (Object.keys(split.own).length)
+      setOwn((prev) => {
+        const next = sanitizeStudyMode({ ...prev, ...split.own });
+        saveStudyMode(next);
+        return next;
+      });
   }, []);
 
   // ---- Bedienelemente automatisch ausblenden ------------------------------
@@ -230,8 +246,9 @@ export function StudyMode() {
             image={image}
             onChange={update}
             onImage={(img) => {
-              if (!saveStudyImage(img)) return toast.error('Das Bild ist zu groß für den Gerätespeicher. Bitte ein kleineres wählen.');
+              if (!saveFocusImage(img)) return toast.error('Das Bild ist zu groß für den Gerätespeicher. Bitte ein kleineres wählen.');
               setImage(img);
+              window.dispatchEvent(new Event('studyspace:focus-image'));
               if (img) update({ background: 'image' });
             }}
             onClose={() => setPanel(false)}
@@ -380,6 +397,16 @@ function Backdrop({ settings, image, reduce }: { settings: StudyModeSettings; im
       </div>
     );
   }
+  if (settings.background === 'mountains' || (settings.background === 'image' && !image)) {
+    return (
+      <div className="absolute inset-0" data-testid="study-bg" data-bg="mountains">
+        <div className={`hero-scene absolute inset-0 ${reduce ? 'ls-still' : ''}`} style={{ filter: settings.imageBlur ? `blur(${settings.imageBlur}px)` : undefined }}>
+          <Landscape />
+        </div>
+        <div className="absolute inset-0" style={{ background: `rgba(6,7,20,${settings.imageDim / 100})` }} />
+      </div>
+    );
+  }
   if (settings.background === 'gradient') {
     return <div className="absolute inset-0" data-testid="study-bg" data-bg="gradient" style={{ background: `linear-gradient(${settings.gradientAngle}deg, ${a}, ${b}, ${c})` }} />;
   }
@@ -469,6 +496,7 @@ function SettingsPanel({
         </button>
       </header>
       <div className="scroll-thin flex-1 space-y-5 overflow-y-auto px-5 pb-5">
+        <SharedLookNote />
         <PanelSection title="Uhr">
           <Segmented size="sm" label="Ziffern" value={settings.format} onChange={(format) => onChange({ format })} options={[{ value: 'hm', label: 'HH:MM' }, { value: 'hms', label: 'HH:MM:SS' }]} className="w-full" />
           <Segmented size="sm" label="Zeitformat" value={settings.hour12 ? '12' : '24'} onChange={(v) => onChange({ hour12: v === '12' })} options={[{ value: '24', label: '24 Std.' }, { value: '12', label: '12 Std. (AM/PM)' }]} className="w-full" />
@@ -505,6 +533,7 @@ function SettingsPanel({
 
         <PanelSection title="Farbe der Ziffern">
           <Swatches colors={CLOCK_COLORS} value={settings.color} onChange={(color) => onChange({ color })} label="Farbe der Ziffern" />
+          <ContrastWarning look={{ background: settings.background, bgColor: settings.bgColor, gradient: settings.gradient, dim: settings.imageDim, color: settings.color }} />
           <Toggle label="Leuchten" checked={settings.glow} onChange={(glow) => onChange({ glow })} />
           <Toggle label="Ziffern animieren" checked={settings.animateDigits} onChange={(animateDigits) => onChange({ animateDigits })} />
         </PanelSection>
@@ -516,6 +545,7 @@ function SettingsPanel({
             value={settings.background}
             onChange={(background) => (background === 'image' && !image ? fileRef.current?.click() : onChange({ background }))}
             options={[
+              { value: 'mountains', label: 'Berge' },
               { value: 'aurora', label: 'Polarlicht' },
               { value: 'gradient', label: 'Verlauf' },
               { value: 'solid', label: 'Farbe' },
@@ -560,6 +590,12 @@ function SettingsPanel({
                 ))}
               </div>
               <Slider label="Richtung" value={settings.gradientAngle} min={0} max={360} step={5} onChange={(gradientAngle) => onChange({ gradientAngle })} display={`${settings.gradientAngle}°`} />
+            </>
+          )}
+          {settings.background === 'mountains' && (
+            <>
+              <Slider label="Abdunkeln" value={settings.imageDim} min={0} max={85} onChange={(imageDim) => onChange({ imageDim })} display={`${settings.imageDim} %`} />
+              <Slider label="Weichzeichnen" value={settings.imageBlur} min={0} max={24} onChange={(imageBlur) => onChange({ imageBlur })} display={`${settings.imageBlur} px`} />
             </>
           )}
           {settings.background === 'image' && (

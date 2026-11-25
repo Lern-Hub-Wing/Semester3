@@ -100,6 +100,12 @@ interface Bolt {
 }
 
 const SURFACE_SELECTOR = 'main .card, main .glass, main .photo-stage, main [data-weather-surface]';
+/** Android/schwächere Handys: weniger Pixel, weniger Bilder pro Sekunde, seltener messen */
+const LITE = typeof navigator !== 'undefined' && (/Android/i.test(navigator.userAgent) || (navigator.hardwareConcurrency ?? 8) <= 4);
+/** Karten höchstens so oft neu vermessen (dazwischen wird nur der Scrollweg verrechnet) */
+const MEASURE_MS = LITE ? 220 : 120;
+/** Mindestabstand zwischen zwei Bildern (Android: ~40 Bilder/s reichen für Regen und Schnee) */
+const MIN_FRAME_MS = LITE ? 24 : 0;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class WeatherEngine {
@@ -131,6 +137,8 @@ export class WeatherEngine {
   private radii = new WeakMap<Element, number>();
   private peak: { key: string; data: Float32Array } | null = null;
   private time = 0;
+  private lastMeasure = -1e9;
+  private lastDraw = 0;
   /** linke Kante des Inhalts (rechts neben der Seitenleiste) */
   private x0 = 0;
 
@@ -152,7 +160,7 @@ export class WeatherEngine {
   }
 
   resize() {
-    this.dpr = Math.min(window.devicePixelRatio || 1, this.w > 900 ? 2 : 1.75);
+    this.dpr = Math.min(window.devicePixelRatio || 1, LITE ? 1.25 : this.w > 900 ? 2 : 1.75);
     this.w = window.innerWidth;
     this.h = window.innerHeight;
     this.canvas.width = Math.round(this.w * this.dpr);
@@ -170,7 +178,8 @@ export class WeatherEngine {
   private build() {
     const { kind, night } = this.scene;
     const small = this.w < 700;
-    const count = { clear: 0, partly: small ? 3 : 5, cloudy: small ? 6 : 10, rain: small ? 5 : 8, thunder: small ? 6 : 10, snow: small ? 4 : 7 }[kind];
+    const full = { clear: 0, partly: small ? 3 : 5, cloudy: small ? 6 : 10, rain: small ? 5 : 8, thunder: small ? 6 : 10, snow: small ? 4 : 7 }[kind];
+    const count = LITE ? Math.ceil(full * 0.6) : full;
     this.clouds = [];
     for (let i = 0; i < count; i++) {
       const depth = i / Math.max(1, count - 1); // 0 = weit weg, 1 = nah
@@ -316,6 +325,8 @@ export class WeatherEngine {
   // Bild für Bild
   // ---------------------------------------------------------------
   frame(t: number) {
+    if (MIN_FRAME_MS && t - this.lastDraw < MIN_FRAME_MS) return;
+    this.lastDraw = t;
     const dt = this.lastT ? Math.min(0.05, (t - this.lastT) / 1000) : 0.016;
     this.lastT = t;
     this.time += dt;
@@ -328,10 +339,18 @@ export class WeatherEngine {
       for (const p of this.particles) p.y -= dScroll;
       for (const r of this.ripples) r.y -= dScroll;
       for (const s of this.settled) s.y -= dScroll;
+      // Karten wandern beim Scrollen mit – ohne sie jedes Bild neu zu vermessen (teuer auf Android)
+      for (const s of this.surfaces) {
+        s.top -= dScroll;
+        s.bottom -= dScroll;
+      }
     }
     const { kind, night, intensity } = this.scene;
     const wet = kind === 'rain' || kind === 'thunder';
-    if (wet || kind === 'snow') this.measure();
+    if ((wet || kind === 'snow') && t - this.lastMeasure >= MEASURE_MS) {
+      this.lastMeasure = t;
+      this.measure();
+    }
 
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -450,7 +469,7 @@ export class WeatherEngine {
   private drawRain(dt: number, strength: number) {
     const ctx = this.ctx;
     // Neue Tropfen (Anzahl nach Fensterbreite und Stärke)
-    this.spawnAcc += this.w * 0.17 * strength * dt;
+    this.spawnAcc += this.w * (LITE ? 0.11 : 0.17) * strength * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;
       const vy = rand(950, 1350);

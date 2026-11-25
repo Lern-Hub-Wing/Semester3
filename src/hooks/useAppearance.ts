@@ -27,6 +27,8 @@ export function useAppearance() {
     const nav = navigator as Navigator & { deviceMemory?: number };
     const weak = (nav.hardwareConcurrency ?? 8) <= 2 || (nav.deviceMemory ?? 8) <= 2;
     root.classList.toggle('reduce-glass', glass === 'reduced' || weak);
+    // Android: viele unscharfe Glasflächen ruckeln beim Scrollen → Karten ohne Live-Unschärfe (Leisten bleiben Glas)
+    root.classList.toggle('android', /Android/i.test(navigator.userAgent));
     const meta = document.querySelector('meta[name="theme-color"]:not([media])') ?? (() => {
       const m = document.createElement('meta');
       m.name = 'theme-color';

@@ -10,7 +10,6 @@
  *
  * Die Seite hat keine Anmeldung: Das ist eine Anzeige-Regel, kein Zugriffsschutz.
  */
-import { IS_APP } from '../lib/edition';
 import type { RowByTable, TableName, UUID } from '../lib/types';
 import { getActiveMemberId } from './session';
 
@@ -20,7 +19,8 @@ type AnyRow = Record<string, unknown>;
 const restricted = { modules: new Set<string>(), exams: new Set<string>(), entries: new Set<string>(), tasks: new Set<string>(), homework: new Set<string>() };
 const hidden = { modules: new Set<string>(), exams: new Set<string>(), entries: new Set<string>(), tasks: new Set<string>(), homework: new Set<string>() };
 
-export const participantsEnabled = !IS_APP;
+/** Seite: Anzeige-Regel. App: zusätzlich serverseitig geschützt (Row Level Security, Migration 0007). */
+export const participantsEnabled = true;
 
 /** Sieht diese Person das Fach? (null = keine Person gewählt → nur offene Fächer) */
 export function canSee(participants: unknown, memberId: string | null = getActiveMemberId()): boolean {

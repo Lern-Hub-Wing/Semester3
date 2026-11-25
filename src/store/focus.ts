@@ -9,6 +9,7 @@ import {
 } from '../lib/focus';
 import { DEFAULT_FOCUS_LOOK, loadFocusLook, saveFocusLook, sanitizeFocusLook, type FocusLook } from '../lib/focusLook';
 import { toast } from './toast';
+import { legacyStudyLook } from '../lib/clockLook';
 
 /**
  * Fokus-Timer (pro Gerät) und gespeicherte Fokuszeiten (für alle).
@@ -150,10 +151,20 @@ function loadLocal(): { timer: FocusState; settings: FocusSettings } {
   }
 }
 
+/** Fokus-Design laden; beim ersten Start nach dem Umbau das Lernmodus-Design übernehmen (gemeinsames Uhr-Design). */
+function initialLook(): FocusLook {
+  const base = loadFocusLook();
+  const legacy = legacyStudyLook();
+  if (!legacy) return base;
+  const merged = sanitizeFocusLook({ ...base, ...legacy });
+  saveFocusLook(merged);
+  return merged;
+}
+
 const initial =
   typeof window === 'undefined'
     ? { timer: initialFocusState(25), settings: DEFAULT_FOCUS_SETTINGS, look: DEFAULT_FOCUS_LOOK }
-    : { ...loadLocal(), look: loadFocusLook() };
+    : { ...loadLocal(), look: initialLook() };
 
 export const useFocus = create<FocusStore>((set, get) => ({
   ...initial,
@@ -287,12 +298,16 @@ export async function tickFocus(memberId: string | null, now = Date.now()): Prom
 }
 
 async function recordSession(memberId: string, timer: FocusState, endMs: number, seconds: number) {
-  if (seconds < MIN_SESSION_SEC || !config.isConfigured) return;
-  const startedAt = timer.startedAt ?? endMs - seconds * 1000;
+  return saveFocusSession(memberId, timer.moduleId, timer.startedAt ?? endMs - seconds * 1000, endMs, seconds);
+}
+
+/** Speichert eine Lernzeit (Fokus-Timer oder Hausaufgaben-Zähler). Gibt true zurück, wenn gespeichert. */
+export async function saveFocusSession(memberId: string, moduleId: string | null, startedAt: number, endMs: number, seconds: number): Promise<boolean> {
+  if (seconds < MIN_SESSION_SEC || !config.isConfigured) return false;
   const row = {
     id: uuid(),
     member_id: memberId,
-    module_id: timer.moduleId,
+    module_id: moduleId,
     started_at: new Date(startedAt).toISOString(),
     ended_at: new Date(endMs).toISOString(),
     duration_seconds: Math.min(Math.round(seconds), 4 * 3600),
@@ -302,12 +317,14 @@ async function recordSession(memberId: string, timer: FocusState, endMs: number,
     if (error) throw error;
     useFocus.setState((s) => ({ sessions: [...s.sessions, data as FocusSession], available: true }));
     toast.success(`Fokuszeit gespeichert (${Math.round(seconds / 60)} Min.)`);
+    return true;
   } catch (err) {
     if (isMissingTable(err)) {
       useFocus.setState({ available: false });
-      return;
+      return false;
     }
     toast.error(`Fokuszeit konnte nicht gespeichert werden: ${describeError(err)}`);
+    return false;
   }
 }
 
