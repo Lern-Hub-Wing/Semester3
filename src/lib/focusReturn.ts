@@ -2,7 +2,7 @@
 const KEY = 'studyspace.focus.return';
 
 export function rememberReturnPath(path: string) {
-  if (path.startsWith('/fokus')) return;
+  if (path.startsWith('/fokus') || path.startsWith('/hausaufgaben/fokus')) return;
   try {
     sessionStorage.setItem(KEY, path);
   } catch {

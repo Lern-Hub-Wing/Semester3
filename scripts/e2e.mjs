@@ -1298,6 +1298,69 @@ try {
     saved.participants = null;
     db.exams.splice(examsBefore);
   }
+
+  // --- Hausaufgaben-Zähler + gemeinsames Uhr-Design ------------------------
+  {
+    const now = new Date().toISOString();
+    const due = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    db.homework.push({ id: '77777777-7777-4777-8777-000000000001', module_id: db.modules[4].id, title: 'Übungsblatt Kostenrechnung', description: null, due_date: due, earliest_start: null, priority: 2, effort_minutes: null, unit_count: null, deleted_at: null, changed_by: null, version: 1, created_at: now, updated_at: now });
+    db.homework_parts.push({ id: '77777777-7777-4777-8777-000000000002', homework_id: '77777777-7777-4777-8777-000000000001', kind: 'subtask', title: 'Aufgabe 1', planned_date: null, sort_order: 1, deleted_at: null, changed_by: null, version: 1, created_at: now, updated_at: now });
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 800 } });
+    // Gemeinsames Design: Fokus-Design mit Schrift „Mono“ und hellem Hintergrund
+    await c.addInitScript(() => localStorage.setItem('studyspace.focuslook.v1', JSON.stringify({ font: 'mono', background: 'solid', bgColor: '#FFFFFF', color: '#1D2533' })));
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.goto(`${BASE}#/hausaufgaben`);
+    const item = p.getByTestId('homework-item').filter({ hasText: 'Übungsblatt Kostenrechnung' });
+    await item.waitFor();
+    check((await item.getByTestId('homework-start-quick').count()) === 1, 'Hausaufgaben: Knopf „Loslegen“ an jeder Hausaufgabe');
+    await item.getByRole('button', { name: 'Details anzeigen' }).click();
+    check((await item.getByTestId('homework-start').innerText()).includes('Loslegen'), 'Hausaufgaben: „Loslegen“ neben „Bearbeiten“');
+    await item.getByTestId('homework-start').click();
+    const hf = p.getByTestId('hwfocus');
+    await hf.waitFor();
+    const t1 = await p.getByTestId('hwfocus-time').getAttribute('data-value');
+    await p.waitForTimeout(2200);
+    const t2 = await p.getByTestId('hwfocus-time').getAttribute('data-value');
+    check(t1 !== t2 && /^\d\d:\d\d$/.test(t2 ?? ''), `Zähler: zählt hoch (${t1} → ${t2})`);
+    const fam = await p.getByTestId('hwfocus-time').evaluate((el) => getComputedStyle(el).fontFamily);
+    check(/JetBrains/i.test(fam), `Zähler: nutzt das gemeinsame Uhr-Design (${fam.slice(0, 30)})`);
+    check((await hf.getAttribute('data-light')) === 'true', 'Zähler: heller Hintergrund → dunkle Beschriftung (Kontrast)');
+    const titleColor = await p.getByTestId('hwfocus-title').evaluate((el) => getComputedStyle(el).color);
+    check(/rgba?\((1\d|2\d|\d),/.test(titleColor), `Zähler: Titel dunkel auf hellem Grund (${titleColor})`);
+    await p.getByTestId('hwfocus-toggle').click();
+    check((await hf.getAttribute('data-running')) === 'false', 'Zähler: Pause');
+    await p.getByRole('button', { name: 'Schritte' }).click();
+    await p.getByRole('dialog', { name: 'Schritte der Hausaufgabe' }).waitFor();
+    check((await p.getByRole('dialog', { name: 'Schritte der Hausaufgabe' }).getByText('Aufgabe 1').count()) === 1, 'Zähler: Schritte der Hausaufgabe abhakbar');
+    await p.getByRole('button', { name: 'Schritte schließen' }).click();
+    // Schließen: Zähler bleibt erhalten → Karte zeigt „Weiter“
+    await p.getByRole('button', { name: 'Zähler schließen (läuft weiter)' }).click();
+    await p.waitForURL(/#\/hausaufgaben$/);
+    await item.waitFor();
+    check((await item.getByTestId('homework-start').innerText()).includes('Weiter'), 'Hausaufgaben: laufender Zähler → „Weiter (…)“');
+    await item.getByTestId('homework-start').click();
+    await hf.waitFor();
+    await p.getByRole('button', { name: 'Fertig – Lernzeit speichern' }).click();
+    const askDlg = p.getByRole('alertdialog', { name: 'Hausaufgabe abhaken?' });
+    await askDlg.waitFor();
+    await askDlg.getByRole('button', { name: 'Ja, abhaken' }).click();
+    await p.waitForURL(/#\/hausaufgaben$/);
+    await p.waitForTimeout(400);
+    check(db.homework_completions.some((x) => x.target_id === '77777777-7777-4777-8777-000000000001' && x.is_completed), 'Zähler: „Ja, abhaken“ hakt die Hausaufgabe ab');
+    // Lernmodus zeigt dasselbe Design
+    await p.goto(`${BASE}#/lernmodus`);
+    await p.getByTestId('study-clock').waitFor();
+    const sfam = await p.getByTestId('study-clock').evaluate((el) => getComputedStyle(el).fontFamily);
+    const sbg = await p.getByTestId('study-bg').getAttribute('data-bg');
+    check(/JetBrains/i.test(sfam) && sbg === 'solid', `Lernmodus: gleiches Design wie Fokus und Zähler (${sbg})`);
+    check(errs.length === 0, `keine JavaScript-Fehler (Zähler)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+    db.homework.splice(0);
+    db.homework_parts.splice(0);
+    db.homework_completions.splice(0);
+  }
 } catch (err) {
   failures++;
   console.error('✗ Abbruch:', err);

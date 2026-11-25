@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { CalendarClock, ChevronDown, Database, Flag, NotebookPen, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarClock, ChevronDown, Database, Flag, NotebookPen, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { daysUntil, dueLabel, homeworkProgress, hwKey, PRIORITY_LABEL, type Homework as HW, type HomeworkPart } from '../lib/homework';
 import { formatISODate } from '../lib/time';
@@ -19,6 +19,15 @@ import { Avatar } from '../components/ui/Avatar';
 import { Skeleton } from '../components/ui/Skeleton';
 import { AttachmentList } from '../components/Attachments';
 import { spring } from '../lib/motion';
+import { navigate } from '../lib/router';
+import { elapsedOf, formatElapsed } from '../lib/stopwatch';
+import { stopwatchActions, useStopwatch } from '../store/stopwatch';
+
+/** Hausaufgaben-Zähler öffnen (läuft schon einer für diese Hausaufgabe, geht er weiter) */
+function startHomeworkFocus(id: string, moduleId: string, memberId: string) {
+  stopwatchActions.open(id, moduleId, memberId);
+  navigate(`/hausaufgaben/fokus/${id}`);
+}
 
 type Filter = 'offen' | 'erledigt' | 'alle';
 
@@ -142,6 +151,10 @@ function HomeworkItem({ hw, parts, me }: { hw: HW; parts: HomeworkPart[]; me: Me
   const subtasks = parts.filter((p) => p.kind === 'subtask');
   const units = parts.filter((p) => p.kind === 'unit').sort((a, b) => (a.planned_date ?? '').localeCompare(b.planned_date ?? ''));
   const teamDone = members.filter((m) => isDone(hw.id, m.id));
+  // Läuft für diese Hausaufgabe schon ein Zähler? Dann „Weiter“ statt „Loslegen“
+  const sw = useStopwatch((s) => (s.state?.homeworkId === hw.id ? s.state : null));
+  const swHere = !!sw;
+  const swElapsed = sw ? elapsedOf(sw, Date.now()) : 0;
 
   return (
     <motion.li layout={!reduce} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, scale: 0.97 }} transition={spring.comp} data-testid="homework-item" data-done={progress.done || undefined} data-overdue={overdue || undefined}>
@@ -184,6 +197,18 @@ function HomeworkItem({ hw, parts, me }: { hw: HW; parts: HomeworkPart[]; me: Me
               </div>
             )}
           </div>
+          {!progress.done && (
+            <button
+              type="button"
+              onClick={() => startHomeworkFocus(hw.id, hw.module_id, me.id)}
+              aria-label={`${hw.title}: ${swHere ? 'weiterlernen' : 'loslegen'}`}
+              title={swHere ? 'Weiterlernen' : 'Loslegen'}
+              data-testid="homework-start-quick"
+              className={`grid size-9 shrink-0 place-items-center rounded-full ${swHere ? 'bg-accent text-white' : 'bg-[color-mix(in_srgb,var(--ss-accent)_14%,transparent)] text-accent'} hover:brightness-110`}
+            >
+              <Play className="ml-0.5 size-4" fill="currentColor" />
+            </button>
+          )}
           <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded} aria-label={expanded ? 'Details ausblenden' : 'Details anzeigen'} className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:text-ink">
             <ChevronDown className={`size-5 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
           </button>
@@ -197,6 +222,11 @@ function HomeworkItem({ hw, parts, me }: { hw: HW; parts: HomeworkPart[]; me: Me
                 {units.length > 0 && <PartList title="Arbeitseinheiten" items={units} hw={hw} me={me} isDone={isDone} withDate />}
                 <AttachmentList targetType="homework" targetId={hw.id} compact />
                 <div className="flex flex-wrap gap-2">
+                  {!progress.done && (
+                    <Button size="sm" variant="primary" icon={<Play className="size-4" fill="currentColor" />} onClick={() => startHomeworkFocus(hw.id, hw.module_id, me.id)} data-testid="homework-start">
+                      {swHere ? `Weiter (${formatElapsed(swElapsed)})` : 'Loslegen'}
+                    </Button>
+                  )}
                   <Button size="sm" variant="glass" icon={<Pencil className="size-4" />} onClick={() => openHomeworkEditor(hw.id)}>
                     Bearbeiten
                   </Button>

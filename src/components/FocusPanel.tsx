@@ -79,12 +79,16 @@ export function FocusRing({
 
 /** Große Uhr mit gleich breiten Ziffern; jede Ziffer gleitet beim Wechsel weich nach */
 export function FocusDigits({ className = '', style, seconds = true, duration = 0.38 }: { className?: string; style?: CSSProperties; seconds?: boolean; duration?: number }) {
-  const reduce = useReducedMotion();
   const { rest } = useFocusLive();
-  const text = formatClock(rest, seconds);
+  return <RollingDigits text={formatClock(rest, seconds)} value={formatClock(rest)} className={className} style={style} duration={duration} />;
+}
+
+/** Ziffern, die beim Wechsel weich rollen (Fokus-Timer und Hausaufgaben-Zähler) */
+export function RollingDigits({ text, value, className = '', style, duration = 0.38, testId = 'focus-time' }: { text: string; value?: string; className?: string; style?: CSSProperties; duration?: number; testId?: string }) {
+  const reduce = useReducedMotion();
   const animate = !reduce && duration > 0;
   return (
-    <span className={`num inline-flex leading-none ${className}`} style={style} aria-hidden data-testid="focus-time" data-value={formatClock(rest)}>
+    <span className={`num inline-flex leading-none ${className}`} style={style} aria-hidden data-testid={testId} data-value={value ?? text}>
       {text.split('').map((ch, i) =>
         /\d/.test(ch) ? (
           <span key={i} className="relative inline-block w-[0.62em] overflow-hidden text-center" style={{ height: '1.08em' }}>

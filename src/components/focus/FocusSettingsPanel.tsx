@@ -1,3 +1,4 @@
+import { ContrastWarning, SharedLookNote } from './LookNotes';
 import { useRef, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ImagePlus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
@@ -15,14 +16,14 @@ import { GlassSlider } from '../ui/GlassSlider';
 type Tab = 'rhythmus' | 'anzeige' | 'hintergrund' | 'steuerung';
 
 /** Einstellungen direkt in der Fokusansicht – Glasblatt rechts (Desktop) bzw. unten (Smartphone). */
-export function FocusSettingsPanel({ onClose }: { onClose: () => void }) {
+export function FocusSettingsPanel({ onClose, designOnly }: { onClose: () => void; /** nur Uhr-Design (Hausaufgaben-Zähler) */ designOnly?: boolean }) {
   const reduce = useReducedMotion();
-  const [tab, setTab] = useState<Tab>('rhythmus');
+  const [tab, setTab] = useState<Tab>(designOnly ? 'anzeige' : 'rhythmus');
   return (
     <motion.aside
       data-panel
       role="dialog"
-      aria-label="Fokus-Einstellungen"
+      aria-label={designOnly ? 'Design anpassen' : 'Fokus-Einstellungen'}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98, filter: 'blur(6px)' }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
       exit={reduce ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98, filter: 'blur(6px)' }}
@@ -30,7 +31,7 @@ export function FocusSettingsPanel({ onClose }: { onClose: () => void }) {
       className="focus-panel absolute inset-x-2 bottom-2 z-30 flex max-h-[78dvh] flex-col overflow-hidden rounded-[28px] sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-4 sm:max-h-none sm:w-[400px]"
     >
       <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
-        <h2 className="text-[16px] font-semibold">Fokus anpassen</h2>
+        <h2 className="text-[16px] font-semibold">{designOnly ? 'Design anpassen' : 'Fokus anpassen'}</h2>
         <button type="button" onClick={onClose} aria-label="Einstellungen schließen" className="focus-btn grid size-9 place-items-center rounded-full text-white/80">
           <X className="size-[18px]" />
         </button>
@@ -43,12 +44,19 @@ export function FocusSettingsPanel({ onClose }: { onClose: () => void }) {
           className="w-full"
           value={tab}
           onChange={setTab}
-          options={[
-            { value: 'rhythmus', label: 'Rhythmus' },
-            { value: 'anzeige', label: 'Anzeige' },
-            { value: 'hintergrund', label: 'Bild' },
-            { value: 'steuerung', label: 'Steuerung' },
-          ]}
+          options={
+            designOnly
+              ? [
+                  { value: 'anzeige', label: 'Anzeige' },
+                  { value: 'hintergrund', label: 'Bild' },
+                ]
+              : [
+                  { value: 'rhythmus', label: 'Rhythmus' },
+                  { value: 'anzeige', label: 'Anzeige' },
+                  { value: 'hintergrund', label: 'Bild' },
+                  { value: 'steuerung', label: 'Steuerung' },
+                ]
+          }
         />
       </div>
       <div className="scroll-thin flex-1 overflow-y-auto px-5 pb-6">
@@ -175,6 +183,7 @@ function DisplayTab() {
   const font = CLOCK_FONTS.find((f) => f.id === look.font) ?? CLOCK_FONTS[0]!;
   return (
     <>
+      <SharedLookNote dark />
       <Section title="Schrift">
         <div role="radiogroup" aria-label="Schriftart" className="grid grid-cols-3 gap-2">
           {CLOCK_FONTS.map((f) => (
@@ -203,6 +212,7 @@ function DisplayTab() {
       </Section>
       <Section title="Farbe & Leuchten">
         <Swatches label="Farbe der Zeit" colors={FOCUS_COLORS} value={look.color} onChange={(color) => setLook({ color })} />
+        <ContrastWarning look={look} dark />
         <Row label="Leuchten">
           <Switch label="Leuchten" checked={look.glow} onChange={(glow) => setLook({ glow })} />
         </Row>
