@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlarmClock, BookOpen, CalendarDays, CalendarRange, ChevronRight, Clock3, GraduationCap, Play, Users } from 'lucide-react';
+import { AlarmClock, BookOpen, CalendarDays, CalendarRange, ChartLine, ChevronRight, Clock3, GraduationCap, Music2, Play, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { groupBy, memberRatio, overdueFor, type TaskView } from '../lib/progress';
 import { addDaysISO, formatISODate, formatInstant, greetingFor, relativeDayLabel } from '../lib/time';
@@ -16,10 +16,8 @@ import { TaskRow } from '../components/TaskRow';
 import { TeamProgressGrid } from '../components/MemberProgress';
 import { SemesterTimeline } from '../components/SemesterTimeline';
 import { ExamHero, FocusButton, FocusStatsCard } from '../components/dashboard/SummitCards';
-import { hwKey } from '../lib/homework';
 import { HomeworkDashCard } from '../components/homework/HomeworkDashCard';
-import { useHomework } from '../store/homework';
-import { ProgressCard, TodayCard, useDashboardRatios } from '../components/dashboard/HeroCards';
+import { CardHead, ProgressCard, TodayCard, useDashboardRatios } from '../components/dashboard/HeroCards';
 import { Card, CardHeader, ModuleChip } from '../components/ui/Card';
 import { ProgressBar } from '../components/ui/Progress';
 import { Button } from '../components/ui/Button';
@@ -51,23 +49,13 @@ export function Dashboard({ me }: { me: Member }) {
         </header>
         <ExamHero compact />
         <FocusButton className="w-full" />
-        <div className="grid grid-cols-2 gap-3">
-          <MiniTile to="/hausaufgaben" icon={<BookOpen />} title="Hausaufgaben" value={<HomeworkOpenCount me={me} />} />
-          <MiniTile to="/lernplan" icon={<CalendarDays />} title="Heute" value={todayViews.length === 0 ? 'Nichts geplant' : `${todayViews.length} ${todayViews.length === 1 ? 'Aufgabe' : 'Aufgaben'}`} />
-        </div>
-        <FocusStatsCard me={me} />
-        <TodayCard views={todayViews} today={today} me={me} members={members} allEmpty={views.length === 0} />
+        {/* Handy: nur das Wichtigste – alles Weitere eine Berührung entfernt (Schnellzugriff + Tab-Leiste) */}
         <HomeworkDashCard me={me} />
+        <TodayCard views={todayViews} today={today} me={me} members={members} allEmpty={views.length === 0} />
         {overdue.length > 0 && <OverdueCard overdue={overdue} me={me} members={members} today={today} />}
-        <ProgressCard me={me} mine={mine} group={group} ringSize={104} />
-        <TeamCard me={me} members={members} />
-        <Card className="p-4">
-          <CardHeader title="Semester-Timeline" icon={<CalendarRange />} action={<TimelineLink />} />
-          <SemesterTimeline compact className="mt-4" />
-        </Card>
-        <UpcomingDays views={views} me={me} today={today} />
-        <UpcomingExams />
-        <StudyModeCard />
+        <UpcomingExams limit={3} />
+        <QuickLinks />
+        <StudyModeCard slim />
       </div>
     );
   }
@@ -103,24 +91,26 @@ export function Dashboard({ me }: { me: Member }) {
   );
 }
 
-/** Kleine Kachel (Handy): Hausaufgaben / Heute */
-function MiniTile({ to, icon, title, value }: { to: string; icon: React.ReactNode; title: string; value: React.ReactNode }) {
+/** Schnellzugriff (Handy): was nicht auf der Startseite steht, ist eine Berührung entfernt */
+function QuickLinks() {
+  const items = [
+    { to: '/faecher', icon: <BookOpen />, label: 'Fächer' },
+    { to: '/analyse', icon: <ChartLine />, label: 'Statistik' },
+    { to: '/lernplan?ansicht=timeline', icon: <CalendarRange />, label: 'Timeline' },
+    { to: '/musik', icon: <Music2 />, label: 'Musik' },
+  ];
   return (
-    <Link to={to} className="card flex flex-col gap-2 rounded-[18px] p-4 transition-colors active:bg-[var(--ss-surface-2)]">
-      <span className="text-ink [&>svg]:size-[22px]">{icon}</span>
-      <span className="title text-[15.5px] leading-tight">{title}</span>
-      <span className="text-[13.5px] text-muted">{value}</span>
-    </Link>
+    <nav aria-label="Schnellzugriff" className="card grid grid-cols-4 rounded-[22px] p-1.5" data-testid="quick-links">
+      {items.map((it) => (
+        <Link key={it.to} to={it.to} className="press flex flex-col items-center gap-1.5 rounded-[16px] py-3 text-[12px] font-medium text-muted transition-colors hover:text-ink active:bg-[var(--ss-surface-2)]">
+          <span className="grid size-9 place-items-center rounded-full bg-[var(--ss-accent-soft)] text-accent [&>svg]:size-[18px]" aria-hidden>
+            {it.icon}
+          </span>
+          {it.label}
+        </Link>
+      ))}
+    </nav>
   );
-}
-
-function HomeworkOpenCount({ me }: { me: Member }) {
-  const homework = useHomework((s) => s.homework);
-  const completions = useHomework((s) => s.completions);
-  const available = useHomework((s) => s.available);
-  if (!available) return <>–</>;
-  const n = Object.values(homework).filter((h) => !h.deleted_at && !completions[hwKey(h.id, me.id)]?.is_completed).length;
-  return <>{n === 0 ? 'Alles erledigt' : `${n} offen`}</>;
 }
 
 function TimelineLink() {
@@ -233,14 +223,14 @@ function UpcomingDays({ views, me, today }: { views: TaskView[]; me: Member; tod
   );
 }
 
-function UpcomingExams() {
+function UpcomingExams({ limit = 6 }: { limit?: number }) {
   const now = useNow(60_000);
   const exams = useData((s) => s.exams);
   const modules = useData((s) => s.modules);
-  const list = useMemo(() => upcomingExams(Object.values(exams), now).slice(0, 6), [exams, now]);
+  const list = useMemo(() => upcomingExams(Object.values(exams), now).slice(0, limit), [exams, now, limit]);
   return (
     <Card className="h-full p-5 md:p-6">
-      <CardHeader title="Bevorstehende Prüfungen" icon={<GraduationCap />} action={<Link to="/faecher" className="text-sm font-medium text-accent">Alle</Link>} />
+      <CardHead title="Nächste Prüfungen" icon={<GraduationCap />} to="/faecher" />
       {list.length === 0 ? (
         <p className="mt-4 text-sm text-muted">Keine bevorstehenden Prüfungen.</p>
       ) : (
@@ -271,11 +261,40 @@ function UpcomingExams() {
 }
 
 /** Einstieg in den Lernmodus (Vollbild-Uhr im Querformat). */
-function StudyModeCard() {
+function StudyModeCard({ slim = false }: { slim?: boolean }) {
   const now = useNow(1000);
   const d = new Date(now);
   const pad = (n: number) => String(n).padStart(2, '0');
   const iphoneBrowser = isIPhone() && !isStandalone();
+  const hint = iphoneBrowser && (
+    <p className="mt-1.5 text-xs text-faint" data-testid="iphone-install-hint">
+      iPhone: Vollbild gibt es nur, wenn StudySpace über „Teilen → Zum Home-Bildschirm“ hinzugefügt und von dort geöffnet wird.
+    </p>
+  );
+  // Handy: schlanke Zeile – Vorschau, Titel, Start
+  if (slim)
+    return (
+      <section aria-labelledby="study-mode-title" className="card rounded-[22px] p-3.5" data-testid="study-mode-card">
+        <div className="flex items-center gap-3.5">
+          <div aria-hidden className="grid h-[52px] w-[92px] shrink-0 place-items-center rounded-[14px] border border-white/10 bg-[#0C1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+            <span className="num text-[17px] font-semibold tracking-tight text-[#F2F5FA]">
+              {pad(d.getHours())}:{pad(d.getMinutes())}
+              <span className="text-[10px] opacity-60">:{pad(d.getSeconds())}</span>
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 id="study-mode-title" className="title text-[15px] leading-tight">
+              Lernmodus
+            </h2>
+            <p className="text-[12.5px] text-muted">Vollbild-Uhr</p>
+          </div>
+          <Button variant="primary" size="sm" icon={<Play className="size-3.5" />} onClick={startStudyMode} aria-label="Lernmodus starten">
+            Start
+          </Button>
+        </div>
+        {hint}
+      </section>
+    );
   return (
     <section aria-labelledby="study-mode-title" className="glass glass-tint relative overflow-hidden rounded-[30px] p-5 md:p-6" data-testid="study-mode-card">
       <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
@@ -293,11 +312,7 @@ function StudyModeCard() {
           <h2 id="study-mode-title" className="title mt-1 text-xl">
             Vollbild-Uhr
           </h2>
-          {iphoneBrowser && (
-            <p className="mt-1.5 text-xs text-faint" data-testid="iphone-install-hint">
-              iPhone: Vollbild gibt es nur, wenn StudySpace über „Teilen → Zum Home-Bildschirm“ hinzugefügt und von dort geöffnet wird.
-            </p>
-          )}
+          {hint}
         </div>
         <Button variant="primary" size="lg" icon={<Play className="size-4" />} onClick={startStudyMode} className="w-full md:w-auto">
           Lernmodus starten

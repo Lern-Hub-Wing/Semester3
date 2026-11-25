@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Bell, BellRing, BookOpen, ChartLine, Clock3, FileText, Music2, Search, Settings, Sparkles, Trash2, Users, UsersRound, Timer, Crown, LifeBuoy } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
@@ -31,6 +31,29 @@ import { WeatherLayer } from '../weather/WeatherLayer';
 
 export { Ambient };
 
+/** Ebenen über der Seite (Fokus, Hausaufgaben-Zähler): die Seite darunter bleibt stehen */
+const isOverlayPath = (p: string) => p === '/fokus' || p.startsWith('/fokus/') || p.startsWith('/hausaufgaben/fokus/');
+
+/**
+ * Seitenübergang: Schlüssel und Richtung.
+ * Tiefer (z. B. Einstellungen → Unterseite, Fach öffnen) schiebt von rechts herein,
+ * zurück von links; zwischen Hauptseiten wird weich eingeblendet.
+ */
+function usePageTransition(path: string): { key: string; dir: 'push' | 'pop' | null } {
+  const prev = useRef<{ key: string; depth: number; dir: 'push' | 'pop' | null }>({ key: '', depth: 0, dir: null });
+  if (isOverlayPath(path)) return prev.current;
+  const parts = path.split('/').filter(Boolean);
+  // Einstellungen am breiten Bildschirm: Liste + Detail nebeneinander – dort wechselt nur der Detailbereich
+  const masterDetail = parts[0] === 'einstellungen' && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+  const key = parts.slice(0, masterDetail ? 1 : 2).join('/');
+  if (key === prev.current.key) return prev.current;
+  const depth = Math.min(parts.length, 2);
+  const sameSection = parts[0] === prev.current.key.split('/')[0] && prev.current.key !== '';
+  const dir = sameSection && depth !== prev.current.depth ? (depth > prev.current.depth ? 'push' : 'pop') : null;
+  prev.current = { key, depth, dir };
+  return prev.current;
+}
+
 /** Rahmen der App: Glas-Seitenleiste (Tablet/Desktop), schwebende Tab-Leiste (Smartphone). */
 export function AppShell({ children, inert = false }: { children: ReactNode; inert?: boolean }) {
   const { path } = useLocation();
@@ -43,6 +66,8 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
     if (useUI.getState().moreOpen) setUI({ moreOpen: false });
   }, [path, setUI]);
 
+  const page = usePageTransition(path);
+
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -54,7 +79,7 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
   // Neue Seite beginnt oben (Filter-/Datumswechsel innerhalb einer Seite behalten die Position)
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  }, [path]);
+  }, [page.key]);
 
   const soloSpace = useAccount((s) => s.me?.groups.find((g) => g.id === s.me?.active_group_id)?.kind === 'solo');
   // App, alleine lernen: kein Team-Eintrag
@@ -122,7 +147,7 @@ export function AppShell({ children, inert = false }: { children: ReactNode; ine
         <main id="main" className="pb-tabbar mx-auto w-full max-w-[1360px] px-4 pt-2 md:px-6 lg:px-8">
           <OfflineBanner />
           {/* CSS-Übergang statt JS-Animation: läuft zuverlässig auch bei nachgeladenen Seiten */}
-          <div key={path.split('/')[1] ?? ''} className="ss-page">
+          <div key={page.key} className={`ss-page ${page.dir ? `ss-page--${page.dir}` : ''}`}>
             {children}
           </div>
         </main>
@@ -139,7 +164,7 @@ function HeaderGreeting() {
   return (
     <div className="hidden md:block" data-testid="header-greeting">
       <Greeting className="text-[13px] font-medium text-muted" />
-      <p className="title text-[22px] leading-tight lg:text-[26px]">Bereit für eine produktive Session?</p>
+      <p className="title text-[22px] leading-tight lg:text-[26px]">Bereit für Fokus?</p>
     </div>
   );
 }

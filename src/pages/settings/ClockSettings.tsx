@@ -150,6 +150,9 @@ export function ClockSettings() {
             options={[...FOCUS_PRESETS.map((p) => ({ value: p.id as string, label: p.label })), { value: 'custom', label: 'Individuell' }]}
           />
         </Row>
+        <Row inline label="Automatisch pausieren" hint="Wenn du den Timer oder StudySpace verlässt (anderer Tab, andere App, Handy gesperrt). So zählt nur echte Lernzeit.">
+          <Switch label="Automatisch pausieren" checked={settings.autoPause} onChange={(autoPause) => setSettings({ autoPause })} />
+        </Row>
         <Row inline label="Ton beim Phasenwechsel">
           <Switch label="Ton beim Phasenwechsel" checked={settings.sound} onChange={(sound) => setSettings({ sound })} />
         </Row>

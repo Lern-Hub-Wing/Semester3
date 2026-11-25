@@ -381,6 +381,9 @@ function ControlsTab() {
   return (
     <>
       <Section title="Ablauf">
+        <Row label="Pausieren, wenn ich den Fokus oder StudySpace verlasse">
+          <Switch label="Automatisch pausieren" checked={settings.autoPause} onChange={(autoPause) => setSettings({ autoPause })} />
+        </Row>
         <Row label="Automatischer Phasenwechsel">
           <Switch label="Automatischer Phasenwechsel" checked={settings.autoAdvance} onChange={(autoAdvance) => setSettings({ autoAdvance })} />
         </Row>

@@ -413,8 +413,9 @@ select {
 
 /* Gleich breite Ziffern für Countdown und Prozentwerte */
 .num {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum', 'cv11';
+  /* gleich breite UND gleich hohe Ziffern (keine Mediävalziffern wie bei Klassisch/Elegant) */
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum', 'cv11';
 }
 
 .safe-bottom {
@@ -821,6 +822,79 @@ select {
     opacity: 0;
     transform: translateY(22px) scale(0.97);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Extra-Animationen – nur mit .extra-motion auf <html>                 */
+/* Notschalter: EXTRA_MOTION in src/lib/motionFlags.ts (false = alles   */
+/* hier aus) oder Einstellungen → Darstellung → „Extra-Animationen“.     */
+/* „Bewegung reduzieren“ schaltet die Klasse ebenfalls ab.              */
+/* ------------------------------------------------------------------ */
+/* Unterseite öffnen: schiebt von rechts herein; zurück: von links */
+.extra-motion .ss-page--push {
+  animation: ss-push-in 460ms var(--ease-emph) both;
+}
+.extra-motion .ss-page--pop {
+  animation: ss-pop-in 420ms var(--ease-emph) both;
+}
+/* Dezent statt verspielt: kurzer Weg, langes weiches Auslaufen */
+@keyframes ss-push-in {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+}
+@keyframes ss-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+/* Listen: Einträge erscheinen kurz nacheinander (nur beim ersten Anzeigen) */
+.extra-motion .rise-list > * {
+  animation: ss-rise-sm 560ms var(--ease-emph) both;
+}
+.extra-motion .rise-list > *:nth-child(2) { animation-delay: 35ms; }
+.extra-motion .rise-list > *:nth-child(3) { animation-delay: 70ms; }
+.extra-motion .rise-list > *:nth-child(4) { animation-delay: 105ms; }
+.extra-motion .rise-list > *:nth-child(5) { animation-delay: 140ms; }
+.extra-motion .rise-list > *:nth-child(6) { animation-delay: 175ms; }
+.extra-motion .rise-list > *:nth-child(n + 7) { animation-delay: 210ms; }
+@keyframes ss-rise-sm {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+/* Antippbare Karten geben federnd nach (nicht, wenn ein Knopf darin gedrückt wird) */
+.extra-motion .press,
+.extra-motion .lift {
+  transition:
+    transform 420ms var(--ease-emph),
+    box-shadow var(--dur-page) var(--ease-out);
+}
+.extra-motion .press:active:not(:has(button:active, [role='checkbox']:active)),
+.extra-motion .lift:active:not(:has(button:active, [role='checkbox']:active)) {
+  transform: scale(0.985);
+  transition-duration: 160ms;
+}
+/* Navigation: das gewählte Symbol wächst sanft auf */
+.extra-motion .nav-item[aria-current='page'] .nav-item-icon {
+  animation: ss-icon-pop 520ms var(--ease-emph);
+}
+@keyframes ss-icon-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* Aufklappen: Inhalt gleitet leicht nach */
+.extra-motion .unfold {
+  animation: ss-rise-sm 320ms var(--ease-emph) both;
 }
 
 /* Dünne, unaufdringliche Scrollbars */
@@ -2175,4 +2249,150 @@ select.field:hover {
 }
 .android .sheen::after {
   display: none;
+}
+
+/* Rollende Ziffern: nur oben/unten abschneiden (Rolleffekt), seitlich nie – breite Schriften bleiben ganz */
+.digit-slot {
+  overflow-x: visible;
+  overflow-y: clip;
+  overflow-clip-margin: 0.06em;
+}
+
+/* Android (Chrome): Die Lichtbrechung der Glas-Leisten ist ein SVG-Filter im backdrop-filter.
+   Safari ignoriert ihn (iPhone bleibt unverändert), Chrome berechnet ihn bei JEDEM Scroll-Bild neu –
+   auf 120-Hz-Handys der Hauptgrund für Ruckeln. Unschärfe und Sättigung bleiben, nur die Brechung entfällt. */
+.android * {
+  --lg-filter: saturate(1.5) !important;
+}
+/* Bergnebel und Sternenfunkeln ruhen beim Scrollen nicht mit – auf Android ganz anhalten */
+.android .landscape .ls-mist,
+.android .landscape .ls-stars {
+  animation: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Akzentfarben zum Ausprobieren (lib/accents.ts) – Lila ist Standard   */
+/* Jede Farbe tönt auch die Grautöne leicht mit, damit alles stimmig    */
+/* bleibt. Fokus und Lernmodus haben ihr eigenes Uhr-Design.            */
+/* ------------------------------------------------------------------ */
+html[data-accent='bergblau'] {
+  --ss-accent: #2f5fd0; --ss-accent-2: #5a85e6; --ss-brand: #2f5fd0; --ss-btn: #2f5fd0;
+  --ss-accent-soft: rgba(47, 95, 208, 0.1);
+  --ss-bg: #f2f5fa; --ss-canvas: #f2f5fa; --ss-card-2: #eef2f9; --ss-surface-2: #eef2f9;
+  --ss-text: #121a2e; --ss-text-2: #56607a; --ss-text-3: #8a93a8;
+  --ss-line: rgba(18, 32, 72, 0.08); --ss-track: rgba(18, 32, 72, 0.08); --ss-edge: rgba(18, 32, 72, 0.09);
+}
+html.dark[data-accent='bergblau'] {
+  --ss-accent: #8fb0ff; --ss-accent-2: #b7cbff; --ss-brand: #9ab8ff; --ss-btn: #9ab8ff; --ss-btn-text: #0c1426;
+  --ss-accent-soft: rgba(143, 176, 255, 0.14);
+  --ss-bg: #0f1524; --ss-canvas: #0f1524; --ss-card: #161e31; --ss-card-2: #1c2539; --ss-surface: #151d30; --ss-surface-2: #1e2840;
+  --ss-text: #edf1fa; --ss-text-2: #9da8c2; --ss-text-3: #6f7a94; --ss-surface-float: rgba(22, 30, 49, 0.96);
+}
+html[data-accent='tanne'] {
+  --ss-accent: #1d6e52; --ss-accent-2: #3d9374; --ss-brand: #1d6e52; --ss-btn: #1d6e52;
+  --ss-accent-soft: rgba(29, 110, 82, 0.1);
+  --ss-bg: #f2f6f4; --ss-canvas: #f2f6f4; --ss-card-2: #edf3f0; --ss-surface-2: #edf3f0;
+  --ss-text: #12201b; --ss-text-2: #55665f; --ss-text-3: #879690;
+  --ss-line: rgba(16, 48, 36, 0.08); --ss-track: rgba(16, 48, 36, 0.08); --ss-edge: rgba(16, 48, 36, 0.09);
+}
+html.dark[data-accent='tanne'] {
+  --ss-accent: #86d4b2; --ss-accent-2: #b0e6cd; --ss-brand: #8fd8b8; --ss-btn: #8fd8b8; --ss-btn-text: #0b1a14;
+  --ss-accent-soft: rgba(134, 212, 178, 0.13);
+  --ss-bg: #0e1613; --ss-canvas: #0e1613; --ss-card: #15201c; --ss-card-2: #1a2722; --ss-surface: #141f1b; --ss-surface-2: #1c2a25;
+  --ss-text: #ecf3ef; --ss-text-2: #9cb0a7; --ss-text-3: #6d8178; --ss-surface-float: rgba(21, 32, 28, 0.96);
+}
+html[data-accent='gletscher'] {
+  --ss-accent: #0e7f90; --ss-accent-2: #2fa3b3; --ss-brand: #0e7f90; --ss-btn: #0e7f90;
+  --ss-accent-soft: rgba(14, 127, 144, 0.1);
+  --ss-bg: #f1f6f7; --ss-canvas: #f1f6f7; --ss-card-2: #ecf3f5; --ss-surface-2: #ecf3f5;
+  --ss-text: #111e22; --ss-text-2: #536569; --ss-text-3: #86979b;
+  --ss-line: rgba(14, 50, 60, 0.08); --ss-track: rgba(14, 50, 60, 0.08); --ss-edge: rgba(14, 50, 60, 0.09);
+}
+html.dark[data-accent='gletscher'] {
+  --ss-accent: #86dbe8; --ss-accent-2: #b3ebf3; --ss-brand: #8fdeea; --ss-btn: #8fdeea; --ss-btn-text: #0a191c;
+  --ss-accent-soft: rgba(134, 219, 232, 0.13);
+  --ss-bg: #0d1619; --ss-canvas: #0d1619; --ss-card: #142024; --ss-card-2: #19282d; --ss-surface: #131f23; --ss-surface-2: #1b2b30;
+  --ss-text: #ebf4f6; --ss-text-2: #9bb1b6; --ss-text-3: #6b8287; --ss-surface-float: rgba(20, 32, 36, 0.96);
+}
+html[data-accent='alpenglut'] {
+  --ss-accent: #c2532f; --ss-accent-2: #dc7a56; --ss-brand: #c2532f; --ss-btn: #c2532f;
+  --ss-accent-soft: rgba(194, 83, 47, 0.1);
+  --ss-bg: #f8f4f2; --ss-canvas: #f8f4f2; --ss-card-2: #f5efec; --ss-surface-2: #f5efec;
+  --ss-text: #241612; --ss-text-2: #6c5852; --ss-text-3: #9c8a84;
+  --ss-line: rgba(64, 30, 20, 0.08); --ss-track: rgba(64, 30, 20, 0.08); --ss-edge: rgba(64, 30, 20, 0.09);
+}
+html.dark[data-accent='alpenglut'] {
+  --ss-accent: #ffab8c; --ss-accent-2: #ffc8b3; --ss-brand: #ffb293; --ss-btn: #ffb293; --ss-btn-text: #1f0f09;
+  --ss-accent-soft: rgba(255, 171, 140, 0.13);
+  --ss-bg: #18110f; --ss-canvas: #18110f; --ss-card: #221916; --ss-card-2: #2a1f1b; --ss-surface: #201714; --ss-surface-2: #2c211d;
+  --ss-text: #f7efec; --ss-text-2: #b8a49d; --ss-text-3: #87756f; --ss-surface-float: rgba(34, 25, 22, 0.96);
+}
+html[data-accent='graphit'] {
+  --ss-accent: #1d1d1f; --ss-accent-2: #48484a; --ss-brand: #1d1d1f; --ss-btn: #1d1d1f;
+  --ss-accent-soft: rgba(29, 29, 31, 0.07);
+  --ss-bg: #f5f5f7; --ss-canvas: #f5f5f7; --ss-card-2: #f0f0f2; --ss-surface-2: #f0f0f2;
+  --ss-text: #1d1d1f; --ss-text-2: #5f5f64; --ss-text-3: #8e8e93;
+  --ss-line: rgba(0, 0, 0, 0.08); --ss-track: rgba(0, 0, 0, 0.08); --ss-edge: rgba(0, 0, 0, 0.09);
+}
+html.dark[data-accent='graphit'] {
+  --ss-accent: #f5f5f7; --ss-accent-2: #d1d1d6; --ss-brand: #f5f5f7; --ss-btn: #f5f5f7; --ss-btn-text: #1d1d1f;
+  --ss-accent-soft: rgba(255, 255, 255, 0.1);
+  --ss-bg: #101012; --ss-canvas: #101012; --ss-card: #1c1c1e; --ss-card-2: #232326; --ss-surface: #1a1a1c; --ss-surface-2: #2c2c2e;
+  --ss-text: #f5f5f7; --ss-text-2: #a1a1a6; --ss-text-3: #6e6e73; --ss-surface-float: rgba(28, 28, 30, 0.96);
+}
+
+/* Feier „erledigt“: ruhiger Lichtschein, feiner Ring, gezeichneter Haken (Celebration.tsx) */
+.finish-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.finish-glow > * {
+  grid-area: 1 / 1;
+}
+.finish-halo {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--finish) 34%, transparent) 0%, transparent 68%);
+  animation: finish-halo 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.finish-ring {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--finish) 70%, white);
+  animation: finish-ring 1.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.finish-check {
+  width: 64px;
+  height: 64px;
+  fill: none;
+  stroke: color-mix(in srgb, var(--finish) 55%, white);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--finish) 60%, transparent));
+  animation: finish-check 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes finish-halo {
+  0% { opacity: 0; transform: scale(0.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+@keyframes finish-ring {
+  0% { opacity: 0; transform: scale(0.7); }
+  25% { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+@keyframes finish-check {
+  0% { opacity: 0; stroke-dashoffset: 40; transform: scale(0.92); }
+  15% { opacity: 1; }
+  45% { stroke-dashoffset: 0; transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; stroke-dashoffset: 0; transform: scale(1.02); }
 }

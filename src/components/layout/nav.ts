@@ -35,7 +35,7 @@ export const NAV: NavItem[] = IS_APP ? ALL_NAV.filter((n) => n.to !== '/material
 export function appMobileNav(solo: boolean): NavItem[] {
   return [
     { to: '/', label: 'Home', icon: House },
-    { to: '/lernplan', label: 'Kalender', icon: CalendarDays },
+    { to: '/lernplan', label: 'Lernplan', icon: CalendarDays },
     { to: '/hausaufgaben', label: 'Aufgaben', icon: SquareCheckBig },
     solo ? { to: '/analyse', label: 'Statistik', icon: ChartLine } : { to: '/team', label: 'Team', icon: Users },
     { to: '#mehr', label: 'Mehr', icon: Ellipsis },

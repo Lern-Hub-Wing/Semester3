@@ -86,13 +86,7 @@ export function Homework({ me }: { me: Member }) {
           <EmptyState
             icon={<NotebookPen />}
             title={filter === 'erledigt' ? 'Noch nichts erledigt' : 'Keine offenen Hausaufgaben'}
-            action={
-              filter !== 'erledigt' ? (
-                <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => openHomeworkEditor()}>
-                  Hausaufgabe anlegen
-                </Button>
-              ) : undefined
-            }
+            text={filter === 'erledigt' ? undefined : 'Neue Hausaufgaben legst du oben mit „Neue Hausaufgabe“ an.'}
           />
         </Card>
       ) : (
@@ -102,7 +96,7 @@ export function Homework({ me }: { me: Member }) {
               <h2 className="eyebrow mb-3 flex items-center gap-2 !text-danger">
                 <Flag className="size-3.5" aria-hidden /> Überfällig
               </h2>
-              <ul className="flex flex-col gap-3">
+              <ul className="rise-list flex flex-col gap-3">
                 {overdue.map((x) => (
                   <HomeworkItem key={x.hw.id} hw={x.hw} parts={x.parts} me={me} />
                 ))}
@@ -110,7 +104,7 @@ export function Homework({ me }: { me: Member }) {
             </section>
           )}
           {upcoming.length > 0 && (
-            <ul className="flex flex-col gap-3" aria-label="Hausaufgaben">
+            <ul className="rise-list flex flex-col gap-3" aria-label="Hausaufgaben">
               <AnimatePresence initial={false}>
                 {upcoming.map((x) => (
                   <HomeworkItem key={x.hw.id} hw={x.hw} parts={x.parts} me={me} />
@@ -163,7 +157,8 @@ function HomeworkItem({ hw, parts, me }: { hw: HW; parts: HomeworkPart[]; me: Me
           <div className="pt-0.5">
             <TaskCheckbox checked={progress.done} color={me.color} label={`${hw.title} erledigt`} onChange={(v) => void setHomeworkDone(hw.id, hw.id, me.id, v)} />
           </div>
-          <div className="min-w-0 flex-1">
+          {/* Antippen der Karte klappt die Details auf (der Pfeil rechts bleibt der zugängliche Knopf) */}
+          <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setExpanded((v) => !v)} data-testid="homework-toggle">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-muted">
               <span className="inline-flex min-w-0 items-center gap-1.5">
                 <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />

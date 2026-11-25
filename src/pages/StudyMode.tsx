@@ -15,6 +15,7 @@ import { useNow } from '../hooks/useNow';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { toast } from '../store/toast';
 import { Segmented } from '../components/ui/Segmented';
+import { useDigitMetrics } from '../lib/digitMetrics';
 import { Landscape } from '../components/landscape/Landscape';
 import { useFocus } from '../store/focus';
 import { loadFocusImage, saveFocusImage } from '../lib/focusLook';
@@ -263,7 +264,9 @@ export function StudyMode() {
 
 function Clock({ parts, settings, family, animate, reserve }: { parts: ReturnType<typeof clockParts>; settings: StudyModeSettings; family: string; animate: boolean; reserve: number }) {
   const base = settings.format === 'hms' ? 'min(19vw, 46vh)' : 'min(29vw, 62vh)';
-  const fit = useFitWidth(settings, family, reserve);
+  // Breite der breitesten Ziffer dieser Schrift (sonst laufen breite Ziffern wie bei „Digital“ ineinander)
+  const digitW = `${(useDigitMetrics(family, settings.weight).width * 1.04).toFixed(3)}em`;
+  const fit = useFitWidth(settings, family, reserve, digitW);
   const glow = settings.glow ? `0 0 0.05em ${alpha(settings.color, 0.55)}, 0 0 0.35em ${alpha(settings.color, 0.3)}` : 'none';
   const small = settings.secondsStyle === 'small';
   return (
@@ -277,18 +280,18 @@ function Clock({ parts, settings, family, animate, reserve }: { parts: ReturnTyp
         fontFamily: family,
         fontWeight: settings.weight,
         fontSize: `calc(${base} * ${(settings.size / 100) * fit.factor})`,
-        fontVariantNumeric: 'tabular-nums',
+        fontVariantNumeric: 'lining-nums tabular-nums',
         letterSpacing: '-0.02em',
         textShadow: glow,
       }}
     >
-      <Digits value={parts.hours} animate={animate} />
+      <Digits value={parts.hours} animate={animate} width={digitW} />
       <Colon />
-      <Digits value={parts.minutes} animate={animate} />
+      <Digits value={parts.minutes} animate={animate} width={digitW} />
       {parts.seconds !== null && (
         <span className="flex items-baseline" style={small ? { fontSize: '0.42em', opacity: 0.7, marginLeft: '0.12em' } : undefined}>
           {small ? <span className="mx-[0.06em] opacity-60">:</span> : <Colon />}
-          <Digits value={parts.seconds} animate={animate} />
+          <Digits value={parts.seconds} animate={animate} width={digitW} />
         </span>
       )}
       {parts.period && (
@@ -304,7 +307,7 @@ function Clock({ parts, settings, family, animate, reserve }: { parts: ReturnTyp
  * Breite Schriften (z. B. „Digital“) würden über den Rand laufen. Die Uhr wird
  * gemessen und – falls nötig – so verkleinert, dass sie in 92 % der freien Breite passt.
  */
-function useFitWidth(settings: StudyModeSettings, family: string, reserve: number) {
+function useFitWidth(settings: StudyModeSettings, family: string, reserve: number, digitW: string) {
   const ref = useRef<HTMLDivElement>(null);
   const [factor, setFactor] = useState(1);
   const factorRef = useRef(1);
@@ -332,7 +335,7 @@ function useFitWidth(settings: StudyModeSettings, family: string, reserve: numbe
       window.removeEventListener('resize', measure);
       document.fonts?.removeEventListener?.('loadingdone', measure);
     };
-  }, [settings.format, settings.size, settings.weight, settings.secondsStyle, settings.hour12, family, reserve]);
+  }, [settings.format, settings.size, settings.weight, settings.secondsStyle, settings.hour12, family, reserve, digitW]);
 
   return { ref, factor };
 }
@@ -350,19 +353,18 @@ function Colon() {
  * Bewusst OHNE overflow:hidden und ohne Filter: sonst würde das Leuchten der Ziffern
  * an der Box rechteckig abgeschnitten.
  */
-function Digits({ value, animate }: { value: string; animate: boolean }) {
+function Digits({ value, animate, width = '1ch' }: { value: string; animate: boolean; width?: string }) {
   return (
     <span aria-hidden className="inline-flex">
       {value.split('').map((ch, i) => (
-        <span key={i} className="relative inline-grid text-center" style={{ width: '1ch' }}>
+        <span key={i} className="relative inline-grid justify-items-center text-center" style={{ width }}>
           <AnimatePresence initial={false}>
             <motion.span
               key={ch}
               className="col-start-1 row-start-1 block"
               initial={animate ? { y: '-0.12em', opacity: 0 } : false}
-              animate={{ y: 0, opacity: 1 }}
-              exit={animate ? { y: '0.12em', opacity: 0 } : undefined}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              animate={{ y: 0, opacity: 1, transition: { duration: 0.42, delay: 0.08, ease: [0.22, 1, 0.36, 1] } }}
+              exit={animate ? { y: '0.12em', opacity: 0, transition: { duration: 0.14, ease: 'easeIn' } } : undefined}
             >
               {ch}
             </motion.span>

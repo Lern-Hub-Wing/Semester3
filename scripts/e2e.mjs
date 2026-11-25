@@ -160,8 +160,8 @@ async function mobileDesignChecks(p, name) {
   const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
   const bar = nav;
   const glass = nav.locator('.lg-tab-bar-glass').first();
-  // Tab-Leiste wie in der App: Home · Kalender · Aufgaben · Team · Mehr
-  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Kalender', '#/lernplan'], ['Home', '#/']]) {
+  // Tab-Leiste wie in der App: Home · Lernplan · Aufgaben · Team · Mehr
+  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Lernplan', '#/lernplan'], ['Home', '#/']]) {
     await nav.getByRole('link', { name: label }).click();
     await p.waitForTimeout(350);
     check(new URL(p.url()).hash.split('?')[0] === hash, `Tab-Leiste (${name}): Antippen öffnet „${label}“`);
@@ -178,7 +178,7 @@ async function mobileDesignChecks(p, name) {
   check(new URL(p.url()).hash === '#/' && lifted, `Tab-Leiste (${name}): Linse folgt beim Ziehen, noch keine Navigation`);
   await p.mouse.up();
   await p.waitForTimeout(500);
-  check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Loslassen über „Kalender“ navigiert dorthin (${new URL(p.url()).hash})`);
+  check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Loslassen über „Lernplan“ navigiert dorthin (${new URL(p.url()).hash})`);
   // Keine globale Wischnavigation über dem Seiteninhalt
   await p.evaluate(() => window.scrollTo(0, 0));
   await p.mouse.move(60, 320);
@@ -241,24 +241,10 @@ async function mobileDesignChecks(p, name) {
   const barTop = (await bar.boundingBox()).y;
   check(lastBottom <= barTop - 4, `Abstand (${name}): letzte Karte endet über der Tab-Leiste (${Math.round(lastBottom)} ≤ ${Math.round(barTop)})`);
 
-  // Team-Fortschritt im Dashboard: alle aktiven Personen, Kreise vollständig in der Karte
+  // Startseite auf dem Handy: kurz und übersichtlich – Team, Fortschritt, Timeline sind eine Berührung entfernt
   await p.evaluate(() => window.scrollTo(0, 0));
-  const active = db.members.filter((m) => m.is_active).length;
-  const grid = p.getByTestId('team-progress');
-  await grid.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(1800);
-  const info = await grid.evaluate((g) => {
-    const card = g.closest('.card').getBoundingClientRect();
-    const svgs = [...g.querySelectorAll('svg')];
-    return {
-      n: svgs.length,
-      inside: svgs.every((s) => {
-        const r = s.getBoundingClientRect();
-        return r.left >= card.left - 0.5 && r.right <= card.right + 0.5 && r.top >= card.top - 0.5 && r.bottom <= card.bottom + 0.5 && r.right <= innerWidth;
-      }),
-    };
-  });
-  check(info.n === active && info.inside, `Team (${name}): alle ${active} aktiven Personen mit vollständigen Kreisen (${info.n} sichtbar)`);
+  check((await p.getByTestId('team-card').count()) === 0 && (await p.getByTestId('quick-links').count()) === 1, `Startseite (${name}): kompakt, Schnellzugriff statt Zusatzkarten`);
+  check((await p.getByTestId('homework-card').count()) === 1 && (await p.locator('#today-card').count()) === 1, `Startseite (${name}): Hausaufgaben und Heute direkt sichtbar, je einmal`);
 
   // Teamseite: alle Personen, Kreise nicht abgeschnitten
   await p.goto(`${BASE}#/team`);
@@ -1336,7 +1322,7 @@ try {
     check((await p.getByRole('dialog', { name: 'Schritte der Hausaufgabe' }).getByText('Aufgabe 1').count()) === 1, 'Zähler: Schritte der Hausaufgabe abhakbar');
     await p.getByRole('button', { name: 'Schritte schließen' }).click();
     // Schließen: Zähler bleibt erhalten → Karte zeigt „Weiter“
-    await p.getByRole('button', { name: 'Zähler schließen (läuft weiter)' }).click();
+    await p.getByRole('button', { name: 'Zähler schließen (pausiert)' }).click();
     await p.waitForURL(/#\/hausaufgaben$/);
     await item.waitFor();
     check((await item.getByTestId('homework-start').innerText()).includes('Weiter'), 'Hausaufgaben: laufender Zähler → „Weiter (…)“');
@@ -1459,6 +1445,93 @@ try {
     const fam = await p.getByTestId('clock-preview').locator('.num').evaluate((el) => getComputedStyle(el).fontFamily);
     check(/Caveat/.test(fam), `Uhr & Fokus: neue Schrift wird geladen (${fam.slice(0, 30)})`);
     check(errs.length === 0, `keine JavaScript-Fehler (Live-Lernzeit)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Automatische Pause: Timer verlassen / App im Hintergrund ------------
+  {
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 1280, height: 800 } });
+    const timer = () => p.evaluate(() => JSON.parse(localStorage.getItem('studyspace.focus.v1') ?? '{}').timer ?? {});
+    const setVis = (state) => p.evaluate((st) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => st });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, state);
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    await p.goto(`${BASE}#/fokus`);
+    await p.getByTestId('focus-toggle').click();
+    await p.waitForTimeout(400);
+    check((await timer()).endsAt !== null, 'Auto-Pause: Timer läuft');
+    // App kurz verlassen (< 8 s) → läuft nahtlos weiter
+    await setVis('hidden');
+    check((await timer()).endsAt === null, 'Auto-Pause: App verlassen → sofort pausiert');
+    await setVis('visible');
+    await p.waitForTimeout(200);
+    check((await timer()).endsAt !== null, 'Auto-Pause: nach kurzer Unterbrechung läuft er weiter');
+    // App länger verlassen → bleibt pausiert, Hinweis mit „Fortsetzen“
+    await setVis('hidden');
+    await p.evaluate(() => {
+      const real = Date.now;
+      const offset = 9000;
+      Date.now = () => real() + offset;
+    });
+    await setVis('visible');
+    await p.waitForTimeout(300);
+    check((await timer()).endsAt === null, 'Auto-Pause: nach längerer Abwesenheit bleibt der Timer pausiert');
+    check((await p.getByText('pausiert, weil du StudySpace verlassen hast', { exact: false }).count()) === 1, 'Auto-Pause: Hinweis mit Erklärung');
+    await p.getByTestId('toast-action').filter({ hasText: 'Fortsetzen' }).first().click();
+    await p.waitForTimeout(200);
+    check((await timer()).endsAt !== null, 'Auto-Pause: „Fortsetzen“ startet wieder');
+    // Fokus-Ansicht schließen → pausiert
+    await p.getByRole('button', { name: 'Fokus schließen' }).click();
+    await p.waitForTimeout(500);
+    check((await timer()).endsAt === null, 'Auto-Pause: Fokus verlassen → Timer pausiert');
+    check(errs.length === 0, `keine JavaScript-Fehler (Auto-Pause)${errs.length ? ': ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
+
+  // --- Extra-Animationen: Seitenübergänge, zentral abschaltbar ---------------
+  {
+    {
+      const now = new Date().toISOString();
+      const due = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+      db.homework.push({ id: '77777777-7777-4777-8777-000000000011', module_id: db.modules[1].id, title: 'Animations-Test', description: 'Details', due_date: due, earliest_start: null, priority: 2, effort_minutes: null, unit_count: null, deleted_at: null, changed_by: null, version: 1, created_at: now, updated_at: now });
+    }
+    const { page: p, errors: errs, ctx: c } = await newPage(browser, { viewport: { width: 390, height: 844 } });
+    await p.goto(BASE);
+    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
+    await p.getByTestId('dashboard-hero').waitFor();
+    check(await p.evaluate(() => document.documentElement.classList.contains('extra-motion')), 'Animationen: Extra-Animationen standardmäßig an');
+    await p.goto(`${BASE}#/einstellungen`);
+    await p.getByTestId('settings-nav').waitFor();
+    await p.goto(`${BASE}#/einstellungen/darstellung`);
+    await p.getByTestId('settings-darstellung').waitFor();
+    check((await p.locator('.ss-page--push').count()) === 1, 'Animationen: Unterseite schiebt von rechts herein');
+    await p.goBack();
+    await p.getByTestId('settings-nav').waitFor();
+    check((await p.locator('.ss-page--pop').count()) === 1, 'Animationen: Zurück schiebt von links herein');
+    await p.goto(`${BASE}#/einstellungen/darstellung`);
+    await p.getByRole('switch', { name: 'Extra-Animationen' }).click();
+    await p.waitForTimeout(200);
+    check(!(await p.evaluate(() => document.documentElement.classList.contains('extra-motion'))), 'Animationen: Schalter in den Einstellungen schaltet sie ab');
+    // Akzentfarbe zum Ausprobieren
+    await p.getByTestId('accent-picker').getByRole('radio', { name: 'Tannengrün' }).click();
+    check(await p.evaluate(() => document.documentElement.dataset.accent === 'tanne' && getComputedStyle(document.documentElement).getPropertyValue('--ss-accent').trim() === '#1d6e52'), 'Akzentfarbe: Tannengrün färbt die Oberfläche');
+    await p.getByTestId('accent-picker').getByRole('radio', { name: 'Lila' }).click();
+    check(await p.evaluate(() => !document.documentElement.dataset.accent), 'Akzentfarbe: zurück auf Lila (Standard)');
+    // Hausaufgabe antippen klappt die Details auf
+    await p.goto(`${BASE}#/hausaufgaben`);
+    const item = p.getByTestId('homework-item').filter({ hasText: 'Animations-Test' });
+    await item.waitFor();
+    await item.getByTestId('homework-toggle').click();
+    check((await item.getByRole('button', { name: 'Details ausblenden' }).count()) === 1, 'Animationen: Hausaufgabe antippen klappt Details auf');
+    // Ganze Hausaufgabe abhaken → dezente Feier mit Hinweis
+    await item.getByRole('checkbox', { name: 'Animations-Test erledigt' }).click();
+    await p.waitForTimeout(250);
+    check((await p.locator('.finish-glow').count()) === 1, 'Feier: Lichtschein mit Haken, wenn eine Hausaufgabe erledigt ist');
+    check((await p.getByText('„Animations-Test“ erledigt.').count()) === 1, 'Feier: kurzer Hinweis „… erledigt.“');
+    check(errs.length === 0, `keine JavaScript-Fehler (Animationen)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
   }
 } catch (err) {

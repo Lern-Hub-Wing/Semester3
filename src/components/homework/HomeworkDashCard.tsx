@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { BookOpen, CalendarClock, NotebookPen, Plus } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronRight, CircleCheck, Plus } from 'lucide-react';
+import { EmptyState } from '../ui/EmptyState';
 import type { Member } from '../../lib/types';
 import { dueLabel, hwKey } from '../../lib/homework';
 import { Link } from '../../lib/router';
@@ -33,17 +34,16 @@ export function HomeworkDashCard({ me, className = '' }: { me: Member; className
 
   return (
     <Card className={`flex h-full flex-col rounded-[20px] p-5 ${className}`} data-testid="homework-card">
-      <div className="flex items-center gap-2.5">
+      {/* Ganze Kopfzeile führt zu den Hausaufgaben */}
+      <Link to="/hausaufgaben" className="group flex items-center gap-2.5">
         <BookOpen className="size-[18px] text-ink" aria-hidden />
-        <Link to="/hausaufgaben" className="title flex-1 text-[16px] hover:text-accent">
-          Hausaufgaben
-        </Link>
+        <span className="title flex-1 text-[15px] group-hover:text-accent">Hausaufgaben</span>
         {openCount > 0 && <span className="rounded-full bg-[var(--ss-accent-soft)] px-2.5 py-1 text-[12px] font-semibold text-accent">{openCount} offen</span>}
-      </div>
+        <ChevronRight className="size-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
+      </Link>
       {next.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
-          <NotebookPen className="size-7 text-faint" aria-hidden />
-          <p className="text-[14px] font-medium">Alles abgegeben</p>
+        <div className="mt-3">
+          <EmptyState compact icon={<CircleCheck />} title="Alles abgegeben" text="Neue Hausaufgaben erscheinen hier." />
         </div>
       ) : (
         <ul className="mt-3 flex flex-col gap-1">
@@ -52,10 +52,10 @@ export function HomeworkDashCard({ me, className = '' }: { me: Member; className
             return (
               <li key={u.id} className="flex items-center gap-3 rounded-[16px] bg-[color-mix(in_srgb,var(--ss-accent)_8%,transparent)] px-2.5 py-2">
                 <TaskCheckbox size={22} checked={false} color={me.color} label={`${hw.title}: ${u.title} erledigt`} onChange={(v) => void setHomeworkDone(hw.id, u.id, me.id, v)} />
-                <span className="min-w-0 flex-1">
+                <Link to="/hausaufgaben" className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-medium">{hw.title}</span>
                   <span className="block truncate text-[12px] text-muted">Heute · {u.title}</span>
-                </span>
+                </Link>
               </li>
             );
           })}
@@ -65,7 +65,7 @@ export function HomeworkDashCard({ me, className = '' }: { me: Member; className
             return (
               <li key={h.id} className="flex items-center gap-3 rounded-[16px] px-2.5 py-2">
                 <TaskCheckbox size={22} checked={false} color={me.color} label={`${h.title} erledigt`} onChange={(v) => void setHomeworkDone(h.id, h.id, me.id, v)} />
-                <span className="min-w-0 flex-1">
+                <Link to="/hausaufgaben" className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="size-2 shrink-0 rounded-full" style={{ background: m?.color }} aria-hidden />
                     <span className="truncate text-[14px] font-medium">{h.title}</span>
@@ -74,7 +74,7 @@ export function HomeworkDashCard({ me, className = '' }: { me: Member; className
                     <CalendarClock className="size-3" aria-hidden />
                     {dueLabel(h.due_date, today)}
                   </span>
-                </span>
+                </Link>
               </li>
             );
           })}

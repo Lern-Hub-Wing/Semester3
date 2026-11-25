@@ -1,3 +1,4 @@
+import { useDigitMetrics } from '../lib/digitMetrics';
 import { useId, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { formatClock, isRunning, isStarted, phaseTitle, progressOf, remainingSec, type FocusState } from '../lib/focus';
@@ -87,15 +88,22 @@ export function FocusDigits({ className = '', style, seconds = true, duration = 
 export function RollingDigits({ text, value, className = '', style, duration = 0.38, testId = 'focus-time' }: { text: string; value?: string; className?: string; style?: CSSProperties; duration?: number; testId?: string }) {
   const reduce = useReducedMotion();
   const animate = !reduce && duration > 0;
+  // Echte Ziffernmaße der gewählten Schrift: breite Schriften werden nicht abgeschnitten, schmale nicht auseinandergezogen
+  const m = useDigitMetrics(style?.fontFamily as string | undefined, Number(style?.fontWeight) || 600);
+  const slot = (m.width * 1.04).toFixed(3);
+  // Höhe: Ziffern + etwas Luft; nur oben/unten wird beim Rollen abgeschnitten, nie seitlich
+  const top = Math.max(0.78, m.ascent + 0.08);
+  const bottom = Math.max(0.1, m.descent + 0.1);
   return (
-    <span className={`num inline-flex leading-none ${className}`} style={style} aria-hidden data-testid={testId} data-value={value ?? text}>
+    <span className={`num inline-flex leading-none ${className}`} style={{ ...style, fontVariantNumeric: 'lining-nums tabular-nums' }} aria-hidden data-testid={testId} data-value={value ?? text}>
       {text.split('').map((ch, i) =>
         /\d/.test(ch) ? (
-          <span key={i} className="relative inline-block w-[0.62em] overflow-hidden text-center" style={{ height: '1.08em' }}>
+          <span key={i} className="digit-slot relative inline-block text-center" style={{ width: `${slot}em`, height: `${(top + bottom).toFixed(3)}em` }}>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={ch + i}
-                className="absolute inset-0"
+                className="absolute inset-y-0 inset-x-[-0.2em] text-center"
+                style={{ lineHeight: `${(top + bottom).toFixed(3)}em` }}
                 initial={animate ? { y: '-60%', opacity: 0 } : false}
                 animate={{ y: 0, opacity: 1 }}
                 exit={animate ? { y: '60%', opacity: 0 } : undefined}
@@ -106,7 +114,7 @@ export function RollingDigits({ text, value, className = '', style, duration = 0
             </AnimatePresence>
           </span>
         ) : (
-          <span key={i} className="inline-block w-[0.3em] text-center opacity-70">
+          <span key={i} className="inline-block text-center opacity-70" style={{ width: `${Math.min(m.colon * 1.2, 0.42).toFixed(3)}em`, lineHeight: `${(top + bottom).toFixed(3)}em` }}>
             {ch}
           </span>
         ),

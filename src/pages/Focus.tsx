@@ -20,6 +20,7 @@ import { FocusSettingsPanel } from '../components/focus/FocusSettingsPanel';
 import { BarButton, FocusBackdrop } from '../components/focus/FocusChrome';
 import { isLightBackground } from '../lib/clockLook';
 import { returnPath } from '../lib/focusReturn';
+import { pauseOnLeave } from '../store/autoPause';
 
 function useViewport() {
   const [vp, setVp] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
@@ -117,6 +118,9 @@ export function Focus() {
   useEffect(() => {
     if (useFocus.getState().settings.fullscreenOnOpen && fullscreenSupported() && !isFullscreen()) void enterFullscreen({ lockLandscape: false });
   }, []);
+
+  // Ansicht verlassen → Timer pausieren (sonst zählt Lernzeit, während man woanders ist)
+  useEffect(() => () => pauseOnLeave('focus'), []);
 
   // Autostart beim Öffnen (nur wenn eingestellt; Standard: bewusster Start)
   useEffect(() => {

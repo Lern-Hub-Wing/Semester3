@@ -62,6 +62,8 @@ export interface FocusSettings {
   music: 'lofi' | 'rain' | 'noise';
   /** Lautstärke der Musik 0–100 */
   musicVolume: number;
+  /** Timer und Hausaufgaben-Zähler pausieren, wenn man die Ansicht oder die App verlässt (verfälscht sonst die Lernzeit) */
+  autoPause: boolean;
 }
 
 export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
@@ -77,6 +79,7 @@ export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
   fullscreenOnOpen: true,
   music: 'lofi',
   musicVolume: 50,
+  autoPause: true,
 };
 
 interface FocusStore {
@@ -123,6 +126,7 @@ export function sanitizeSettings(input: unknown): FocusSettings {
     autoStartOnOpen: bool(o.autoStartOnOpen, d.autoStartOnOpen),
     fullscreenOnOpen: bool(o.fullscreenOnOpen, d.fullscreenOnOpen),
     music: o.music === 'rain' || o.music === 'noise' ? o.music : 'lofi',
+    autoPause: bool(o.autoPause, d.autoPause),
     musicVolume: typeof o.musicVolume === 'number' && Number.isFinite(o.musicVolume) ? Math.min(100, Math.max(0, Math.round(o.musicVolume))) : d.musicVolume,
   };
 }

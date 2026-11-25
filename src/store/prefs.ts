@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { setHapticsEnabled } from '../lib/haptics';
 import { setSoundsEnabled } from '../lib/sound';
 import { GLASS_CLARITY_DEFAULT, clampClarity } from '../lib/glass';
+import { ACCENTS, type AccentId } from '../lib/accents';
 
 /** Gerätebezogene Darstellungseinstellungen (lokal gespeichert, weil es keine Konten gibt). */
 export interface Prefs {
@@ -16,10 +17,14 @@ export interface Prefs {
   sounds: boolean;
   /** Durchsichtigkeit der Glasflächen, 0 (milchig) … 100 (klar) */
   glassClarity: number;
+  /** Zusätzliche Animationen (Schiebe-Übergänge, Federn, Listen) – siehe lib/motionFlags.ts */
+  extraMotion: boolean;
+  /** Akzentfarbe zum Ausprobieren (lib/accents.ts) */
+  accent: AccentId;
 }
 
 const KEY = 'studyspace.prefs.v1';
-const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, sounds: true, glassClarity: GLASS_CLARITY_DEFAULT };
+const DEFAULTS: Prefs = { theme: 'system', progressStyle: 'ring', motion: 'system', glass: 'auto', compact: false, haptics: true, sounds: true, glassClarity: GLASS_CLARITY_DEFAULT, extraMotion: true, accent: 'lila' };
 
 function load(): Prefs {
   try {
@@ -35,6 +40,8 @@ function load(): Prefs {
       haptics: parsed.haptics !== false,
       sounds: parsed.sounds !== false,
       glassClarity: clampClarity(parsed.glassClarity),
+      extraMotion: parsed.extraMotion !== false,
+      accent: ACCENTS.some((a) => a.id === parsed.accent) ? parsed.accent! : DEFAULTS.accent,
     };
   } catch {
     return DEFAULTS;
