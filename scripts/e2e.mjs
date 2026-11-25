@@ -160,8 +160,8 @@ async function mobileDesignChecks(p, name) {
   const nav = p.getByRole('navigation', { name: 'Hauptnavigation' }).last();
   const bar = nav;
   const glass = nav.locator('.lg-tab-bar-glass').first();
-  // Tab-Leiste wie in der App: Home · Kalender · Aufgaben · Team · Mehr
-  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Kalender', '#/lernplan'], ['Home', '#/']]) {
+  // Tab-Leiste wie in der App: Home · Lernplan · Aufgaben · Team · Mehr
+  for (const [label, hash] of [['Aufgaben', '#/hausaufgaben'], ['Team', '#/team'], ['Lernplan', '#/lernplan'], ['Home', '#/']]) {
     await nav.getByRole('link', { name: label }).click();
     await p.waitForTimeout(350);
     check(new URL(p.url()).hash.split('?')[0] === hash, `Tab-Leiste (${name}): Antippen öffnet „${label}“`);
@@ -178,7 +178,7 @@ async function mobileDesignChecks(p, name) {
   check(new URL(p.url()).hash === '#/' && lifted, `Tab-Leiste (${name}): Linse folgt beim Ziehen, noch keine Navigation`);
   await p.mouse.up();
   await p.waitForTimeout(500);
-  check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Loslassen über „Kalender“ navigiert dorthin (${new URL(p.url()).hash})`);
+  check(new URL(p.url()).hash.split('?')[0] === '#/lernplan', `Tab-Leiste (${name}): Loslassen über „Lernplan“ navigiert dorthin (${new URL(p.url()).hash})`);
   // Keine globale Wischnavigation über dem Seiteninhalt
   await p.evaluate(() => window.scrollTo(0, 0));
   await p.mouse.move(60, 320);
@@ -241,24 +241,10 @@ async function mobileDesignChecks(p, name) {
   const barTop = (await bar.boundingBox()).y;
   check(lastBottom <= barTop - 4, `Abstand (${name}): letzte Karte endet über der Tab-Leiste (${Math.round(lastBottom)} ≤ ${Math.round(barTop)})`);
 
-  // Team-Fortschritt im Dashboard: alle aktiven Personen, Kreise vollständig in der Karte
+  // Startseite auf dem Handy: kurz und übersichtlich – Team, Fortschritt, Timeline sind eine Berührung entfernt
   await p.evaluate(() => window.scrollTo(0, 0));
-  const active = db.members.filter((m) => m.is_active).length;
-  const grid = p.getByTestId('team-progress');
-  await grid.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(1800);
-  const info = await grid.evaluate((g) => {
-    const card = g.closest('.card').getBoundingClientRect();
-    const svgs = [...g.querySelectorAll('svg')];
-    return {
-      n: svgs.length,
-      inside: svgs.every((s) => {
-        const r = s.getBoundingClientRect();
-        return r.left >= card.left - 0.5 && r.right <= card.right + 0.5 && r.top >= card.top - 0.5 && r.bottom <= card.bottom + 0.5 && r.right <= innerWidth;
-      }),
-    };
-  });
-  check(info.n === active && info.inside, `Team (${name}): alle ${active} aktiven Personen mit vollständigen Kreisen (${info.n} sichtbar)`);
+  check((await p.getByTestId('team-card').count()) === 0 && (await p.getByTestId('quick-links').count()) === 1, `Startseite (${name}): kompakt, Schnellzugriff statt Zusatzkarten`);
+  check((await p.getByTestId('homework-card').count()) === 1 && (await p.locator('#today-card').count()) === 1, `Startseite (${name}): Hausaufgaben und Heute direkt sichtbar, je einmal`);
 
   // Teamseite: alle Personen, Kreise nicht abgeschnitten
   await p.goto(`${BASE}#/team`);
@@ -1529,12 +1515,22 @@ try {
     await p.getByRole('switch', { name: 'Extra-Animationen' }).click();
     await p.waitForTimeout(200);
     check(!(await p.evaluate(() => document.documentElement.classList.contains('extra-motion'))), 'Animationen: Schalter in den Einstellungen schaltet sie ab');
+    // Akzentfarbe zum Ausprobieren
+    await p.getByTestId('accent-picker').getByRole('radio', { name: 'Tannengrün' }).click();
+    check(await p.evaluate(() => document.documentElement.dataset.accent === 'tanne' && getComputedStyle(document.documentElement).getPropertyValue('--ss-accent').trim() === '#1d6e52'), 'Akzentfarbe: Tannengrün färbt die Oberfläche');
+    await p.getByTestId('accent-picker').getByRole('radio', { name: 'Lila' }).click();
+    check(await p.evaluate(() => !document.documentElement.dataset.accent), 'Akzentfarbe: zurück auf Lila (Standard)');
     // Hausaufgabe antippen klappt die Details auf
     await p.goto(`${BASE}#/hausaufgaben`);
     const item = p.getByTestId('homework-item').filter({ hasText: 'Animations-Test' });
     await item.waitFor();
     await item.getByTestId('homework-toggle').click();
     check((await item.getByRole('button', { name: 'Details ausblenden' }).count()) === 1, 'Animationen: Hausaufgabe antippen klappt Details auf');
+    // Ganze Hausaufgabe abhaken → dezente Feier mit Hinweis
+    await item.getByRole('checkbox', { name: 'Animations-Test erledigt' }).click();
+    await p.waitForTimeout(250);
+    check((await p.locator('.finish-glow').count()) === 1, 'Feier: Lichtschein mit Haken, wenn eine Hausaufgabe erledigt ist');
+    check((await p.getByText('„Animations-Test“ erledigt.').count()) === 1, 'Feier: kurzer Hinweis „… erledigt.“');
     check(errs.length === 0, `keine JavaScript-Fehler (Animationen)${errs.length ? ': ' + errs.join(' | ') : ''}`);
     await c.close();
   }

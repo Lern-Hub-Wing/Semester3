@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarPlus, ChevronRight, Ellipsis, Plus, Sparkles } from 'lucide-react';
+import { CalendarDays, CalendarPlus, ChevronRight, Plus, Sparkles } from 'lucide-react';
 import { IS_APP } from '../../lib/edition';
 import type { Member } from '../../lib/types';
 import { groupBy, isDone, type Ratio, type TaskView } from '../../lib/progress';
@@ -12,9 +12,10 @@ import { ProgressRing } from '../ui/Progress';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 
-function CardHead({ title, sub, to, action }: { title: string; sub?: string; to?: string; action?: React.ReactNode }) {
+export function CardHead({ title, sub, to, action, icon }: { title: string; sub?: string; to?: string; action?: React.ReactNode; icon?: React.ReactNode }) {
   const inner = (
     <>
+      {icon && <span className="shrink-0 text-ink [&>svg]:size-[18px]" aria-hidden>{icon}</span>}
       <span className="min-w-0 flex-1">
         <span className="title block text-[15px] leading-snug">{title}</span>
         {sub && <span className="block text-[12.5px] leading-snug text-muted">{sub}</span>}
@@ -69,22 +70,19 @@ export function TodayCard({ views, today, me, members, className = '', allEmpty 
     <section id="today-card" className={`card flex flex-col gap-2 rounded-[24px] p-4 md:p-5 ${className}`}>
       <CardHead
         title="Heute"
-        sub={views.length ? `${views.length} ${views.length === 1 ? 'Aufgabe' : 'Aufgaben'} · ${open} offen` : 'Nichts geplant'}
-        action={
-          <Link to={`/lernplan?ansicht=tag&datum=${today}`} aria-label="Tagesansicht öffnen" className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--ss-text)_7%,transparent)] hover:text-ink">
-            <Ellipsis className="size-4" />
-          </Link>
-        }
+        icon={<CalendarDays />}
+        sub={views.length ? `${views.length} ${views.length === 1 ? 'Aufgabe' : 'Aufgaben'} · ${open} offen` : undefined}
+        to={`/lernplan?ansicht=tag&datum=${today}`}
       />
       {allEmpty ? (
         <EmptyState
           compact
           icon={<CalendarPlus />}
           title="Dein Lernplan ist noch leer"
-          text={IS_APP ? 'Lege deinen ersten Lerntag an – mit Aufgaben zum Abhaken. In einer Gruppe hakt jedes Mitglied für sich ab.' : 'Füge dein erstes Thema hinzu – mit Unteraufgaben, die jede Person für sich abhaken kann.'}
+          text="Leg deinen ersten Lerntag an – jede Person hakt ihre Aufgaben selbst ab."
           action={
             IS_APP ? (
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Link to="/ki-lernplan" className="ai-badge inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-[14px] font-semibold text-white" data-testid="dash-ai">
                   <Sparkles className="size-4" aria-hidden /> Mit KI planen
                 </Link>
@@ -100,7 +98,7 @@ export function TodayCard({ views, today, me, members, className = '', allEmpty 
           }
         />
       ) : views.length === 0 ? (
-        <EmptyState compact icon={<CalendarDays />} title="Heute ist nichts geplant" text="Gönn dir eine Pause – oder plane schnell etwas ein." />
+        <EmptyState compact icon={<CalendarDays />} title="Heute ist nichts geplant" text="Zeit zum Durchatmen – oder plan dir etwas ein." />
       ) : (
         <div className="scroll-thin scroll-fade -mx-2 max-h-[300px] overflow-y-auto pb-3 lg:max-h-[232px]">
           {[...byEntry.values()].map((list) => {

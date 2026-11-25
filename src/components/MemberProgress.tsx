@@ -50,7 +50,7 @@ export function MemberProgress({ member, ratio, ringSize = 84, onClick, highligh
             {member.name}
             {highlight && <span className="ml-1 font-normal text-muted">(du)</span>}
           </span>
-          <span className="num shrink-0 font-semibold">{ratio.pct === null ? '–' : `${ratio.pct}%`}</span>
+          <span className={`num shrink-0 font-semibold ${ratio.pct === null ? 'text-faint' : ''}`}>{ratio.pct === null ? '' : `${ratio.pct}%`}</span>
         </div>
         <ProgressBar ratio={ratio} color={member.color} label={`Fortschritt ${member.name}`} />
       </div>

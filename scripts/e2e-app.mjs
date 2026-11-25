@@ -379,7 +379,7 @@ try {
   const mo = watch(await ctxM.newPage());
   const anna = mock.state.users.find((u) => u.email === 'anna@example.com');
   const teamGroup = mock.state.groups.find((g) => g.kind === 'team');
-  await check('Tab-Leiste: Home, Kalender, Aufgaben, Team, Mehr', async () => {
+  await check('Tab-Leiste: Home, Lernplan, Aufgaben, Team, Mehr', async () => {
     await mo.goto(BASE);
     await mo.getByLabel('E-Mail').fill('anna@example.com');
     await mo.getByLabel('Passwort', { exact: true }).fill('sicheresPasswort1');

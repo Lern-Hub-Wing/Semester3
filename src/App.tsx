@@ -23,7 +23,7 @@ import { MiniPlayer } from './components/music/MiniPlayer';
 import { MoveTaskDialog } from './components/MoveTaskDialog';
 import { SearchPalette } from './components/SearchPalette';
 import { AttachmentPreview } from './components/Attachments';
-import { CelebrationWatcher } from './components/Celebration';
+import { CelebrationWatcher, HomeworkFinishWatcher } from './components/Celebration';
 import type { Member } from './lib/types';
 import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
@@ -203,6 +203,7 @@ function Main() {
       </AnimatePresence>
       <MountainFlight />
       {me && <CelebrationWatcher />}
+      {me && <HomeworkFinishWatcher />}
       {me && <FocusWatcher />}
       {!IS_APP && me && me.is_active && <PushOnboarding me={me} />}
       {!IS_APP && me && me.is_active && <PushMemberSwitch me={me} members={members} />}

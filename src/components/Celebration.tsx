@@ -4,26 +4,41 @@ import { useData } from '../store/data';
 import { useActiveMemberIds, useCurrentMember, useProgress, useTaskViews } from '../store/derived';
 import { useToday } from '../hooks/useToday';
 import { toast } from '../store/toast';
+import { useHomework } from '../store/homework';
+import { hwKey } from '../lib/homework';
 
 type Kind = 'small' | 'big';
 
-/** Konfetti (nachgeladen, blockiert nie die Bedienung, respektiert reduzierte Bewegung). */
+const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('reduce-motion');
+
+/**
+ * Feier – dezent und hochwertig:
+ *  – small: ein ruhiger Lichtschein mit gezeichnetem Haken (kein Konfetti)
+ *  – big (ganze Gruppe 100 %): feiner, langsam fallender Glanz in den Gruppenfarben
+ * Blockiert nie die Bedienung, respektiert reduzierte Bewegung.
+ */
 export async function celebrate(kind: Kind, colors: string[]) {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('reduce-motion')) return;
-  const { default: confetti } = await import('canvas-confetti');
-  const base = { colors, disableForReducedMotion: true, zIndex: 90, ticks: 220, scalar: 0.9 };
+  if (reduced()) return;
   if (kind === 'small') {
-    void confetti({ ...base, particleCount: 60, spread: 70, startVelocity: 32, origin: { y: 0.75 } });
+    finishGlow(colors[0] ?? 'var(--ss-accent)');
     return;
   }
-  const end = Date.now() + 1400;
-  const frame = () => {
-    void confetti({ ...base, particleCount: 5, angle: 60, spread: 60, origin: { x: 0, y: 0.7 } });
-    void confetti({ ...base, particleCount: 5, angle: 120, spread: 60, origin: { x: 1, y: 0.7 } });
-    if (Date.now() < end) requestAnimationFrame(frame);
-  };
-  frame();
-  setTimeout(() => void confetti({ ...base, particleCount: 160, spread: 110, startVelocity: 45, origin: { y: 0.55 } }), 350);
+  const { default: confetti } = await import('canvas-confetti');
+  const base = { colors: [...colors, '#ffffff', '#f3e3b5'], disableForReducedMotion: true, zIndex: 90, ticks: 320, scalar: 0.62, gravity: 0.55, drift: 0.2, shapes: ['circle' as const] };
+  void confetti({ ...base, particleCount: 70, spread: 100, startVelocity: 30, origin: { y: 0.45 } });
+  setTimeout(() => void confetti({ ...base, particleCount: 40, spread: 140, startVelocity: 22, origin: { y: 0.4 } }), 260);
+}
+
+/** Ruhiger Lichtschein mit Haken in der Bildmitte (≈ 1,3 s), danach wieder weg */
+export function finishGlow(color: string) {
+  if (reduced()) return;
+  const el = document.createElement('div');
+  el.className = 'finish-glow';
+  el.setAttribute('aria-hidden', 'true');
+  el.style.setProperty('--finish', color);
+  el.innerHTML = '<span class="finish-halo"></span><span class="finish-ring"></span><svg viewBox="0 0 52 52" class="finish-check"><path d="M15 27.5l7.5 7.5L38 18.5" /></svg>';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
 }
 
 /**
@@ -68,5 +83,33 @@ export function CelebrationWatcher() {
     }
   }, [mine?.pct, me?.id, fresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  return null;
+}
+
+/**
+ * Hausaufgabe komplett erledigt (eigener Haken an der ganzen Hausaufgabe) →
+ * dezente Feier. Nur bei echten Übergängen während der Nutzung, nicht beim Laden.
+ */
+export function HomeworkFinishWatcher() {
+  const me = useCurrentMember();
+  const completions = useHomework((s) => s.completions);
+  const homework = useHomework((s) => s.homework);
+  const available = useHomework((s) => s.available);
+  const done = useMemo(() => {
+    if (!me) return new Set<string>();
+    return new Set(Object.values(homework).filter((h) => !h.deleted_at && completions[hwKey(h.id, me.id)]?.is_completed).map((h) => h.id));
+  }, [homework, completions, me]);
+  const prev = useRef<{ member: string; ids: Set<string> } | null>(null);
+  useEffect(() => {
+    if (!available || !me) return;
+    const before = prev.current;
+    prev.current = { member: me.id, ids: done };
+    if (!before || before.member !== me.id) return;
+    const fresh = [...done].filter((id) => !before.ids.has(id));
+    if (fresh.length !== 1) return;
+    const hw = homework[fresh[0]!];
+    finishGlow(me.color);
+    toast.success(hw ? `„${hw.title}“ erledigt.` : 'Hausaufgabe erledigt.');
+  }, [done, available, me, homework]);
   return null;
 }

@@ -92,13 +92,16 @@ export function Modules({ me }: { me: Member }) {
 
                   <ExamLine exam={exam} past={past} now={now} onAdd={() => setExamEditing({ value: 'new', moduleId: m.id })} onEdit={(e) => setExamEditing({ value: e })} />
 
-                  <div className="mt-auto pt-4">
-                    <div className="mb-1.5 flex justify-between text-xs text-muted">
-                      <span>Gruppe</span>
-                      <span className="num font-semibold text-ink">{g.pct === null ? '–' : `${g.pct} %`}</span>
+                  {/* Gruppenbalken erst, wenn es Aufgaben gibt – vorher kein leerer Platzhalter */}
+                  {g.total > 0 && (
+                    <div className="mt-auto pt-4">
+                      <div className="mb-1.5 flex justify-between text-xs text-muted">
+                        <span>Gruppe</span>
+                        <span className="num font-semibold text-ink">{g.pct} %</span>
+                      </div>
+                      <ProgressBar ratio={g} color={m.color} label={`Gruppenfortschritt ${m.name}`} />
                     </div>
-                    <ProgressBar ratio={g} color={m.color} label={`Gruppenfortschritt ${m.name}`} />
-                  </div>
+                  )}
                 </article>
               </Reveal>
             );

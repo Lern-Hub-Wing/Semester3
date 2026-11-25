@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EXTRA_MOTION } from '../lib/motionFlags';
+import { ACCENTS } from '../lib/accents';
 import {
   Archive, ArrowDown, Clock3, Hand, CloudSun, Crown, Rocket, Scale, Search, Ticket, UserRound, Pencil, Bell, BellRing, ArrowLeft, BookOpen, ArrowUp, CircleDot, Download, History, Info, Monitor, Moon, Music2, Palette, Plus, RotateCcw, ShieldAlert, Sun, Trash2, Upload, UserMinus, Users, LifeBuoy, ShieldCheck,
 } from 'lucide-react';
@@ -234,7 +235,7 @@ function useNavGroups(active?: SectionKey): NavGroup[] {
 
   const device: NavRow[] = [
     { icon: phase === 'on' ? <BellRing /> : <Bell />, tint: phase === 'on' ? TINT.teal : AREA_TINT.notifications, label: 'Benachrichtigungen', value: PUSH_LABEL[phase], to: '/einstellungen/benachrichtigungen', testId: 'settings-push', keywords: 'push mitteilung erinnerung ruhezeit' },
-    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design animation animationen übergänge bewegung transparenz kompakt klänge ton haptik vibration fortschritt' },
+    { icon: <Palette />, tint: AREA_TINT.appearance, label: 'Darstellung & Bedienung', value: theme === 'system' ? 'System' : theme === 'dark' ? 'Dunkel' : 'Hell', ...sec('darstellung'), keywords: 'hell dunkel theme design farbe akzent akzentfarbe blau grün animation animationen übergänge bewegung transparenz kompakt klänge ton haptik vibration fortschritt' },
     { icon: <Clock3 />, tint: AREA_TINT.focus, label: 'Uhr & Fokus', ...sec('fokus'), testId: 'settings-clock', keywords: 'uhr schrift farbe hintergrund pomodoro timer lernmodus vollbild hausaufgaben zähler design kontrast' },
     { icon: <CloudSun />, tint: TINT.blue, label: 'Wetter', value: weatherMode === 'auto' ? 'Automatisch' : weatherMode === 'off' ? 'Aus' : 'Fest', ...sec('wetter'), keywords: 'regen schnee sonne gewitter standort hintergrund' },
   ];
@@ -302,6 +303,23 @@ function Appearance() {
           ]}
         />
       </Row>
+      <Row stacked label="Akzentfarbe" hint="Zum Ausprobieren – gilt nur auf diesem Gerät.">
+        <div role="radiogroup" aria-label="Akzentfarbe" className="flex flex-wrap gap-2" data-testid="accent-picker">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              role="radio"
+              aria-checked={prefs.accent === a.id}
+              onClick={() => prefs.set({ accent: a.id })}
+              className={`flex min-h-10 items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium transition-colors ${prefs.accent === a.id ? 'border-transparent bg-[var(--ss-accent-soft)] text-ink' : 'border-line text-muted hover:text-ink'}`}
+            >
+              <span className="size-6 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]" style={{ background: `linear-gradient(135deg, ${a.swatch[0]} 0 50%, ${a.swatch[1]} 50% 100%)` }} aria-hidden />
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </Row>
       <Row label="Fortschrittsanzeige">
         <Segmented
           label="Fortschrittsanzeige"
@@ -326,7 +344,7 @@ function Appearance() {
         />
       </Row>
       {EXTRA_MOTION && (
-        <Row inline label="Extra-Animationen" hint="Schiebe-Übergänge zwischen Seiten, federnde Karten, Listen, die nacheinander erscheinen.">
+        <Row inline label="Extra-Animationen" hint="Sanfte Übergänge zwischen Seiten, Karten und Listen.">
           <Switch label="Extra-Animationen" checked={prefs.extraMotion} onChange={(extraMotion) => prefs.set({ extraMotion })} disabled={prefs.motion === 'reduced'} />
         </Row>
       )}

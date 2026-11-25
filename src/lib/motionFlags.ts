@@ -1,7 +1,7 @@
 /**
  * Zentraler Notschalter für die zusätzlichen Animationen
  * (Schiebe-Übergänge zwischen Unterseiten, Federn beim Antippen von Karten,
- * gestaffeltes Einblenden von Listen, Symbol-Hüpfer in der Navigation).
+ * gestaffeltes Einblenden von Listen, sanftes Aufleuchten in der Navigation).
  *
  * false → alles davon ist sofort aus, für alle Nutzer. Die Grundanimationen
  * (Dialoge, Seiten-Einblenden, Häkchen) bleiben. Jede Person kann sie außerdem

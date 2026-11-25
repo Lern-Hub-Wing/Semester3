@@ -25,7 +25,7 @@ interface RingProps {
  * – Beim Erreichen von 100 % breitet sich eine Welle aus (Progress Shockwave).
  * – Der Leuchtschein ist ein SVG-Filter mit ausdrücklich festgelegter
  *   Filterfläche (kein eckiges Abschneiden).
- * Ohne Aufgaben wird "–" statt 100 % angezeigt.
+ * Ohne Aufgaben tritt der Ring zurück (gedämpft, Punkt statt Zahl).
  */
 export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, sublabel, className = '', children, showValue = true }: RingProps) {
   const reduce = useReducedMotion();
@@ -76,7 +76,8 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
       role="img"
       aria-label={`${sublabel ?? label ?? 'Fortschritt'}: ${ratio.pct === null ? 'keine Aufgaben' : `${ratio.pct} Prozent`}`}
       data-pct={ratio.pct ?? ''}
-      className={`relative inline-grid place-items-center ${className}`}
+      // Ohne Aufgaben tritt der Ring leise zurück (statt eines Platzhalter-Strichs)
+      className={`relative inline-grid place-items-center transition-opacity duration-500 ${ratio.pct === null ? 'opacity-40' : ''} ${className}`}
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 overflow-visible" aria-hidden>
@@ -166,7 +167,7 @@ export function ProgressRing({ ratio, color, size = 96, stroke = 9, label, subla
         {children ?? (
           <div className="leading-none">
             {!showValue ? null : ratio.pct === null ? (
-              <span className="text-muted" style={{ fontSize: size * 0.22 }}>–</span>
+              <span className="block rounded-full bg-[var(--ss-text-3)]" style={{ width: Math.max(4, size * 0.06), height: Math.max(4, size * 0.06) }} aria-hidden />
             ) : (
               <AnimatedNumber value={shown} suffix="%" className="font-semibold tracking-tight" style={{ fontSize: size * 0.22, letterSpacing: '-0.03em' }} />
             )}
@@ -204,7 +205,7 @@ export function ProgressBar({ ratio, color, height = 8, className = '', label }:
       aria-valuemax={100}
       aria-valuenow={ratio.pct ?? undefined}
       aria-valuetext={ratio.pct === null ? 'keine Aufgaben' : `${ratio.pct} Prozent`}
-      className={`relative w-full overflow-hidden rounded-full ${className}`}
+      className={`relative w-full overflow-hidden rounded-full transition-opacity duration-500 ${ratio.pct === null ? 'opacity-50' : ''} ${className}`}
       style={{ height, background: 'var(--ss-track)', boxShadow: 'inset 0 1px 1px rgba(16,22,46,0.06)' }}
     >
       <motion.div
