@@ -33,5 +33,5 @@ export const useToasts = create<ToastState>((set, get) => ({
 export const toast = {
   success: (message: string, action?: Toast['action']) => useToasts.getState().push({ kind: 'success', message, action }),
   error: (message: string) => useToasts.getState().push({ kind: 'error', message }),
-  info: (message: string) => useToasts.getState().push({ kind: 'info', message }),
+  info: (message: string, action?: Toast['action']) => useToasts.getState().push({ kind: 'info', message, action }),
 };

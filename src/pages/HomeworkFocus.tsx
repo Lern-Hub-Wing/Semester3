@@ -19,6 +19,7 @@ import { useData } from '../store/data';
 import { setHomeworkDone, useHomework } from '../store/homework';
 import { stopwatchActions, useStopwatch } from '../store/stopwatch';
 import { useNow } from '../hooks/useNow';
+import { pauseOnLeave } from '../store/autoPause';
 import { RollingDigits } from '../components/FocusPanel';
 import { BarButton, FocusBackdrop } from '../components/focus/FocusChrome';
 import { FocusSettingsPanel } from '../components/focus/FocusSettingsPanel';
@@ -57,6 +58,8 @@ export function HomeworkFocus({ homeworkId, me }: { homeworkId: string; me: Memb
   useEffect(() => {
     void loadClockFont(look.font);
   }, [look.font]);
+  // Zähler schließen → pausieren (Lernzeit zählt nur, solange man hier ist)
+  useEffect(() => () => pauseOnLeave('stopwatch'), []);
 
   useEffect(() => {
     const on = () => setVp({ w: window.innerWidth, h: window.innerHeight });
@@ -170,7 +173,7 @@ export function HomeworkFocus({ homeworkId, me }: { homeworkId: string; me: Memb
         style={{ pointerEvents: controls ? 'auto' : 'none' }}
         className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 pt-[max(env(safe-area-inset-top),14px)] sm:px-6"
       >
-        <BarButton label="Zähler schließen (läuft weiter)" onClick={leave}>
+        <BarButton label="Zähler schließen (pausiert)" onClick={leave}>
           <X className="size-[18px]" />
         </BarButton>
         <span className="num rounded-full px-3 py-1 text-[13px] font-semibold text-white/80" data-testid="hwfocus-clock" aria-label="Uhrzeit">

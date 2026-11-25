@@ -27,6 +27,7 @@ import { CelebrationWatcher } from './components/Celebration';
 import type { Member } from './lib/types';
 import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
+import { installAutoPause } from './store/autoPause';
 import { MountainFlight } from './components/landscape/MountainFlight';
 import { MovedScreen, movedTarget, stayOnSite } from './components/layout/MovedScreen';
 import { rememberReturnPath, returnPath } from './lib/focusReturn';
@@ -130,6 +131,8 @@ function Main() {
     // App: Lernprofil kommt aus dem Konto – keine Profilwahl, keine Push-Anbindung an das alte Projekt
     if (!IS_APP) installResumePrompt();
     installSpotlight();
+    // Timer/Zähler pausieren, wenn StudySpace verlassen wird (Tab, App, Sperrbildschirm)
+    installAutoPause();
     if (!IS_APP) void initPush();
   }, []);
 
