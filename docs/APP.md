@@ -69,7 +69,12 @@ Nichts davon berührt das bisherige Supabase-Projekt. **Führe kein SQL dieser A
    **Achtung:** Dieses Secret läuft spätestens nach 6 Monaten ab und muss dann neu erzeugt werden (Kalendererinnerung setzen).
 3. Danach erscheint „Mit Apple fortfahren“ automatisch.
 
-> Google und Apple wurden ohne echte Zugangsdaten **nicht** end-to-end getestet. Getestet sind Oberfläche, Rückleitung
+**GitHub-Anmeldung (optional, kostenlos):** github.com → Settings → Developer settings → **OAuth Apps → New OAuth App**:
+Homepage `https://lern-hub-wing.github.io/Semester3/app/`, Authorization callback URL `https://<ref>.supabase.co/auth/v1/callback`.
+Client-ID und ein neues Client-Secret in Supabase unter **Authentication → Providers → GitHub** eintragen → aktivieren.
+Danach erscheint „Mit GitHub fortfahren“ automatisch (ohne Aktivierung bleibt der Knopf unsichtbar).
+
+> Google, Apple und GitHub wurden ohne echte Zugangsdaten **nicht** end-to-end getestet. Getestet sind Oberfläche, Rückleitung
 > und die automatische Anzeige der Knöpfe je nach Projekteinstellung.
 
 ### 6. GitHub konfigurieren (Repository → Settings → Secrets and variables → Actions)
@@ -163,6 +168,19 @@ Mit dem aktuellen `supabase-app/app_schema.sql` (erneut ausführen) kommen dazu:
 - **Codes:** Admin → *Codes* erstellt Tarif-Codes (Gruppenpass oder Solo, Laufzeit, Einlösungen, Anzahl) und versendet sie über Teilen, E-Mail oder Link (`/app/#/code/ABCD-2345`). Nutzer lösen in *Einstellungen → Code einlösen* oder im Willkommensbildschirm ein – ein Feld für Einladungs- und Tarif-Codes. Eingelöste Codes sind Freischaltungen (Quelle `code`), nie Umsatz. Höchstens 10 Fehlversuche in 15 Minuten.
 - **Rechtliches:** Nutzungsbedingungen, Datenschutzerklärung und Widerrufsbelehrung stehen in `src/app/legalText.ts` (Vorlage – vor dem Start mit echten Zahlungen rechtlich prüfen lassen). Beim ersten Öffnen und nach jeder neuen Fassung (`LEGAL_VERSION`) stimmt jede Person einmal zu; gespeichert werden Fassung und Zeitpunkt. **Impressum:** Admin → *Impressum* (Name, Anschrift, E-Mail sind Pflicht) – ohne diese Angaben zeigt die App „wird gerade eingetragen“.
 - **Umzug:** Admin → *Umzug* übernimmt die Sicherheitskopie der bisherigen Seite in eine neue Lerngruppe (Gruppenpass ohne Ablauf, als Freischaltung). Alles oder nichts in einer Transaktion; die Rohdatei wird in `site_imports` gesichert; dieselbe Datei geht nur einmal. Beitretende wählen „Wer bist du?“ (`app_claim_member`) und übernehmen Haken und Lernzeiten ihrer alten Person.
+
+### 15a. Umzug mit persönlichen Codes, Admin-Panel aus der App, Lifetime (Migration 0009)
+- **Admin-Panel aus der App:** Admin → *Benutzer* → dein normales App-Konto → **Admin-Rechte geben**. Danach steht in der App
+  unter *Einstellungen → Verwaltung → Admin-Panel* ein direkter Zugang – ohne zweite Anmeldung. Zwei-Faktor bleibt Pflicht:
+  beim ersten Mal auf jedem Gerät einmal den 6-stelligen Code der Authenticator-App eingeben, danach geht es direkt hinein.
+  „Zur App“ führt zurück, ohne dich abzumelden.
+- **Persönliche Umzugs-Codes:** Admin → *Umzug* → nach der Übernahme unter **Persönliche Codes** je Person einen Code erzeugen
+  (Standard: Lifetime, Gruppe; alternativ 30/14/7 Tage; persönliche Nachricht). Die Person legt ein Konto an (z. B. mit Google
+  oder Apple), löst den Code ein und ist **sofort** mit ihrer bisherigen Person verbunden – Haken, Hausaufgaben-Haken und
+  Lernzeiten sind da. Danach erscheint die Begrüßung „Hallo Diana! Du hast Lifetime Access …“. Jeder Code gilt genau einmal;
+  ein neuer Code für dieselbe Person ersetzt den alten.
+- **Code-Vorlagen:** Admin → *Codes* → Schnellwahl 7 Tage · 14 Tage · 30 Tage · 6 Monate · Lifetime.
+- **Lifetime-Tarife (Einmalkauf):** Solo 29,99 € · Gruppe 59,99 € (in der Beta simuliert, kein Umsatz).
 
 ### 15. E-Mails über das eigene Gmail-Konto (statt Supabase-Absender)
 So kommen E-Mails von **eurer** Adresse und im StudySpace-Design (Logo, Lila, Deutsch) – nicht vom Supabase-Standardabsender.

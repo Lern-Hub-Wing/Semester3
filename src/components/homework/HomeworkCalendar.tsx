@@ -32,6 +32,8 @@ export function HomeworkCalendar({ window, due, units, today, examDays = [], col
           <div className="mt-1 grid grid-cols-7 gap-1">
             {monthGrid(m).map((d) => {
               const inMonth = isSameMonth(d, m);
+              // Tage des Nachbarmonats nur als leere Platzhalter – sonst stehen sie bei Monatswechseln doppelt da
+              if (!inMonth) return <span key={d} aria-hidden className="aspect-square" />;
               const isWork = work.has(d);
               const isDue = d === due;
               const n = unitCount[d] ?? 0;
@@ -45,7 +47,7 @@ export function HomeworkCalendar({ window, due, units, today, examDays = [], col
                   data-work={isWork || undefined}
                   data-due={isDue || undefined}
                   data-units={n || undefined}
-                  className={`relative grid aspect-square place-items-center rounded-[10px] text-[12.5px] ${inMonth ? '' : 'opacity-0'} ${isDue ? 'font-semibold text-white' : isWork ? 'text-ink' : 'text-faint'}`}
+                  className={`relative grid aspect-square place-items-center rounded-[10px] text-[12.5px] ${isDue ? 'font-semibold text-white' : isWork ? 'text-ink' : 'text-faint'}`}
                   style={{
                     background: isDue ? 'var(--ss-danger)' : isWork ? `color-mix(in srgb, ${color} 16%, transparent)` : undefined,
                     boxShadow: d === today ? `inset 0 0 0 1.5px ${color}` : undefined,

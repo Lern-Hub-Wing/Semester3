@@ -60,11 +60,16 @@ interface CodeRow {
   created_at: string;
   revoked_at: string | null;
   redeemed_by: string[];
+  member_name?: string | null;
 }
 
 const codeLink = (code: string) => `${appBase()}#/code/${code}`;
+const planWord = (c: Pick<CodeRow, 'plan' | 'days'>) => `${c.plan === 'plus_grant' ? 'Gruppe' : 'Solo'}${c.days ? ` für ${c.days} Tage` : ' – Lifetime (ohne Ablauf)'}`;
 const codeText = (c: Pick<CodeRow, 'plan' | 'days'>) =>
-  `Dein StudySpace-Code: ${c.plan === 'plus_grant' ? 'Gruppenpass' : 'Solo'}${c.days ? ` für ${c.days} Tage` : ''}. Einlösen in der App unter Einstellungen → Code einlösen oder direkt über den Link:`;
+  `Dein StudySpace-Code: ${planWord(c)}. Einlösen in der App unter Einstellungen → Code einlösen oder direkt über den Link:`;
+/** Nachricht für einen persönlichen Umzugs-Code */
+const moveText = (name: string, c: Pick<CodeRow, 'plan' | 'days'>) =>
+  `Hallo ${name}! StudySpace ist jetzt eine App. Leg dir ein Konto an (z. B. mit Google oder Apple) und löse deinen persönlichen Code ein – dann ist dein ganzer Fortschritt wieder da, und du bekommst ${c.days ? `${planWord(c)}` : 'Lifetime Access'} geschenkt:`;
 
 export function CodesTab() {
   const [rows, setRows] = useState<CodeRow[] | null>(null);
@@ -110,12 +115,26 @@ export function CodesTab() {
           value={plan}
           onChange={setPlan}
           options={[
-            { value: 'plus_grant', label: 'Gruppenpass' },
+            { value: 'plus_grant', label: 'Gruppe (alle Funktionen)' },
             { value: 'solo_grant', label: 'Solo' },
           ]}
         />
+        {/* Schnellwahl der Laufzeit – Feld darunter bleibt frei einstellbar */}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Laufzeit-Vorlagen" data-testid="codes-presets">
+          {[
+            { d: '7', l: '7 Tage' },
+            { d: '14', l: '14 Tage' },
+            { d: '30', l: '30 Tage' },
+            { d: '182', l: '6 Monate' },
+            { d: '', l: 'Lifetime' },
+          ].map((o) => (
+            <button key={o.l} type="button" aria-pressed={days === o.d} onClick={() => setDays(o.d)} className={`min-h-9 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${days === o.d ? 'bg-[var(--ss-accent)] text-[var(--ss-btn-text)]' : 'bg-[var(--ss-surface-2)] text-muted hover:text-ink'}`}>
+              {o.l}
+            </button>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <TextField label="Laufzeit (Tage)" inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, '').slice(0, 4))} hint="leer = ohne Ablauf" />
+          <TextField label="Laufzeit (Tage)" inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, '').slice(0, 4))} hint="leer = Lifetime (ohne Ablauf)" />
           <TextField label="Einlösungen je Code" inputMode="numeric" value={uses} onChange={(e) => setUses(e.target.value.replace(/\D/g, '').slice(0, 4))} />
           <TextField label="Anzahl Codes" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value.replace(/\D/g, '').slice(0, 2))} />
           <TextField label="Notiz (intern)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="z. B. Lerngruppe Semester 3" />
@@ -144,7 +163,7 @@ export function CodesTab() {
               <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-[14px]">
                 <span className={`num font-mono font-semibold tracking-wider ${c.revoked_at ? 'text-faint line-through' : ''}`}>{c.code}</span>
                 <span className="text-muted">
-                  {c.plan === 'plus_grant' ? 'Gruppenpass' : 'Solo'} · {c.days ? `${c.days} Tage` : 'ohne Ablauf'} · {c.uses}/{c.max_uses} eingelöst
+                  {c.plan === 'plus_grant' ? 'Gruppe' : 'Solo'} · {c.days ? `${c.days} Tage` : 'Lifetime'} · {c.uses}/{c.max_uses} eingelöst{c.member_name ? ` · Umzug: ${c.member_name}` : ''}
                 </span>
                 {c.note && <span className="text-faint">„{c.note}“</span>}
                 <span className="ml-auto flex items-center gap-1.5">
@@ -320,7 +339,136 @@ export function MoveTab() {
           </Card>
         </>
       )}
+
+      <MovePeople refreshKey={result?.group_id ?? ''} />
     </div>
+  );
+}
+
+interface MovePerson {
+  id: string;
+  name: string;
+  color: string;
+  email: string | null;
+  tasks_done: number;
+  focus_minutes: number;
+  code: { id: string; code: string; plan: 'plus_grant' | 'solo_grant'; days: number | null } | null;
+}
+
+/**
+ * Persönliche Umzugs-Codes: je Person EIN Code. Einlösen = Lerngruppe beitreten,
+ * eigene Person mit allem Fortschritt übernehmen und Zugang erhalten (Standard: Lifetime, Gruppe).
+ */
+function MovePeople({ refreshKey }: { refreshKey: string }) {
+  const [groups, setGroups] = useState<{ id: string; name: string; open: number }[] | null>(null);
+  const [gid, setGid] = useState('');
+  const [people, setPeople] = useState<MovePerson[] | null>(null);
+  const [pick, setPick] = useState<string[]>([]);
+  const [access, setAccess] = useState<'lifetime' | '30' | '14' | '7'>('lifetime');
+  const [welcome, setWelcome] = useState('Danke, dass du StudySpace mit uns testest – dein Feedback macht die App jeden Tag besser!');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    rpc<{ id: string; name: string; open: number }[]>('admin_move_groups')
+      .then((g) => {
+        setGroups(g);
+        setGid((cur) => cur || g[0]?.id || '');
+      })
+      .catch(() => setGroups([]));
+  }, [refreshKey]);
+  const loadPeople = useCallback(() => {
+    if (!gid) return setPeople(null);
+    rpc<{ people: MovePerson[] }>('admin_move_people', { p_group: gid })
+      .then((r) => {
+        setPeople(r.people);
+        setPick(r.people.filter((p) => !p.email && !p.code).map((p) => p.id));
+      })
+      .catch((e: Error) => toast.error(e.message));
+  }, [gid]);
+  useEffect(loadPeople, [loadPeople]);
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      await rpc('admin_create_move_codes', { p_group: gid, p_members: pick, p_plan: 'plus_grant', p_days: access === 'lifetime' ? null : Number(access), p_welcome: welcome.trim() || null });
+      toast.success(pick.length === 1 ? 'Code erstellt' : `${pick.length} Codes erstellt`);
+      loadPeople();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!groups || groups.length === 0) return null;
+  return (
+    <>
+      <Title>Persönliche Codes – Fortschritt mitnehmen</Title>
+      <Card className="flex flex-col gap-3.5" testId="move-people">
+        <p className="text-[14px] leading-snug text-muted">
+          Jede Person bekommt einen eigenen Code. Beim Einlösen tritt sie der Lerngruppe bei, ist sofort mit ihrer bisherigen Person verbunden (Haken, Hausaufgaben, Lernzeiten) und bekommt den Zugang freigeschaltet – mit persönlicher Begrüßung.
+        </p>
+        {groups.length > 1 && (
+          <SelectField label="Lerngruppe" value={gid} onChange={(e) => setGid(e.target.value)}>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} ({g.open} offen)
+              </option>
+            ))}
+          </SelectField>
+        )}
+        {!people ? (
+          <p className="text-[14px] text-muted">Lädt …</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {people.map((p) => {
+              const linked = !!p.email;
+              return (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl bg-[var(--ss-surface-2)] px-3 py-2.5" data-testid="move-person">
+                  <label className={`flex min-w-0 flex-1 items-center gap-3 ${linked ? '' : 'cursor-pointer'}`}>
+                    <input type="checkbox" className="size-5 accent-[var(--ss-accent)]" disabled={linked} checked={pick.includes(p.id)} onChange={(e) => setPick(e.target.checked ? [...pick, p.id] : pick.filter((x) => x !== p.id))} aria-label={`Code für ${p.name}`} />
+                    <span className="size-3 shrink-0 rounded-full" style={{ background: p.color }} aria-hidden />
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{p.name}</span>
+                      <span className="block text-[12.5px] text-muted">
+                        {p.tasks_done} Haken · {Math.round(p.focus_minutes / 6) / 10} h Lernzeit · {linked ? `verbunden mit ${p.email}` : p.code ? 'Code offen' : 'noch ohne Konto'}
+                      </span>
+                    </span>
+                  </label>
+                  {!linked && p.code && (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="num font-mono text-[15px] font-semibold tracking-[0.16em]" data-testid="move-person-code">{p.code.code}</span>
+                      <Button size="sm" icon={<Share2 className="size-4" />} onClick={() => void share(moveText(p.name, p.code!), codeLink(p.code!.code))}>
+                        Senden
+                      </Button>
+                      <Button size="sm" variant="ghost" icon={<Copy className="size-4" />} onClick={() => void copy(`${moveText(p.name, p.code!)} ${codeLink(p.code!.code)}`)}>
+                        Kopieren
+                      </Button>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <Segmented
+          label="Zugang"
+          value={access}
+          onChange={setAccess}
+          options={[
+            { value: 'lifetime', label: 'Lifetime' },
+            { value: '30', label: '30 Tage' },
+            { value: '14', label: '14 Tage' },
+            { value: '7', label: '7 Tage' },
+          ]}
+        />
+        <TextField label="Persönliche Nachricht in der Begrüßung (optional)" value={welcome} maxLength={500} onChange={(e) => setWelcome(e.target.value)} />
+        <Button variant="primary" icon={<Ticket className="size-4" />} loading={busy} disabled={pick.length === 0} onClick={() => void create()} data-testid="move-codes-create">
+          {pick.length === 0 ? 'Personen wählen' : `${pick.length} ${pick.length === 1 ? 'Code' : 'Codes'} erstellen`}
+        </Button>
+        <p className="text-[12.5px] text-faint">Ein neuer Code für dieselbe Person ersetzt den alten. Codes funktionieren genau einmal.</p>
+      </Card>
+    </>
   );
 }
 

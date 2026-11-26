@@ -1,22 +1,57 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../lib/config';
+import { getSupabase } from '../lib/supabase';
+import { authStorage } from '../app/authStorage';
+
+const OWN_KEY = 'studyspace-admin-auth';
+const APP_KEY = 'studyspace-app-auth';
 
 /**
- * Eigener Supabase-Client für den Admin-Bereich: Sitzung nur in diesem Tab
- * (sessionStorage), getrennt von einer normalen App-Anmeldung im selben Browser.
+ * Supabase-Client für den Admin-Bereich.
+ *  – Ist man in der App mit einem Admin-Konto angemeldet (Einstellungen → Admin-Panel),
+ *    nutzt der Admin-Bereich DIESE Sitzung – keine zweite Anmeldung (Zwei-Faktor bleibt Pflicht).
+ *  – Sonst eigener Client: Sitzung nur in diesem Tab (sessionStorage), getrennt von der App.
  */
 let client: SupabaseClient | null = null;
+let mode: 'app' | 'own' | null = null;
+let forceOwn = false;
+
+function hasOwnSession(): boolean {
+  try {
+    return !!window.sessionStorage.getItem(OWN_KEY);
+  } catch {
+    return false;
+  }
+}
+
 export function adminDb(): SupabaseClient {
-  client ??= createClient(config.supabaseUrl, config.supabaseKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-      storageKey: 'studyspace-admin-auth',
-      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-    },
+  if (client) return client;
+  if (!forceOwn && !hasOwnSession() && authStorage.getItem(APP_KEY)) {
+    client = getSupabase();
+    mode = 'app';
+    return client;
+  }
+  client = createClient(config.supabaseUrl, config.supabaseKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: OWN_KEY, storage: typeof window !== 'undefined' ? window.sessionStorage : undefined },
   });
+  mode = 'own';
   return client;
+}
+
+/** Läuft der Admin-Bereich mit der Sitzung der App? (Abmelden führt dann zurück in die App, statt dort abzumelden.) */
+export const adminUsesAppSession = () => mode === 'app';
+
+/** App-Konto ohne Admin-Rechte → auf die eigene Admin-Anmeldung wechseln (die App-Sitzung bleibt unberührt) */
+export function adminSwitchToOwnLogin(): void {
+  forceOwn = true;
+  client = null;
+  mode = null;
+}
+
+/** Zurück in die App (gleiche Adresse ohne /admin/) */
+export function backToApp(): void {
+  const { origin, pathname } = window.location;
+  window.location.href = origin + pathname.replace(/admin\/?(index\.html)?$/, '');
 }
 
 /** Aufruf der Edge Function admin-auth (Benutzername statt E-Mail, Ersteinrichtung). */

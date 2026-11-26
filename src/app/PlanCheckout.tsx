@@ -66,7 +66,7 @@ export function PlanCheckout({ tier, onDone, compact }: { tier: 'solo' | 'group'
           </ul>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Laufzeit">
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Laufzeit">
         {options.map((o) => {
           const on = o.id === plan;
           return (
@@ -81,11 +81,11 @@ export function PlanCheckout({ tier, onDone, compact }: { tier: 'solo' | 'group'
                 on ? 'border-[var(--ss-accent)] bg-[color-mix(in_srgb,var(--ss-accent)_10%,transparent)]' : 'border-line hover:bg-[color-mix(in_srgb,var(--ss-text)_4%,transparent)]'
               }`}
             >
-              {o.period === 'semester' && (
-                <span className="absolute -top-2 right-2 rounded-full bg-[var(--ss-accent)] px-2 py-0.5 text-[10.5px] font-semibold text-white">Semester</span>
+              {o.period === 'lifetime' && (
+                <span className="absolute -top-2 right-2 rounded-full bg-[var(--ss-accent)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--ss-btn-text)]">Für immer</span>
               )}
-              <p className="text-[12px] font-medium text-muted">{o.period === 'monthly' ? 'Monatlich' : '6 Monate'}</p>
-              <p className="num text-[21px] font-semibold leading-tight">{o.price}</p>
+              <p className="text-[12px] font-medium text-muted">{o.period === 'monthly' ? 'Monatlich' : o.period === 'semester' ? '6 Monate' : 'Lifetime'}</p>
+              <p className="num text-[19px] font-semibold leading-tight sm:text-[21px]">{o.price}</p>
               <p className="text-[11.5px] text-muted">{o.per}</p>
             </button>
           );

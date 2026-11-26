@@ -16,7 +16,7 @@ import { FinanceSimulator } from './Finance';
 import { CodesTab, LegalTab, MailTab, MoveTab } from './Tools';
 import { Switch } from '../components/ui/Switch';
 import {
-  adminAuth, adminDb, euro, fmtDate, PLAN_LABEL, rpc, SOURCE_LABEL, type AdminGroup, type AdminUser, type Entitlement, type Stats,
+  adminAuth, adminDb, adminSwitchToOwnLogin, adminUsesAppSession, backToApp, euro, fmtDate, PLAN_LABEL, rpc, SOURCE_LABEL, type AdminGroup, type AdminUser, type Entitlement, type Stats,
 } from './client';
 
 type Phase = 'checking' | 'setup' | 'login' | 'mfa' | 'ready' | 'unconfigured';
@@ -34,6 +34,12 @@ export function AdminApp() {
     if (data.session) {
       const who = await rpc<{ is_admin: boolean; ok: boolean }>('admin_whoami').catch(() => null);
       if (!who?.is_admin) {
+        if (adminUsesAppSession()) {
+          // App-Konto ohne Admin-Rechte: App-Sitzung NICHT abmelden, sondern zur Admin-Anmeldung wechseln
+          adminSwitchToOwnLogin();
+          setNotice('Dein App-Konto hat keine Admin-Rechte. Melde dich mit dem Admin-Zugang an.');
+          return setPhase('login');
+        }
         await db.auth.signOut();
         setNotice('Dieses Konto hat keinen Admin-Zugang.');
         return setPhase('login');
@@ -55,6 +61,8 @@ export function AdminApp() {
   }, [check]);
 
   const logout = useCallback(async () => {
+    // Mit der App-Sitzung: nicht aus der App abmelden, sondern zurück in die App
+    if (adminUsesAppSession()) return backToApp();
     await adminDb().auth.signOut();
     setPhase('login');
   }, []);
@@ -108,7 +116,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <p className="text-[12px] text-muted">angemeldet mit Zwei-Faktor</p>
           </div>
           <Button size="sm" icon={<LogOut className="size-4" />} onClick={onLogout}>
-            Abmelden
+            {adminUsesAppSession() ? "Zur App" : "Abmelden"}
           </Button>
         </header>
         <div className="scroll-thin -mx-4 mb-6 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -617,6 +625,14 @@ function UserDetail({ id, onClose, onChanged }: { id: string; onClose: () => voi
             <Entitlements list={u.entitlements} onChanged={changed} ask={setConfirm} />
           </div>
           {!u.is_admin && <GrantForm type="user" target={u.id} onDone={changed} />}
+          {u.is_admin && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[13.5px] text-muted">Hat Admin-Rechte.</span>
+              <Button size="sm" variant="ghost" icon={<ShieldOff className="size-4" />} onClick={() => setConfirm({ title: 'Admin-Rechte entziehen?', text: 'Das Konto bleibt bestehen, kommt aber nicht mehr in den Admin-Bereich.', action: 'Entziehen', danger: true, run: async () => (await rpc('admin_revoke_admin', { p_user: u.id }), toast.success('Admin-Rechte entzogen'), changed()) })}>
+                Admin-Rechte entziehen
+              </Button>
+            </div>
+          )}
           {!u.is_admin && (
             <div className="flex flex-wrap gap-2">
               {u.status === 'active' ? (
@@ -635,6 +651,21 @@ function UserDetail({ id, onClose, onChanged }: { id: string; onClose: () => voi
                   Entsperren
                 </Button>
               )}
+              <Button
+                size="sm"
+                icon={<ShieldCheck className="size-4" />}
+                data-testid="grant-admin"
+                onClick={() =>
+                  setConfirm({
+                    title: 'Admin-Rechte geben?',
+                    text: 'Dieses App-Konto sieht dann in den Einstellungen „Admin-Panel“ und kommt ohne zweite Anmeldung hinein (Zwei-Faktor bleibt Pflicht). Nur an eigene Konten vergeben.',
+                    action: 'Admin-Rechte geben',
+                    run: async () => (await rpc('admin_grant_admin', { p_email: u.email }), toast.success('Admin-Rechte vergeben'), changed()),
+                  })
+                }
+              >
+                Admin-Rechte geben
+              </Button>
               <Button
                 size="sm"
                 icon={<ShieldOff className="size-4" />}

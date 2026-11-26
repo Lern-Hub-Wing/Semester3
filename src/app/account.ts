@@ -224,7 +224,7 @@ export async function signUp(email: string, password: string, displayName: strin
   return { needsConfirmation: !data.session };
 }
 
-export async function signInWithProvider(provider: Extract<Provider, 'google' | 'apple'>, remember: boolean) {
+export async function signInWithProvider(provider: Extract<Provider, 'google' | 'apple' | 'github'>, remember: boolean) {
   setRemember(remember);
   const { error } = await getSupabase().auth.signInWithOAuth({ provider, options: { redirectTo: appUrl() } });
   if (error) throw error;
@@ -289,6 +289,7 @@ export function reloadIntoGroup() {
 export interface AuthProviders {
   google: boolean;
   apple: boolean;
+  github: boolean;
   email: boolean;
   signupDisabled: boolean;
   autoconfirm: boolean;
@@ -304,6 +305,7 @@ export function loadProviders(): Promise<AuthProviders | null> {
         ? {
             google: !!s.external?.google,
             apple: !!s.external?.apple,
+            github: !!s.external?.github,
             email: s.external?.email !== false,
             signupDisabled: !!s.disable_signup,
             autoconfirm: !!s.mailer_autoconfirm,

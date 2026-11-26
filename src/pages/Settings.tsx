@@ -9,6 +9,7 @@ import { config, LIMITS } from '../lib/config';
 import { validateImport, type ValidationResult } from '../lib/backup';
 import { Link, navigate } from '../lib/router';
 import { startStudyMode } from '../lib/studyModeStart';
+import { appUrl } from '../app/account';
 import { isHapticsSupported } from '../lib/haptics';
 import { useData, useSyncStatus } from '../store/data';
 import { useAllMembers, useAppName, useModules } from '../store/derived';
@@ -172,6 +173,8 @@ interface NavRow {
   testId?: string;
   /** Suchbegriffe (zusätzlich zum Titel) */
   keywords: string;
+  /** statt Link: eigene Aktion (z. B. Admin-Panel unter /app/admin/) */
+  onClick?: () => void;
 }
 interface NavGroup {
   title?: string;
@@ -204,7 +207,7 @@ function SettingsNav({ active, areas = false }: { active?: SectionKey; areas?: b
       {filtered.map((g, i) => (
         <ListGroup key={g.title ?? i} title={g.title}>
           {g.rows.map((r) => (
-            <ListRow key={r.to} icon={r.icon} tint={r.tint} label={r.label} value={r.value} to={r.to} active={r.active} testId={r.testId} />
+            <ListRow key={r.to} icon={r.icon} tint={r.tint} label={r.label} value={r.value} to={r.onClick ? undefined : r.to} onClick={r.onClick} active={r.active} testId={r.testId} />
           ))}
         </ListGroup>
       ))}
@@ -296,6 +299,10 @@ function useNavGroups(active?: SectionKey): NavGroup[] {
           about,
         ],
       },
+      // Nur für Admin-Konten: direkt ins Admin-Panel (gleiche Anmeldung, Zwei-Faktor bleibt Pflicht)
+      ...(me?.is_admin
+        ? [{ title: 'Verwaltung', rows: [{ icon: <ShieldCheck />, tint: TINT.indigo, label: 'Admin-Panel', value: 'Codes, Umzug, Nutzer', to: '/admin', testId: 'settings-admin', keywords: 'admin verwaltung codes umzug nutzer', onClick: () => (window.location.href = `${appUrl()}admin/`) }] }]
+        : []),
     ];
 
   const activeMembers = members.filter((m) => m.is_active).length;

@@ -9,6 +9,7 @@ import { TINT } from '../lib/tints';
 import { api, isMissingFunction, PLAN_NAMES, type RedeemResult } from './api';
 import { clearPendingInvite, reloadIntoGroup, refreshMe, useAccount } from './account';
 import { takePendingPromo } from './pendingCode';
+import { rememberMoveWelcome } from './MoveWelcome';
 export { takePendingPromo };
 
 /** Formatiert die Eingabe als XXXX-XXXX (ohne verwechselbare Zeichen) */
@@ -39,6 +40,12 @@ export function useRedeem() {
       if (res.kind === 'invalid') {
         setError(res.message);
       } else if (res.kind === 'group') {
+        clearPendingInvite();
+        reloadIntoGroup();
+        return res;
+      } else if (res.kind === 'move') {
+        // Nach dem Neuladen begrüßt die App persönlich (MoveWelcome)
+        rememberMoveWelcome(res);
         clearPendingInvite();
         reloadIntoGroup();
         return res;
