@@ -136,6 +136,19 @@ export function Settings({ section }: { section?: string }) {
   }
 
   const active = key ?? (IS_APP ? 'konto' : 'darstellung');
+  return <WideSettings active={active} />;
+}
+
+/** Breiter Bildschirm: Liste links, Bereich rechts. Beim Wechsel nach oben, sonst liegt der neue Bereich außer Sicht. */
+function WideSettings({ active }: { active: SectionKey }) {
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [active]);
   return (
     <div>
       <PageHeader title="Einstellungen" />

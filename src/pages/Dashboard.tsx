@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { AlarmClock, BookOpen, CalendarDays, CalendarRange, ChartLine, ChevronRight, Clock3, GraduationCap, Music2, Play, Users } from 'lucide-react';
+import { IS_APP } from '../lib/edition';
+import { AlarmClock, BookOpen, CalendarDays, CalendarRange, ChartLine, ChevronRight, Clock3, GraduationCap, Music2, Play, Sparkles, Users } from 'lucide-react';
 import type { Member } from '../lib/types';
 import { groupBy, memberRatio, overdueFor, type TaskView } from '../lib/progress';
 import { addDaysISO, formatISODate, formatInstant, greetingFor, relativeDayLabel } from '../lib/time';
@@ -96,7 +97,8 @@ function QuickLinks() {
   const items = [
     { to: '/faecher', icon: <BookOpen />, label: 'Fächer' },
     { to: '/analyse', icon: <ChartLine />, label: 'Statistik' },
-    { to: '/lernplan?ansicht=timeline', icon: <CalendarRange />, label: 'Timeline' },
+    // App: KI-Lernplan statt Timeline (die Timeline steckt im Lernplan)
+    IS_APP ? { to: '/ki-lernplan', icon: <Sparkles />, label: 'KI-Plan' } : { to: '/lernplan?ansicht=timeline', icon: <CalendarRange />, label: 'Timeline' },
     { to: '/musik', icon: <Music2 />, label: 'Musik' },
   ];
   return (
