@@ -14,6 +14,7 @@ import { LogoMark } from '../components/Logo';
 import { api } from './api';
 import { useAccount } from './account';
 import { useDesignChosen } from '../lib/accents';
+import { useMoveWelcomePending } from './MoveWelcome';
 
 /**
  * Geführte Einführung: Ein Lichtkegel wandert zu den echten Bedienelementen,
@@ -237,7 +238,9 @@ export function TourHost() {
   const me = useAccount((s) => s.me);
   const phase = useData((s) => s.phase);
   const open = useTour((s) => s.open);
-  const chosen = useDesignChosen();
+  const designChosen = useDesignChosen();
+  const moveWelcome = useMoveWelcomePending();
+  const chosen = designChosen && !moveWelcome;
 
   useEffect(() => {
     // nur einmal je Sitzung automatisch – sonst startet sie nach einem Seitenwechsel (z. B. Fokus) von vorn

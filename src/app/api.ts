@@ -6,13 +6,13 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type PaidPlan = 'solo_monthly' | 'solo_semester' | 'group_monthly' | 'group_semester';
+export type PaidPlan = 'solo_monthly' | 'solo_semester' | 'solo_lifetime' | 'group_monthly' | 'group_semester' | 'group_lifetime';
 export type PlanId = PaidPlan | 'trial' | 'solo_grant' | 'plus_grant' | 'plus_monthly' | 'semester_pass';
 
 export interface PlanOffer {
   id: PaidPlan;
   tier: 'solo' | 'group';
-  period: 'monthly' | 'semester';
+  period: 'monthly' | 'semester' | 'lifetime';
   price: string;
   cents: number;
   per: string;
@@ -23,8 +23,10 @@ export interface PlanOffer {
 export const OFFERS: Record<PaidPlan, PlanOffer> = {
   solo_monthly: { id: 'solo_monthly', tier: 'solo', period: 'monthly', price: '2,49 €', cents: 249, per: '/ Monat', note: 'verlängert sich monatlich, jederzeit kündbar' },
   solo_semester: { id: 'solo_semester', tier: 'solo', period: 'semester', price: '11,99 €', cents: 1199, per: 'für 6 Monate', note: 'endet nach 6 Monaten automatisch' },
+  solo_lifetime: { id: 'solo_lifetime', tier: 'solo', period: 'lifetime', price: '29,99 €', cents: 2999, per: 'einmalig', note: 'einmal zahlen, für immer nutzen – kein Abo' },
   group_monthly: { id: 'group_monthly', tier: 'group', period: 'monthly', price: '4,99 €', cents: 499, per: '/ Monat', note: 'verlängert sich monatlich, jederzeit kündbar' },
   group_semester: { id: 'group_semester', tier: 'group', period: 'semester', price: '24,99 €', cents: 2499, per: 'für 6 Monate', note: 'endet nach 6 Monaten automatisch' },
+  group_lifetime: { id: 'group_lifetime', tier: 'group', period: 'lifetime', price: '59,99 €', cents: 5999, per: 'einmalig', note: 'einmal zahlen, für immer nutzen – für die ganze Gruppe, kein Abo' },
 };
 
 /** Die drei Zugangsmodelle für die Anzeige. */
@@ -41,7 +43,7 @@ export const TIERS = [
     name: 'StudySpace Solo',
     price: '2,49 €',
     per: '/ Monat',
-    alt: '11,99 € für 6 Monate',
+    alt: '11,99 € für 6 Monate · 29,99 € für immer',
     points: ['Persönlicher Lernplan und Hausaufgaben', 'Prüfungen, Fokusmodus und Statistiken', 'Auf allen Geräten synchron'],
   },
   {
@@ -49,7 +51,7 @@ export const TIERS = [
     name: 'StudySpace Gruppe',
     price: '4,99 €',
     per: '/ Monat',
-    alt: '24,99 € für 6 Monate',
+    alt: '24,99 € für 6 Monate · 59,99 € für immer',
     points: ['Alle Solo-Funktionen', 'Gemeinsamer Lernplan, Gruppenfortschritt, gemeinsame Ziele', 'Bis zu 8 Lernende – nur eine Person bezahlt'],
   },
 ];
@@ -60,6 +62,8 @@ export const PLAN_NAMES: Record<string, string> = {
   solo_semester: 'Solo · 6 Monate',
   group_monthly: 'Gruppe monatlich',
   group_semester: 'Gruppe · 6 Monate',
+  solo_lifetime: 'Solo · Lifetime',
+  group_lifetime: 'Gruppe · Lifetime',
   solo_grant: 'Solo (Freischaltung)',
   plus_grant: 'Gruppe (Freischaltung)',
   plus_monthly: 'Gruppe monatlich',
@@ -116,6 +120,8 @@ export interface Me {
 export type RedeemResult =
   | { kind: 'group'; group_id: string; name: string; claimable: number }
   | { kind: 'plan'; plan: 'solo_grant' | 'plus_grant'; ends_at: string | null }
+  /** Persönlicher Umzugs-Code: Gruppe beigetreten, eigene Person mit Fortschritt übernommen, Zugang freigeschaltet */
+  | { kind: 'move'; plan: 'solo_grant' | 'plus_grant'; ends_at: string | null; group_id: string; group_name: string; member_name: string; welcome: string | null; tasks_done: number }
   | { kind: 'invalid'; message: string };
 
 export interface Imprint {

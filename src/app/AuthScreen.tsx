@@ -56,8 +56,8 @@ export function AuthFrame({ title, subtitle, children, wide }: { title: string; 
           {title}
         </motion.h1>
         {subtitle && (
-          // Gleiche lesbare Glas-Pille wie das Datum auf der bisherigen Startseite
-          <p className="mt-2.5 max-w-sm rounded-[18px] bg-[color-mix(in_srgb,var(--ss-bg)_62%,transparent)] px-3.5 py-1.5 text-center text-[14px] font-medium leading-snug text-ink backdrop-blur-md">
+          // Ruhige Unterzeile direkt auf dem Bild – ohne Kapsel
+          <p className="auth-sub mt-2 max-w-sm text-center text-[14.5px] font-medium leading-snug text-ink">
             {subtitle}
           </p>
         )}
@@ -94,6 +94,14 @@ function GoogleIcon() {
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.65l-3.54-2.75c-.98.66-2.24 1.05-3.74 1.05-2.87 0-5.3-1.94-6.17-4.55H2.17v2.84A11 11 0 0 0 12 23Z" />
       <path fill="#FBBC05" d="M5.83 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.17a11 11 0 0 0 0 9.88l3.66-2.84Z" />
       <path fill="#EA4335" d="M12 5.35c1.62 0 3.07.56 4.21 1.65l3.15-3.15A10.96 10.96 0 0 0 12 1 11 11 0 0 0 2.17 7.06l3.66 2.84C6.7 7.3 9.13 5.35 12 5.35Z" />
+    </svg>
+  );
+}
+
+function GithubIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[18px]" aria-hidden fill="currentColor">
+      <path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z" />
     </svg>
   );
 }
@@ -215,6 +223,8 @@ export function AuthScreen() {
   // Ohne Antwort der Supabase-Einstellungen (z. B. offline) werden beide Wege angeboten
   const showGoogle = providers ? providers.google : true;
   const showApple = providers ? providers.apple : true;
+  // GitHub nur, wenn im Supabase-Projekt eingeschaltet (optional)
+  const showGithub = providers ? providers.github : false;
   const canSignUp = !providers?.signupDisabled;
 
   if (mode === 'check-mail')
@@ -279,7 +289,7 @@ export function AuthScreen() {
             className="w-full"
           />
         )}
-        {mode !== 'reset' && (showGoogle || showApple) && (
+        {mode !== 'reset' && (showGoogle || showApple || showGithub) && (
           <>
             <div className="flex flex-col gap-2.5">
               {showApple && (
@@ -290,6 +300,11 @@ export function AuthScreen() {
               {showGoogle && (
                 <Button size="lg" className="w-full" loading={busy === 'google'} icon={<GoogleIcon />} onClick={() => void run('google', () => signInWithProvider('google', remember))}>
                   Mit Google fortfahren
+                </Button>
+              )}
+              {showGithub && (
+                <Button size="lg" className="w-full" loading={busy === 'github'} icon={<GithubIcon />} onClick={() => void run('github', () => signInWithProvider('github', remember))}>
+                  Mit GitHub fortfahren
                 </Button>
               )}
             </div>

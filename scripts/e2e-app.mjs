@@ -462,6 +462,19 @@ try {
     assert(mock.state.feedback.length === 1, 'Feedback gespeichert');
     await shot(mo, '14-hilfe');
   });
+  await check('Umzug: persönliche Begrüßung nach dem Einlösen (Lifetime, Fortschritt)', async () => {
+    await mo.goto(`${BASE}#/`);
+    await mo.evaluate(() => sessionStorage.setItem('studyspace.move.welcome', JSON.stringify({ kind: 'move', plan: 'plus_grant', ends_at: null, group_id: 'x', group_name: 'Semester 3', member_name: 'Diana', welcome: 'Danke fürs Testen!', tasks_done: 12 })));
+    await mo.reload();
+    const w = mo.getByTestId('move-welcome');
+    await w.waitFor({ timeout: 8000 });
+    const text = await w.innerText();
+    assert(/Hallo Diana!/.test(text) && /Lifetime Access/.test(text) && /12 erledigte Aufgaben/.test(text) && /Danke fürs Testen!/.test(text), text);
+    await shot(mo, '17-umzug-willkommen');
+    await mo.getByTestId('move-welcome-done').click();
+    await w.waitFor({ state: 'detached' });
+    assert((await mo.evaluate(() => sessionStorage.getItem('studyspace.move.welcome'))) === null, 'Begrüßung kommt nur einmal');
+  });
   await check('E-Mail testen: Beispiel-Anmeldecode an die eigene Adresse', async () => {
     await mo.goto(`${BASE}#/einstellungen/konto`);
     await mo.getByTestId('mail-test-send').click();

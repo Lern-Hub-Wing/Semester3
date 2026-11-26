@@ -4,6 +4,7 @@ import { config } from './lib/config';
 import { FILES_ENABLED, IS_APP } from './lib/edition';
 import { purgeTrashOnce } from './lib/trashPurge';
 import { DesignChooser } from './components/DesignChooser';
+import { MoveWelcome } from './app/MoveWelcome';
 import { AppGate, PlusBanner } from './app/AppGate';
 import { useAccount } from './app/account';
 import { Splash } from './app/AuthScreen';
@@ -210,6 +211,8 @@ function Main() {
       {me && <HomeworkFinishWatcher />}
       {/* Erster Start auf diesem Gerät: Design wählen (Lila oder Graphit) */}
       {me && me.is_active && <DesignChooser />}
+      {/* App: persönliche Begrüßung nach dem Einlösen eines Umzugs-Codes */}
+      {IS_APP && me && me.is_active && <MoveWelcome />}
       {me && <FocusWatcher />}
       {!IS_APP && me && me.is_active && <PushOnboarding me={me} />}
       {!IS_APP && me && me.is_active && <PushMemberSwitch me={me} members={members} />}

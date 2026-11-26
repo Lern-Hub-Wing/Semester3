@@ -2345,3 +2345,10 @@ html.dark[data-accent='graphit'] {
   80% { opacity: 1; }
   100% { opacity: 0; stroke-dashoffset: 0; transform: scale(1.02); }
 }
+
+/* Anmeldung: Unterzeile direkt auf dem Bergbild – weicher Lichthof statt Kapsel (hell), Schatten (dunkel) */
+.auth-sub {
+  text-shadow:
+    0 0 14px color-mix(in srgb, var(--ss-bg) 90%, transparent),
+    0 0 4px color-mix(in srgb, var(--ss-bg) 80%, transparent);
+}

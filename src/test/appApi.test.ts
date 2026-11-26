@@ -22,7 +22,7 @@ describe('Einladungscodes', () => {
 describe('Tarife und Grenzen', () => {
   it('Preise wie vorgegeben', () => {
     expect(TIERS.map((p) => p.price)).toEqual(['0 €', '2,49 €', '4,99 €']);
-    expect(Object.values(OFFERS).map((o) => o.cents)).toEqual([249, 1199, 499, 2499]);
+    expect(Object.values(OFFERS).map((o) => o.cents)).toEqual([249, 1199, 2999, 499, 2499, 5999]);
     expect(GROUP_LIMITS).toEqual({ members: 8, homework: 50, studyEntries: 100, documents: 0 });
   });
   it('Plus-Anzeige', () => {

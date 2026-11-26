@@ -27,7 +27,7 @@ elif [[ "${1:-}" == "--rescue" ]]; then
     "$ROOT/supabase/rescue/test_guard.sql"
     "$ROOT/supabase-app/migrations/0001_tenancy.sql" "$ROOT/supabase-app/migrations/0002_admin.sql" "$ROOT/supabase-app/migrations/0003_plans.sql"
     "$ROOT/supabase-app/migrations/0004_feedback.sql" "$ROOT/supabase-app/migrations/0005_push.sql" "$ROOT/supabase-app/migrations/0006_ai_plan.sql"
-    "$ROOT/supabase-app/migrations/0007_move_codes_legal.sql" "$ROOT/supabase-app/migrations/0008_trash_7_days.sql"
+    "$ROOT/supabase-app/migrations/0007_move_codes_legal.sql" "$ROOT/supabase-app/migrations/0008_trash_7_days.sql" "$ROOT/supabase-app/migrations/0009_lifetime_move_codes.sql"
     "$ROOT/supabase/rescue/test_broken.sql"
     "$ROOT/supabase/rescue/seite_reparieren.sql"
     "$ROOT/supabase/rescue/seite_reparieren.sql"
