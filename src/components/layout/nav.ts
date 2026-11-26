@@ -1,5 +1,5 @@
-import { FILES_ENABLED } from '../../lib/edition';
-import { BookOpen, CalendarDays, ChartLine, FileText, House, Music2, NotebookPen, Settings, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
+import { FILES_ENABLED, IS_APP } from '../../lib/edition';
+import { BookOpen, CalendarDays, ChartLine, FileText, House, Music2, NotebookPen, Settings, Sparkles, SquareCheckBig, Timer, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -15,6 +15,8 @@ const ALL_NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', short: 'Home', icon: House, group: 'main' },
   { to: '/fokus', label: 'Fokus', icon: Timer, group: 'main' },
   { to: '/lernplan', label: 'Lernplan', short: 'Plan', icon: CalendarDays, group: 'main' },
+  // App: KI-Lernplan direkt in der Seitenleiste (die bisherige Seite hat keine KI)
+  ...(IS_APP ? [{ to: '/ki-lernplan', label: 'KI-Lernplan', short: 'KI-Plan', icon: Sparkles, group: 'main' as const }] : []),
   { to: '/hausaufgaben', label: 'Hausaufgaben', short: 'Hausaufg.', icon: NotebookPen, group: 'main' },
   { to: '/faecher', label: 'Fächer', icon: BookOpen, group: 'main' },
   { to: '/team', label: 'Team', icon: Users, group: 'main' },
