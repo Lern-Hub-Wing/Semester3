@@ -211,7 +211,7 @@ function SettingsNav({ active, areas = false }: { active?: SectionKey; areas?: b
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Suchen, z. B. „dunkel“, „Uhr“, „Wetter“"
+          placeholder="Suchen, z. B. „Uhr“ oder „Wetter“"
           className="h-11 w-full rounded-2xl border border-line bg-[var(--ss-card)] pl-10 pr-3 text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ss-accent)]"
           data-testid="settings-search"
           enterKeyHint="search"
@@ -285,7 +285,7 @@ function useNavGroups(active?: SectionKey): NavGroup[] {
     { icon: <CloudSun />, tint: TINT.blue, label: 'Wetter', value: weatherMode === 'auto' ? 'Automatisch' : weatherMode === 'off' ? 'Aus' : 'Fest', ...sec('wetter'), keywords: 'regen schnee sonne gewitter standort hintergrund' },
   ];
   const music: NavRow = { icon: <Music2 />, tint: AREA_TINT.music, label: 'Musik-Bibliothek', value: musicAvailable === false ? 'nicht eingerichtet' : `${tracks} Titel`, to: '/musik', testId: 'settings-music', keywords: 'lofi youtube lieder' };
-  const subjects: NavRow = { icon: <BookOpen />, tint: AREA_TINT.subjects, label: 'Fächer', value: modules.length, ...sec('faecher'), keywords: 'module reihenfolge farbe archiv' };
+  const subjects: NavRow = { icon: <BookOpen />, tint: AREA_TINT.subjects, label: 'Fächer verwalten', value: modules.length, ...sec('faecher'), keywords: 'module reihenfolge farbe archiv' };
   const trash: NavRow = { icon: <Trash2 />, tint: AREA_TINT.trash, label: 'Papierkorb', value: trashCount || undefined, to: '/papierkorb', testId: 'settings-trash', keywords: 'gelöscht wiederherstellen' };
   const history: NavRow = { icon: <History />, tint: AREA_TINT.history, label: 'Änderungsverlauf', to: '/verlauf', keywords: 'aktivität protokoll' };
   const about: NavRow = { icon: <Info />, tint: AREA_TINT.info, label: 'Über StudySpace', value: config.version, ...sec('info'), keywords: 'version verbindung' };

@@ -3,12 +3,18 @@ import { createRoot } from 'react-dom/client';
 import './styles/index.css';
 import App from './App';
 import { navigate } from './lib/router';
+import { IS_APP } from './lib/edition';
+import { earlyRedirect } from './components/layout/MovedScreen';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+// Bisherige Seite: umgezogen oder Admin-Adresse → sofort weiter zur App (ohne Zwischenfenster)
+const leaving = !IS_APP && earlyRedirect();
+
+if (!leaving)
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
 
 // Service Worker (PWA) – nur im Produktions-Build
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

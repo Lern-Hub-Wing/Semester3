@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, PartyPopper } from 'lucide-react';
-import { Ambient } from './Ambient';
-import { LogoMark } from '../Logo';
-import { Button } from '../ui/Button';
-
+/**
+ * Umzug der bisherigen Seite in die App: Weiterleitung ohne Zwischenfenster.
+ * („Alte Seite“ nur noch über …/Semester3/?bleiben – z. B. um die Umleitung auszuschalten.)
+ */
 const STAY_KEY = 'studyspace.move.stay';
 
 /** Adresse der App neben der Seite (…/Semester3/app/) */
@@ -26,54 +24,65 @@ export function movedTarget(value: unknown): string | null {
   }
 }
 
+const MOVED_KEY = 'studyspace.moved.to';
+
+/** Auf der alten Seite bleiben (nur über ?bleiben in der Adresse oder nach dem Einschalten der Umleitung in dieser Sitzung) */
 export function stayOnSite(): boolean {
   try {
+    if (new URLSearchParams(window.location.search).has('bleiben')) sessionStorage.setItem(STAY_KEY, '1');
     return sessionStorage.getItem(STAY_KEY) === '1';
   } catch {
     return false;
   }
 }
 
-/** „Wir sind umgezogen“ – leitet nach kurzer Zeit zur App weiter */
-export function MovedScreen({ target, onStay }: { target: string; onStay: () => void }) {
-  const [left, setLeft] = useState(6);
-  useEffect(() => {
-    if (left <= 0) {
-      window.location.assign(target);
-      return;
+/** Wer die Umleitung gerade selbst einschaltet, bleibt in dieser Sitzung auf der Seite (zum Prüfen/Ausschalten). */
+export function stayThisSession(): void {
+  try {
+    sessionStorage.setItem(STAY_KEY, '1');
+  } catch {
+    /* egal */
+  }
+}
+
+/** Umleitungsziel merken: Beim nächsten Besuch geht es sofort weiter, noch bevor die Seite lädt. */
+export function rememberMoved(target: string | null): void {
+  try {
+    if (target) localStorage.setItem(MOVED_KEY, target);
+    else localStorage.removeItem(MOVED_KEY);
+  } catch {
+    /* egal */
+  }
+}
+
+/** Jetzt zur App – ohne Zwischenfenster */
+export function redirectToApp(target: string): void {
+  rememberMoved(target);
+  window.location.replace(target);
+}
+
+/**
+ * Vor dem Start der alten Seite (main.tsx): sofort weiterleiten, wenn
+ *  – eine Admin-Adresse geöffnet wurde (…/admin) → Admin-Bereich der App,
+ *  – die Seite schon einmal als umgezogen erkannt wurde (gemerktes Ziel).
+ * Liefert true, wenn weitergeleitet wird.
+ */
+export function earlyRedirect(): boolean {
+  const base = import.meta.env.BASE_URL || '/';
+  const rest = window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : '';
+  if (/^admin(\/|$)/.test(rest)) {
+    window.location.replace(`${appAddress()}admin/`);
+    return true;
+  }
+  if (stayOnSite()) return false;
+  try {
+    const t = localStorage.getItem(MOVED_KEY);
+    if (t && movedTarget({ url: t })) {
+      window.location.replace(t);
+      return true;
     }
-    const t = setTimeout(() => setLeft((n) => n - 1), 1000);
-    return () => clearTimeout(t);
-  }, [left, target]);
-  return (
-    <div className="relative grid min-h-dvh place-items-center overflow-hidden px-5 py-10" data-testid="moved-screen">
-      <Ambient />
-      <div className="glass glass-strong relative z-10 flex w-full max-w-md flex-col items-center gap-4 rounded-[30px] p-7 text-center">
-        <LogoMark size={52} />
-        <PartyPopper className="size-7 text-accent" aria-hidden />
-        <h1 className="display text-[26px] leading-tight">Wir sind umgezogen!</h1>
-        <p className="text-[15px] leading-snug text-muted">
-          StudySpace gibt es jetzt als App mit eigenem Konto – mit allen Fächern, Prüfungen, Hausaufgaben und deinen Haken. Den Einladungscode für die Lerngruppe bekommst du aus der Gruppe.
-        </p>
-        <Button variant="primary" size="lg" className="w-full" icon={<ArrowRight className="size-5" />} onClick={() => window.location.assign(target)} data-testid="moved-go">
-          Zur App {left > 0 ? `(${left})` : ''}
-        </Button>
-        <button
-          type="button"
-          className="text-[13px] font-medium text-muted underline underline-offset-2 hover:text-ink"
-          onClick={() => {
-            try {
-              sessionStorage.setItem(STAY_KEY, '1');
-            } catch {
-              /* egal */
-            }
-            onStay();
-          }}
-          data-testid="moved-stay"
-        >
-          Alte Seite trotzdem öffnen
-        </button>
-      </div>
-    </div>
-  );
+  } catch {
+    /* ohne Speicher: normal starten */
+  }
+  return false;
 }

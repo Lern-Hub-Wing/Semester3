@@ -1380,27 +1380,30 @@ try {
     await p.waitForTimeout(500);
     const moved = db.app_settings.find((r) => r.key === 'moved_to_app');
     check(!!moved && /\/Semester3\/app\/$/.test(moved.value.url), `Umzug: Umleitung gespeichert (${moved?.value?.url})`);
-    // Neuer Besuch: „Wir sind umgezogen“
+    // Wer die Umleitung einschaltet, bleibt in dieser Sitzung auf der Seite
+    check((await p.getByRole('switch', { name: 'Umleitung zur App' }).count()) === 1, 'Umzug: Einschaltende Person bleibt zum Prüfen auf der Seite');
+    // Neuer Besuch: sofort zur App, ohne Zwischenfenster
+    const fakeApp = (pg) => pg.route('**/Semester3/app/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>App</title><p id="app">App</p>' }));
     const other = await newPage(browser, { viewport: { width: 390, height: 844 } });
-    await other.page.route('**/Semester3/app/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>App</title><p id="app">App</p>' }));
+    await fakeApp(other.page);
     await other.page.goto(BASE);
-    await other.page.getByTestId('moved-screen').waitFor();
-    check(true, 'Umzug: Besucher sehen „Wir sind umgezogen“');
-    await other.page.getByTestId('moved-stay').click();
+    await other.page.waitForURL(/\/Semester3\/app\/$/, { timeout: 10000 });
+    check(true, 'Umzug: Besucher landen direkt in der App (ohne „Wir sind umgezogen“)');
+    // Zweiter Besuch: gemerktes Ziel → weiter, noch bevor die Seite lädt
+    await other.page.goto(BASE);
+    await other.page.waitForURL(/\/Semester3\/app\/$/, { timeout: 5000 });
+    check(true, 'Umzug: beim nächsten Besuch sofort weiter');
+    // Notausgang für den Betreiber: ?bleiben
+    await other.page.goto(`${BASE}?bleiben`);
     await other.page.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
-    check(true, 'Umzug: „Alte Seite trotzdem öffnen“ funktioniert');
-    await other.page.reload();
-    await other.page.getByRole('heading', { name: 'Wer lernt heute?' }).waitFor();
+    check(true, 'Umzug: …/?bleiben öffnet die alte Seite');
+    // Alte Admin-Adresse → Admin-Bereich der App
     const third = await newPage(browser, { viewport: { width: 390, height: 844 } });
-    await third.page.route('**/Semester3/app/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>App</title><p id="app">App</p>' }));
-    await third.page.goto(BASE);
-    await third.page.getByTestId('moved-go').click();
-    await third.page.waitForURL(/\/Semester3\/app\/$/);
-    check(true, 'Umzug: „Zur App“ leitet zur App');
+    await fakeApp(third.page);
+    await third.page.goto(`${BASE}admin`);
+    await third.page.waitForURL(/\/Semester3\/app\/admin\/$/, { timeout: 10000 });
+    check(true, 'Umzug: …/admin führt in den Admin-Bereich der App');
     // Umleitung wieder aus
-    await p.reload();
-    await p.getByTestId('moved-stay').click();
-    await p.getByRole('button', { name: 'Als Person 1 lernen' }).click();
     await p.goto(`${BASE}#/einstellungen/umzug`);
     await p.getByRole('switch', { name: 'Umleitung zur App' }).click();
     await p.waitForTimeout(500);

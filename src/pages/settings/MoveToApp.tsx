@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { stayThisSession } from '../../components/layout/MovedScreen';
 import { ArrowRightLeft, CheckCircle2, Download, ExternalLink, Rocket, ShieldCheck, Smartphone } from 'lucide-react';
 import { Row, Section } from '../../components/ui/SettingsCard';
 import { Button } from '../../components/ui/Button';
@@ -60,6 +61,8 @@ export function MoveToAppSection() {
   };
 
   const setMoved = async (on: boolean) => {
+    // Wer die Umleitung selbst einschaltet, bleibt in dieser Sitzung hier (zum Prüfen oder Ausschalten)
+    if (on) stayThisSession();
     const ok = await setSetting('moved_to_app', on ? { url: app, at: new Date().toISOString() } : false);
     if (ok !== false) toast.success(on ? 'Die Seite leitet jetzt auf die App um' : 'Umleitung aufgehoben – die Seite läuft wieder normal');
   };

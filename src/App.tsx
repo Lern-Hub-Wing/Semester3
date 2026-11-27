@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { config } from './lib/config';
 import { FILES_ENABLED, IS_APP } from './lib/edition';
@@ -32,7 +32,7 @@ import { installSpotlight } from './lib/spotlight';
 import { FocusWatcher } from './components/FocusTimer';
 import { installAutoPause } from './store/autoPause';
 import { MountainFlight } from './components/landscape/MountainFlight';
-import { MovedScreen, movedTarget, stayOnSite } from './components/layout/MovedScreen';
+import { movedTarget, redirectToApp, rememberMoved, stayOnSite } from './components/layout/MovedScreen';
 import { rememberReturnPath, returnPath } from './lib/focusReturn';
 import { PushMemberSwitch, PushOnboarding } from './components/PushOnboarding';
 import { BadgeSync } from './components/BadgeSync';
@@ -148,8 +148,16 @@ function Main() {
 
   // Umzug: Die Seite leitet auf die App um (Einstellungen → Umzug in die App)
   const movedTo = useData((s) => (IS_APP ? null : movedTarget(s.app_settings.moved_to_app?.value)));
-  const [stay, setStay] = useState(stayOnSite);
-  if (movedTo && !stay) return <MovedScreen target={movedTo} onStay={() => setStay(true)} />;
+  // jedes Mal frisch lesen: wer die Umleitung gerade selbst eingeschaltet hat, bleibt
+  const stay = stayOnSite();
+  const settingsReady = useData((s) => s.phase === 'ready');
+  // Umgezogen: sofort und ohne Zwischenfenster zur App (Ziel wird gemerkt → nächstes Mal noch vor dem Laden)
+  useEffect(() => {
+    if (IS_APP || !settingsReady) return;
+    if (movedTo && !stay) redirectToApp(movedTo);
+    else if (!movedTo) rememberMoved(null);
+  }, [movedTo, stay, settingsReady]);
+  if (movedTo && !stay) return <div className="fixed inset-0 bg-[var(--ss-canvas)]" data-testid="moved-redirect" />;
 
   return (
     <LayoutGroup>
