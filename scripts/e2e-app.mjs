@@ -659,6 +659,28 @@ try {
     await a.getByTestId('legal-datenschutz').getByText('Deine Rechte', { exact: false }).waitFor();
   });
 
+  // TEASER=<ordner>: scharfe Handy-Aufnahmen (3x) für Social-Media-Bilder
+  if (process.env.TEASER) {
+    const tg = mock.state.groups.find((g) => g.kind === 'team');
+    if (tg) tg.name = 'Semester 3';
+    for (const r of mock.state.tables.app_settings ?? []) if (r.key === 'app_name' && (!tg || r.group_id === tg.id)) r.value = 'Semester 3';
+    for (const scheme of ['dark', 'light']) {
+      const ctxT = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3, colorScheme: scheme, reducedMotion: 'reduce' });
+      const t = await ctxT.newPage();
+      await t.goto(BASE);
+      await t.getByLabel('E-Mail').fill('anna@example.com');
+      await t.getByLabel('Passwort', { exact: true }).fill('sicheresPasswort1');
+      await t.getByRole('button', { name: 'Anmelden' }).click();
+      await t.locator('.tabbar [data-tour="nav-team"]').waitFor({ timeout: 10000 });
+      for (const r of ['', 'lernplan', 'fokus']) {
+        await t.goto(`${BASE}#/${r}`);
+        await t.waitForTimeout(1800);
+        await t.screenshot({ path: join(process.env.TEASER, `${scheme}-${r || 'home'}.png`) });
+      }
+      await ctxT.close();
+    }
+  }
+
   // REVIEW=<ordner>: Rundgang über alle Seiten (Handy hell/dunkel, Desktop) für die Design-Durchsicht
   if (process.env.REVIEW) {
     const routes = ['', 'lernplan', 'hausaufgaben', 'faecher', 'team', 'analyse', 'musik', 'ki-lernplan', 'hilfe', 'papierkorb', 'einstellungen', 'einstellungen/konto', 'einstellungen/gruppe', 'einstellungen/plus', 'einstellungen/darstellung', 'einstellungen/fokus', 'einstellungen/code', 'fokus'];
