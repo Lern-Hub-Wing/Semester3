@@ -659,6 +659,24 @@ try {
     await a.getByTestId('legal-datenschutz').getByText('Deine Rechte', { exact: false }).waitFor();
   });
 
+  // REVIEW=<ordner>: Rundgang über alle Seiten (Handy hell/dunkel, Desktop) für die Design-Durchsicht
+  if (process.env.REVIEW) {
+    const routes = ['', 'lernplan', 'hausaufgaben', 'faecher', 'team', 'analyse', 'musik', 'ki-lernplan', 'hilfe', 'papierkorb', 'einstellungen', 'einstellungen/konto', 'einstellungen/gruppe', 'einstellungen/plus', 'einstellungen/darstellung', 'einstellungen/fokus', 'einstellungen/code', 'fokus'];
+    await mo.setViewportSize({ width: 390, height: 844 });
+    for (const [page, tag, full] of [[mo, 'm', true], [a, 'd', false]]) {
+      for (const scheme of tag === 'm' ? ['light', 'dark'] : ['light']) {
+        await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+        for (const r of routes) {
+          await page.goto(`${BASE}#/${r}`);
+          await page.waitForTimeout(1300);
+          if (full) await page.evaluate(() => { const t = document.querySelector('.tabbar'); if (t) t.style.visibility = 'hidden'; });
+          await page.screenshot({ path: join(process.env.REVIEW, `${tag}-${scheme}-${r.replace(/\//g, '_') || 'home'}.png`), fullPage: full && r !== 'fokus' });
+          if (full) await page.evaluate(() => { const t = document.querySelector('.tabbar'); if (t) t.style.visibility = ''; });
+        }
+      }
+    }
+  }
+
   await check('Keine Skriptfehler', async () => assert(errors.length === 0, errors.join(' | ')));
 } finally {
   await browser.close();

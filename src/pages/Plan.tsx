@@ -54,6 +54,16 @@ interface DayInfo {
 }
 
 /** Gemeinsamer Lernkalender. Eine Änderung gilt für alle. */
+/** „KW 48 · 23.–29. Nov.“ – kurz genug fürs Handy (Monat nur doppelt, wenn die Woche ihn wechselt) */
+function weekLabel(date: string): string {
+  const d = weekDays(date);
+  const a = d[0]!;
+  const b = d[6]!;
+  const sameMonth = a.slice(0, 7) === b.slice(0, 7);
+  const from = sameMonth ? `${Number(a.slice(8))}.` : formatISODate(a, { day: 'numeric', month: 'short' });
+  return `KW ${isoWeekNumber(date)} · ${from}–${formatISODate(b, { day: 'numeric', month: 'short' })}`;
+}
+
 export function Plan({ me }: { me: Member }) {
   const { query } = useLocation();
   const today = useToday();
@@ -135,7 +145,7 @@ export function Plan({ me }: { me: Member }) {
     view === 'monat'
       ? formatISODate(date, { month: 'long', year: 'numeric' })
       : view === 'woche'
-        ? `KW ${isoWeekNumber(date)} · ${formatISODate(weekDays(date)[0], { day: 'numeric', month: 'short' })} – ${formatISODate(weekDays(date)[6], { day: 'numeric', month: 'short' })}`
+        ? weekLabel(date)
         : view === 'tag'
           ? formatISODate(date, { weekday: 'long', day: 'numeric', month: 'long' })
           : 'Alle Lerntage';

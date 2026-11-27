@@ -325,13 +325,10 @@ export function GroupSection() {
       )}
 
       {usage && (
-        <Section title="Speicher" icon={<Gauge />} tint={TINT.slate} hint="Grenzen je Lerngruppe. Gelöschte Einträge zählen nicht und werden nach 30 Tagen endgültig entfernt.">
+        <Section title="Speicher" icon={<Gauge />} tint={TINT.slate} hint="Grenzen je Lerngruppe. Gelöschte Einträge zählen nicht und werden nach 7 Tagen endgültig entfernt.">
           <UsageRow label="Aktive Hausaufgaben" value={usage.homework} max={usage.homework_max} />
           <UsageRow label="Aktive Lernplaneinträge" value={usage.study_entries} max={usage.study_entries_max} />
           <UsageRow label="Mitglieder" value={usage.members} max={usage.members_max} />
-          <Row label="Dokumente" inline>
-            <span className="text-[13.5px] text-muted">keine Uploads</span>
-          </Row>
         </Section>
       )}
 
@@ -543,7 +540,7 @@ export function PlusSection() {
           <PlanCheckout key={tier} tier={tier} onDone={(r) => (r.group_id || tier === 'group' ? reloadIntoGroup() : undefined)} />
         </div>
         <p className="list-group-footer">
-          Monatstarife verlängern sich monatlich, solange nicht gekündigt wird. Semesterpässe enden nach sechs Monaten automatisch.
+          Monatstarife verlängern sich monatlich, solange nicht gekündigt wird. Semesterpässe enden nach sechs Monaten automatisch. Lifetime zahlst du einmal und behältst es für immer.
           {tier === 'group' && ' Nach dem Kauf erstellst du unter „Lerngruppe“ deine Gruppe.'}
         </p>
       </div>
@@ -557,9 +554,6 @@ export function PlusSection() {
         </Row>
         <Row label="Aktive Lernplaneinträge" inline>
           <span className="num text-[14px] text-muted">{GROUP_LIMITS.studyEntries}</span>
-        </Row>
-        <Row label="Dokumente" inline>
-          <span className="text-[14px] text-muted">keine Uploads</span>
         </Row>
       </Section>
 

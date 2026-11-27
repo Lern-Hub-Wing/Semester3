@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudySpace</title>
+<meta name="robots" content="noindex">
+<script>
+  // Unbekannte Adresse: Admin-Adressen → Admin-Bereich der App, alles andere → App
+  (function () {
+    var p = location.pathname;
+    var base = p.indexOf('/Semester3/') === 0 ? '/Semester3/' : '/';
+    var rest = p.slice(base.length);
+    location.replace(base + (/^(app\/)?admin(\/|$)/.test(rest) ? 'app/admin/' : 'app/'));
+  })();
+</script>
+<style>body{margin:0;background:#121129}</style>
+</head>
+<body></body>
+</html>

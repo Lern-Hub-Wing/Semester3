@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Check, FlaskConical, Sparkles } from 'lucide-react';
+import { Check, FlaskConical, ShoppingBag } from 'lucide-react';
 import { getSupabase } from '../lib/supabase';
 import { describeError } from '../lib/errors';
 import { Button } from '../components/ui/Button';
@@ -114,7 +114,7 @@ export function PlanCheckout({ tier, onDone, compact }: { tier: 'solo' | 'group'
                 {error}
               </p>
             )}
-            <Button variant="primary" size="lg" loading={busy} icon={<Sparkles className="size-4" />} onClick={() => void buy()} data-testid="checkout-buy">
+            <Button variant="primary" size="lg" loading={busy} icon={<ShoppingBag className="size-4" />} onClick={() => void buy()} data-testid="checkout-buy">
               {offer.price} – Kauf simulieren
             </Button>
             <p className="flex items-start gap-1.5 text-[11.5px] leading-snug text-faint">

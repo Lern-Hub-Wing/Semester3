@@ -97,8 +97,9 @@ export function Trash() {
                   </p>
                 )}
               </div>
-              <Button size="sm" icon={i.kind === 'Modul' || i.kind === 'Thema' ? <Archive className="size-4" /> : <RotateCcw className="size-4" />} onClick={() => void i.restore()}>
-                Wiederherstellen
+              {/* Handy: nur das Symbol (Titel bleibt lesbar), ab Tablet mit Beschriftung */}
+              <Button size="sm" aria-label="Wiederherstellen" className="max-sm:!size-9 max-sm:!px-0 max-sm:[&>span]:sr-only" icon={i.kind === 'Modul' || i.kind === 'Thema' ? <Archive className="size-4" /> : <RotateCcw className="size-4" />} onClick={() => void i.restore()}>
+                <span>Wiederherstellen</span>
               </Button>
             </li>
           ))}

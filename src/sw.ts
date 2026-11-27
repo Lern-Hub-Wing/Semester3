@@ -32,7 +32,8 @@ const IS_APP_SCOPE = /\/app\/$/.test(new URL(self.registration.scope).pathname);
 // Alle App-Routen liefern index.html (Hash-Router); Hilfsseiten unter /einrichtung/ bleiben eigenständig
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL('index.html'), {
-    denylist: IS_APP_SCOPE ? [/\/admin\//] : [/\/einrichtung\//, /\/app\//],
+    // App: /admin und /admin/ liefern den Admin-Bereich (nicht die App); Seite: /app, /einrichtung, /admin nie mit der alten index.html
+    denylist: IS_APP_SCOPE ? [/\/admin(\/|$)/] : [/\/einrichtung\//, /\/app(\/|$)/],
   }),
 );
 
